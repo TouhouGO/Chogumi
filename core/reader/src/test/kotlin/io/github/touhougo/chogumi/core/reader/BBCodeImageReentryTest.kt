@@ -36,7 +36,8 @@ import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 
 /**
- * 楼层里的单张图划出列表再回来，首帧就是加载后的尺寸（原图尺寸或「加载失败」小条），不再先按 16:9 占位、下一帧再缩。
+ * 楼层里的图划出列表再回来，首帧就是加载后的尺寸（单张：原图尺寸或「加载失败」小条；一组：按原图比例排好的行），
+ * 不再先按 16:9 占位、下一帧再缩。
  *
  * 只记在组合里时，往回滑到有图的那一层：它从顶上进来按占位排，下一帧缩成真实尺寸、整项缩出屏幕被丢掉，
  * 再往回滑又按占位进来——列表卡在这一段来回跳，回不到更早的楼。这里用与楼层相同的 [FoldableText] 画那一层，
@@ -58,19 +59,25 @@ class BBCodeImageReentryTest {
     @Test
     fun 加载出的图往回滑重新进来时首帧就是原图尺寸() {
         // 120×60 像素：按 1px≈1dp 画成 120×60dp，比 16:9 占位（360 栏宽 → 约 200dp 高）矮得多
-        assertReentersAtSettledSize { request -> SuccessResult(Bitmap.createBitmap(120, 60, Bitmap.Config.ARGB_8888).asImage(), request) }
+        assertReentersAtSettledSize(SINGLE) { request -> SuccessResult(Bitmap.createBitmap(120, 60, Bitmap.Config.ARGB_8888).asImage(), request) }
+    }
+
+    @Test
+    fun 加载出的一组图往回滑重新进来时首帧就是按原图比例排好的行() {
+        // 两张 60×60：并成一行、不放大（60dp 高），比两个 16:9 占位各占一行（共约 400dp）矮得多
+        assertReentersAtSettledSize(GROUP) { request -> SuccessResult(Bitmap.createBitmap(60, 60, Bitmap.Config.ARGB_8888).asImage(), request) }
     }
 
     @Test
     fun 加载失败的图往回滑重新进来时首帧就是失败小条() {
-        assertReentersAtSettledSize { request -> ErrorResult(null, request, IllegalStateException("图床已失效")) }
+        assertReentersAtSettledSize(SINGLE) { request -> ErrorResult(null, request, IllegalStateException("图床已失效")) }
     }
 
-    private fun assertReentersAtSettledSize(result: (ImageRequest) -> ImageResult) {
+    private fun assertReentersAtSettledSize(raw: String, result: (ImageRequest) -> ImageResult) {
         SingletonImageLoader.setUnsafe { context ->
             ImageLoader.Builder(context).components { add(Interceptor { chain -> result(chain.request) }) }.build()
         }
-        val ast = BBCodeParser.parse("开头一行\n[img]https://example.invalid/picture.png[/img]")
+        val ast = BBCodeParser.parse(raw)
         val list = LazyListState()
         val heights = mutableListOf<Int>()
         composeRule.setContent {
@@ -115,6 +122,8 @@ class BBCodeImageReentryTest {
     }
 
     private companion object {
+        const val SINGLE = "开头一行\n[img]https://example.invalid/picture.png[/img]"
+        const val GROUP = "开头一行\n[img]https://example.invalid/a.png[/img]\n\n[img]https://example.invalid/b.png[/img]"
         const val FILLER_COUNT = 20
         const val FILLER_JUMP = 4
         const val STEP_PX = 24f

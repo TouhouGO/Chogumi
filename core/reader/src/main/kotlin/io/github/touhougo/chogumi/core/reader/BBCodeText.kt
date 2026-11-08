@@ -351,7 +351,7 @@ internal sealed interface Row {
 /**
  * 把块序列归并成行：连续的 [Block.Inline] / [Block.Smiley] / [Block.StyledSmiley] / [Block.SpoilerBlock]
  * 合成一个 [Row.InlineFlow]，遇到 [Block.LineBreak] 则立即换行，其余块各自占一行。
- * 连续的图片（之间只有空白、换行、空行）归成一个 [Row.Images]，界面排成宫格。
+ * 连续的图片（之间只有空白、换行、空行）归成一个 [Row.Images]，界面按各图原比例排行（[imageRowsOf]）。
  *
  * **mask 必须并入行内流**：官方 `span.text_mask` 是行内元素（只有
  * `border-radius` 与 `padding:0 5px`，无任何块级属性），

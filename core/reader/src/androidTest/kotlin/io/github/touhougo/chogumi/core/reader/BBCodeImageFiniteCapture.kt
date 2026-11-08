@@ -31,7 +31,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** 非有限声明、普通单图、长图与宫格的设备画面；图片来自内存，不读取网络或真实 UGC。 */
+/** 非有限声明、普通单图、长图与一组图的设备画面；图片来自内存，不读取网络或真实 UGC。 */
 @OptIn(DelicateCoilApi::class)
 @VisualCapture
 @RunWith(AndroidJUnit4::class)
@@ -69,7 +69,7 @@ class BBCodeImageFiniteCapture {
             普通图片和长图
             [img=250,180]https://example.invalid/normal.png[/img]
             [img]https://example.invalid/long.png[/img]
-            两张图片仍是宫格
+            两张图片按原比例并一行
             [img]https://example.invalid/grid-1.png[/img][img]https://example.invalid/grid-2.png[/img]
             """.trimIndent(),
         )

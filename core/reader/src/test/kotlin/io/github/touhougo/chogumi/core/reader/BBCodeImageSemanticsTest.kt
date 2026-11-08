@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
-/** 帖子里宫格中的图片可点：读屏要念出「查看图片」（单张图的加载成功态用同一个标签，Robolectric 里没有网络，图总是加载失败，测不到）。 */
+/** 帖子里一组图中的每张都可点：读屏要念出「查看图片」（单张图的加载成功态用同一个标签，Robolectric 里没有网络，图总是加载失败，测不到）。 */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], qualifiers = "zh-w360dp-h640dp")
 class BBCodeImageSemanticsTest {
@@ -26,7 +26,7 @@ class BBCodeImageSemanticsTest {
     }
 
     @Test
-    fun 宫格里的每张图片带点击标签() {
+    fun 一组图里的每张图片带点击标签() {
         composeRule.setContent {
             ChogumiTheme { BBCodeText(BBCodeParser.parse("[img]https://a/1.png[/img][img]https://a/2.png[/img]")) }
         }

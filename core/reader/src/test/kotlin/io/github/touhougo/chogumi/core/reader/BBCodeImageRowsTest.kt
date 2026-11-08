@@ -5,10 +5,9 @@ import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** 只有表情的段落照常进行内流、连续图片归组成宫格、单图尺寸上限、折叠线不切图片。 */
+/** 只有表情的段落照常进行内流、连续图片归成一组、图片尺寸（不放大、长图上限、未知占位）、折叠线不切图片。 */
 class BBCodeImageRowsTest {
 
     private fun blocksOf(raw: String) =
@@ -34,21 +33,15 @@ class BBCodeImageRowsTest {
         assertEquals(listOf(Row.Images::class, Row.BlankLine::class, Row.InlineFlow::class), rows.map { it::class })
     }
 
-    @Test
-    fun `宫格列数：两张四张两列，其余三列`() {
-        assertEquals(listOf(2, 3, 2, 3, 3), listOf(2, 3, 4, 5, 9).map(::imageGridColumns))
-    }
+    private fun single(width: Float?, height: Float?, column: androidx.compose.ui.unit.Dp): ImageCell =
+        imageRowsOf(listOf(if (width != null && height != null) width to height else null), column).single().cells.single()
 
     @Test
     fun `单图：宽不超过栏宽，高不超过宽的四分之三倍以上即标长图，尺寸未知按十六比九占位`() {
-        val (w1, h1, long1) = singleImageSize(600f, 300f, column = 300.dp)
-        assertEquals(300.dp, w1); assertEquals(150.dp, h1); assertEquals(false, long1)
-        val (w2, h2, long2) = singleImageSize(100f, 100f, column = 300.dp)
-        assertEquals(100.dp, w2, "小图按 1px≈1dp 原样大小，不拉伸"); assertEquals(100.dp, h2); assertEquals(false, long2)
-        val (w3, h3, long3) = singleImageSize(300f, 3000f, column = 300.dp)
-        assertEquals(300.dp, w3); assertEquals(400.dp, h3); assertEquals(true, long3)
-        val (w4, h4, _) = singleImageSize(null, null, column = 320.dp)
-        assertEquals(320.dp, w4); assertEquals(180.dp, h4)
+        assertEquals(ImageCell(300.dp, 150.dp, isLong = false), single(600f, 300f, column = 300.dp))
+        assertEquals(ImageCell(100.dp, 100.dp, isLong = false), single(100f, 100f, column = 300.dp), "小图按 1px≈1dp 原样大小，不拉伸")
+        assertEquals(ImageCell(300.dp, 400.dp, isLong = true), single(300f, 3000f, column = 300.dp))
+        assertEquals(ImageCell(320.dp, 180.dp, isLong = false), single(null, null, column = 320.dp))
     }
 
     @Test
@@ -63,11 +56,18 @@ class BBCodeImageRowsTest {
         )
 
         invalid.forEach { (pixelWidth, pixelHeight) ->
-            val (width, height, isLong) = singleImageSize(pixelWidth, pixelHeight, column = 320.dp)
-            assertEquals(320.dp, width, "$pixelWidth × $pixelHeight 的无效尺寸不进入比例计算")
-            assertEquals(180.dp, height, "$pixelWidth × $pixelHeight 按现有 16:9 未知尺寸占位")
-            assertFalse(isLong, "$pixelWidth × $pixelHeight 不误标成长图")
+            assertEquals(
+                ImageCell(320.dp, 180.dp, isLong = false),
+                single(pixelWidth, pixelHeight, column = 320.dp),
+                "$pixelWidth × $pixelHeight 的无效尺寸不进入比例计算，按 16:9 占位、不标长图",
+            )
         }
+    }
+
+    @Test
+    fun `一组小图并一行时不放大，这一行窄于栏宽`() {
+        val rows = imageRowsOf(listOf(100f to 100f, 100f to 100f), column = 300.dp)
+        assertEquals(listOf(ImageRow(0, listOf(ImageCell(100.dp, 100.dp, false), ImageCell(100.dp, 100.dp, false)))), rows)
     }
 
     @Test
