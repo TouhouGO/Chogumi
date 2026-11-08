@@ -35,7 +35,6 @@ GRID_ALLOWED = {
 
 # 界面文件里 chunked 切行（文件名, 函数名）
 CHUNKED_ALLOWED = {
-    ("BBCodeImages.kt", "ImageGrid"): "正文里的图片拼图：列数由图片张数定（版式属于内容），格宽按正文列宽均分",
     ("ReactionBar.kt", "ReactionGrid"): "表情选择器在下拉菜单里，菜单宽度由内容撑出（4 × 44dp），没有可推列数的父级宽度",
     ("SubjectStatsSection.kt", "balancedRows"): "每集讨论热度格是图表：一行至多 13 格、按行数均分，格边长随宽度缩放，不是卡片网格",
     ("DotStrip.kt", "DotStrip"): "按比例合并同一档的点（每 n 个合成一个），不是切行",
