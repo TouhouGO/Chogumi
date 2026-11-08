@@ -49,7 +49,7 @@ class PageLoadingSkeletonContractTest {
             ("AppShell.kt" to "SlowStartNotice") to "慢启动提示：还没有任何页面，没有可画的骨架",
             ("BusyButton.kt" to "BusyButton") to "确认按钮（面板的保存、发送、提交举报，登录页的登录）里的进行中",
             ("CollectCountButton.kt" to "CollectCountButton") to "按钮里的进行中",
-            ("SubjectDetailsScreen.kt" to "CollectionFab") to "收藏按钮里的进行中",
+            ("SubjectDetailsScreen.kt" to "CollectionFabLabel") to "收藏按钮里的进行中（M3 FAB 与玻璃版共用的那一行）",
         )
     }
 }
