@@ -19,6 +19,7 @@ import io.github.touhougo.chogumi.core.network.releaseDownloadUrl
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.withIndex
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -72,7 +74,13 @@ class AppUpdates(
     private val offered = MutableStateFlow<AppRelease?>(null)
     private val downloads = MutableStateFlow<UpdateDownload>(UpdateDownload.Idle)
     private val checks = Mutex()
-    private var downloadJob: Job? = null
+
+    /**
+     * 当前这一轮下载；[downloads] 只在持着 [attemptLock] 时写，且只有这一轮能写。取消只在下一次挂起时生效，
+     * 写盘那一段不挂起：被取消的一轮之后还会报进度、甚至交出结果，凭这把锁丢掉，不盖住「取消」。
+     */
+    private val attemptLock = Any()
+    private var attempt: Job? = null
 
     /** 要提示的那一版；没有要提示的为 null。用户在提示框里选了什么（[dismiss]、[ignore]、[stopChecking]、下载）之后清掉。 */
     val offer: StateFlow<AppRelease?> = offered.asStateFlow()
@@ -138,22 +146,41 @@ class AppUpdates(
     /** 开始（或重试）下载 [release]；正在下的那一轮先取消。 */
     fun startDownload(release: AppRelease) {
         offered.value = null
-        downloadJob?.cancel()
-        downloads.value = UpdateDownload.Running(release, written = 0L, total = null)
-        downloadJob = scope.launch {
-            val result = outcomeOf { fetchApk(release) }
-            downloads.value = when (result) {
-                is Outcome.Success -> UpdateDownload.Ready(release, result.value)
-                is Outcome.Failed -> UpdateDownload.Failed(release, result.failure)
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            val self = coroutineContext.job
+            val result = outcomeOf {
+                fetchApk(release) { written, total -> publish(self, UpdateDownload.Running(release, written, total)) }
             }
+            publish(
+                self,
+                when (result) {
+                    is Outcome.Success -> UpdateDownload.Ready(release, result.value)
+                    is Outcome.Failed -> UpdateDownload.Failed(release, result.failure)
+                },
+            )
         }
+        synchronized(attemptLock) {
+            attempt?.cancel()
+            attempt = job
+            downloads.value = UpdateDownload.Running(release, written = 0L, total = null)
+        }
+        job.start()
     }
 
     /** 取消下载、或在下载结果上关掉（取消、改用浏览器、已交给系统安装器）：回到什么也没有。下好的包留着，下次不重下。 */
     fun closeDownload() {
-        downloadJob?.cancel()
-        downloadJob = null
-        downloads.value = UpdateDownload.Idle
+        synchronized(attemptLock) {
+            attempt?.cancel()
+            attempt = null
+            downloads.value = UpdateDownload.Idle
+        }
+    }
+
+    /** [job] 那一轮报的进展；已经不是当前这一轮（取消了、换了一轮）时丢掉。 */
+    private fun publish(job: Job, next: UpdateDownload) {
+        synchronized(attemptLock) {
+            if (attempt === job) downloads.value = next
+        }
     }
 
     private suspend fun fetchLatest(): Outcome<AppRelease> = outcomeOf {
@@ -167,7 +194,7 @@ class AppUpdates(
         release.copy(notes = releaseNotesTextOf(outcomeOf { api.getReleaseNotes(release.versionName) }.valueOrNull()))
 
     /** 下好并校验过的安装包；同一版已经在 [dir] 里、对得上就直接用。 */
-    private suspend fun fetchApk(release: AppRelease): File {
+    private suspend fun fetchApk(release: AppRelease, onProgress: (written: Long, total: Long?) -> Unit): File {
         val target = File(dir, release.apkFileName)
         val partial = File(dir, release.apkFileName + PARTIAL_SUFFIX)
         withContext(io) {
@@ -175,9 +202,7 @@ class AppUpdates(
             dir.listFiles()?.filter { it != target }?.forEach { it.delete() }
         }
         if (withContext(io) { target.isFile && sha256Of(target) == release.apkSha256 }) return target
-        api.downloadTo(release.apkUrl, partial) { written, total ->
-            downloads.value = UpdateDownload.Running(release, written, total)
-        }
+        api.downloadTo(release.apkUrl, partial, onProgress)
         return withContext(io) {
             if (sha256Of(partial) != release.apkSha256) {
                 partial.delete()
