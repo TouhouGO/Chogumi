@@ -58,7 +58,7 @@
 
 ### 获取 Chogumi
 
-可随时在 [GitHub Releases](https://github.com/TouhouGO/Chogumi/releases/latest) 获取编译完备的稳定版 APK 文件（支持 Android 7.0 及以上版本）。
+可随时在 [GitHub Releases](https://github.com/TouhouGO/Chogumi/releases/latest) 获取编译完备的稳定版 APK 文件（支持 Android 7.0 及以上版本）。装好之后，App 会自动检查新版本，可以在 App 内下载并校验后安装（设置 › 更新，可以关掉）。
 
 <details>
 <summary><b>关于账户安全与网页会话的说明</b></summary>

@@ -24,6 +24,7 @@
 | 设置项 | 分类名与图标只在 core:ui `SettingsSection`，分类 → 页面只在 feature:settings `SettingsPageScreen`；本地偏好加进 `PreferenceSettings.kt` 对应分类的组（`appearanceGroups`……），要读写服务端的设置另开 ViewModel（`ContentSettingsViewModel`），不加回一级菜单；一级菜单最上面自己那一行去个人资料页（`ProfileSettings.kt`，写入经 `UserRepository.editProfile`，§1.7） |
 | 从外面进来的链接（OAuth 回跳、别的应用里点开的 bgm.tv 网页） | app 的 `LinkActivity`（清单里唯一挂 VIEW 的入口；登记的域名与路径和 `inAppRoute` 由 `LinkManifestContractTest` 守）→ `AppActivity.handleLink`；应用里没有的页交给浏览器（`CustomTabUriHandler` 指名浏览器，不绕回自己） |
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
+| 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
 | 一个页面 | `feature/<名字>/`：Screen + ViewModel + `di/<名字>Module.kt`，feature 之间不互相依赖 |
@@ -547,6 +548,8 @@ sed -n 's/^CLIENT_SECRET=//p' oauth-app.properties | gh secret set CHOGUMI_OAUTH
 2. 在 `origin/main` 上跑整仓 `tools/ci/check.sh`（本机，或 Actions 手动触发 mode 选 `full`），绿了再打标签：
    `git fetch origin main && git tag v<版本> origin/main && git push origin v<版本>`。标签触发的工作流只构建、签名与归档，不跑测试。
 3. 等 Release 工作流跑完，拿草稿附带的 APK 按下面的「正式包验收清单」验收，通过后点发布。
+
+发布后的 Release 就是 App 检查更新的数据源：App 读 `releases/latest/download/release.json`（草稿不算 latest），提示框里的「更新内容」是 Release 说明栏的正文（去掉 Markdown 标记后显示），所以说明栏写给用户看的中文。
 
 #### 正式包验收清单
 

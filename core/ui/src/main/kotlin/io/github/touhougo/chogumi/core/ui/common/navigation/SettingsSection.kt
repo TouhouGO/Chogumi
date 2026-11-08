@@ -20,4 +20,7 @@ enum class SettingsSection(@StringRes val title: Int, @DrawableRes val icon: Int
 
     /** NSFW、屏蔽的小组、屏蔽的用户。 */
     CONTENT_FILTER(R.string.settings_content_filter, R.drawable.shield_24),
+
+    /** 当前版本、立即检查；自动检查更新、检查间隔。 */
+    UPDATES(R.string.settings_updates, R.drawable.update_24),
 }

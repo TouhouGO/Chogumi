@@ -15,6 +15,7 @@ import io.github.touhougo.chogumi.core.model.ThemePreferences
 import io.github.touhougo.chogumi.core.model.ThemePreset
 import io.github.touhougo.chogumi.core.model.ThemeMode
 import io.github.touhougo.chogumi.core.model.ToWatchLimit
+import io.github.touhougo.chogumi.core.model.UpdateCheckInterval
 import io.github.touhougo.chogumi.core.model.appFeatures
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -164,6 +165,35 @@ class PreferencesRepository(
 
     suspend fun setExploreGuideShown() {
         prefs.edit { it[PreferenceKeys.EXPLORE_GUIDE_SHOWN] = true }
+    }
+
+    /** 自动检查更新开没开：默认开。 */
+    val updateCheck: Flow<Boolean> = select { prefs -> prefs[PreferenceKeys.UPDATE_CHECK] ?: true }
+
+    suspend fun setUpdateCheck(value: Boolean) {
+        prefs.edit { it[PreferenceKeys.UPDATE_CHECK] = value }
+    }
+
+    /** 自动检查更新的间隔：默认 [UpdateCheckInterval.DEFAULT]。 */
+    val updateCheckInterval: Flow<UpdateCheckInterval> =
+        select { it.enumOr(PreferenceKeys.UPDATE_CHECK_INTERVAL, UpdateCheckInterval.DEFAULT) }
+
+    suspend fun setUpdateCheckInterval(value: UpdateCheckInterval) {
+        prefs.edit { it[PreferenceKeys.UPDATE_CHECK_INTERVAL] = value.name }
+    }
+
+    /** 上次查到最新版的时刻（epoch 毫秒），没查到过为 null：检查间隔从它起算（`updateCheckDue`）。 */
+    val updateCheckedAt: Flow<Long?> = select { prefs -> prefs[PreferenceKeys.UPDATE_CHECKED_AT] }
+
+    suspend fun setUpdateCheckedAt(now: Long) {
+        prefs.edit { it[PreferenceKeys.UPDATE_CHECKED_AT] = now }
+    }
+
+    /** 用户「忽略」过的那一版的 versionCode，没有为 null：它和更早的版本不再提示（`updateOfferOf`）。 */
+    val ignoredUpdateVersionCode: Flow<Int?> = select { prefs -> prefs[PreferenceKeys.UPDATE_IGNORED_VERSION_CODE] }
+
+    suspend fun ignoreUpdate(versionCode: Int) {
+        prefs.edit { it[PreferenceKeys.UPDATE_IGNORED_VERSION_CODE] = versionCode }
     }
 
     /**

@@ -149,6 +149,7 @@ ICONS: dict[str, tuple[str, bool]] = {
     "tv": ("tv", False),
     "tv_filled": ("tv", True),
     "undo": ("undo", False),
+    "update": ("update", False),
     "visibility": ("visibility", False),
     "visibility_off": ("visibility_off", False),
 }

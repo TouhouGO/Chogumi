@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 应用内更新：下好、校验过的安装包交给系统安装器（shell/ApkInstall.kt）；第一次安装时系统让用户允许一次 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- CustomTabUriHandler 找浏览器：Android 11 起不声明就看不见别的应用能不能开网页。 -->
     <queries>
@@ -27,6 +29,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Chogumi"
         tools:targetApi="33">
+
+        <!-- 应用内更新的安装包经它交给系统安装器：authority 与 shell/ApkInstall.kt 的 updateAuthorityOf 是同一个 -->
+        <provider
+            android:name=".shell.UpdateFileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
 
         <activity
             android:name=".shell.AppActivity"

@@ -43,6 +43,7 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 class AppActivity : ComponentActivity() {
 
     private val viewModel: ShellViewModel by viewModel()
+    private val updates: AppUpdateViewModel by viewModel()
     private val authRepository: AuthRepository by inject()
     private val authConfig: AuthConfig by inject()
 
@@ -96,7 +97,7 @@ class AppActivity : ComponentActivity() {
                     LocalCoverComputationDispatcher provides computationDispatcher,
                 ) {
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        AppShell(viewModel, windowSizeClass, progressEntryRequests)
+                        AppShell(viewModel, updates, windowSizeClass, progressEntryRequests)
                     }
                 }
             }

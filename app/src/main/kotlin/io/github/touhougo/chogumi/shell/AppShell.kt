@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.touhougo.chogumi.BuildConfig
 import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LocalAppFeatures
@@ -52,7 +53,12 @@ import io.github.touhougo.chogumi.core.ui.composables.RetryError
 import io.github.touhougo.chogumi.core.ui.theme.LocalWindowWidthSizeClass
 
 @Composable
-fun AppShell(mainViewModel: ShellViewModel, windowSizeClass: WindowSizeClass, progressEntryRequests: ProgressEntryRequests) {
+fun AppShell(
+    mainViewModel: ShellViewModel,
+    updates: AppUpdateViewModel,
+    windowSizeClass: WindowSizeClass,
+    progressEntryRequests: ProgressEntryRequests,
+) {
     val state by mainViewModel.uiState.collectAsStateWithLifecycle()
     if (state.initializing) return
     if (state.slowStart) {
@@ -127,9 +133,18 @@ fun AppShell(mainViewModel: ShellViewModel, windowSizeClass: WindowSizeClass, pr
             ) { bottomPadding ->
                 AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests)
             }
+            AppUpdatePromptHost(updates)
             ReportDrawn()
         }
     }
+}
+
+/** 更新提示框：画在页面之上，App 进来之后任何页面上都可能弹出（自动检查到点、设置里「立即检查」）。 */
+@Composable
+private fun AppUpdatePromptHost(viewModel: AppUpdateViewModel) {
+    // 跟着生命周期收：下载在后台下好时，回到前台才交给系统安装器（后台不能开别的应用的页面）
+    val prompt by viewModel.uiState.collectAsStateWithLifecycle()
+    AppUpdateDialog(prompt, BuildConfig.VERSION_NAME, viewModel)
 }
 
 /**

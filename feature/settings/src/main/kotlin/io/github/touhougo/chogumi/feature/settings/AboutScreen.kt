@@ -125,8 +125,8 @@ private fun LazyListScope.thirdPartyNotices(@StringRes titleRes: Int, notices: L
     }
 }
 
-/** 安装包里的版本名；读不到时（不会发生）显示空串，不抛。 */
-private fun versionNameOf(context: Context): String =
+/** 安装包里的版本名（关于页、「更新」页）；读不到时（不会发生）显示空串，不抛。 */
+internal fun versionNameOf(context: Context): String =
     context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
 
 /** assets/licenses/ 下的许可原文，按段落重排（见 [unwrapParagraphs]）。 */

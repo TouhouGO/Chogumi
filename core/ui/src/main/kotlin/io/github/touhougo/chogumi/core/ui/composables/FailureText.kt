@@ -44,6 +44,7 @@ fun Failure.notice(): NoticeText.Resource = when (this) {
         RejectReason.EDIT_NOT_ALLOWED -> NoticeText.Resource(R.string.failure_rule_edit_not_allowed)
         RejectReason.GROUP_MEMBERS_ONLY -> NoticeText.Resource(R.string.failure_rule_group_members_only)
         RejectReason.IMAGE_UNREADABLE -> NoticeText.Resource(R.string.failure_rule_image_unreadable)
+        RejectReason.UPDATE_PACKAGE_MISMATCH -> NoticeText.Resource(R.string.failure_rule_update_package_mismatch)
     }
     Failure.Unknown -> NoticeText.Resource(R.string.failure_unknown)
 }
