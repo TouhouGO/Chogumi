@@ -5,36 +5,20 @@ body:
   - type: markdown
     attributes:
       value: |
-        Chogumi 以作品为中心：讨论、动态和社交都挂在作品、章节、角色或人物上，不做独立于作品的信息流。
-        App 只做 bgm.tv 开放接口或网页会话做得到的事，不绕开服务端的限制。不在这两条之内的建议，多半不会做。
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: 提交之前
-      options:
-        - label: 搜过已有 issue，没有同样的建议
-          required: true
+        先在 [已有 issue](https://github.com/TouhouGO/Chogumi/issues?q=is%3Aissue) 里搜一下，有同样的建议就在下面补充。
   - type: textarea
     id: what
     attributes:
       label: 想要什么
-      description: 在哪个页面、做什么、解决什么问题
     validations:
       required: true
   - type: textarea
-    id: why
+    id: scenario
     attributes:
-      label: 它怎样让人更接近作品
-      description: 比如更快地标记进度、更容易找到下一部想看的、在看完一集时读到这一集的讨论
-    validations:
-      required: true
-  - type: textarea
-    id: web
-    attributes:
-      label: bgm.tv 网页端有对应功能吗
-      description: 有的话写在哪里，附链接或截图
+      label: 使用场景
+      description: 什么时候会用到，现在是怎么做的
   - type: textarea
     id: media
     attributes:
-      label: 示意图（可选）
-      description: 草图、截图或别处类似的做法，直接拖进来
+      label: 截图或示意图
+      description: 草图、截图或别处的类似做法，直接拖进来

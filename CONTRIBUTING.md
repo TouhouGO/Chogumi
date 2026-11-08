@@ -10,8 +10,8 @@ Chogumi 以 GPL-3.0 开源，欢迎 issue 与 PR。先读这几页，它们就�
 
 ## 报告问题
 
-- Bug：用 issue 模板，写清复现步骤、实际与期望、App 版本（设置 › 关于）、Android 版本与机型、登录方式，排版问题附截图。bgm.tv 有时返回 500 / 502，能在网页端复现的问题属于服务端，请到 Bangumi 的[番组开发小组](https://bgm.tv/group/dev)反馈。
-- 功能建议：先说清它怎样让人更接近作品；独立于作品的社交或信息流功能不在计划内。
+- Bug：用 issue 模板，写清复现步骤、App 版本（设置 › 关于）和设备，能附截图更好。bgm.tv 网站本身的问题请到 Bangumi 的[番组开发小组](https://bgm.tv/group/dev)反馈。
+- 功能建议：用 issue 模板，说清想要什么、在什么场景下用。
 - 安全问题：见 [SECURITY.md](SECURITY.md)，不要开公开 issue。
 
 ## 提交 PR
