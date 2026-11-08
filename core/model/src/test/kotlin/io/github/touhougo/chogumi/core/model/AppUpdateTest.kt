@@ -60,6 +60,15 @@ class AppUpdateTest {
     }
 
     @Test
+    fun `网页上写的说明是CRLF换行_不留回车`() {
+        val markdown = "> First public version after local dev.\r\n\r\n**Full Changelog**: https://github.com/TouhouGO/Chogumi/commits/v0.1.0\r\n"
+        assertEquals(
+            "First public version after local dev.\n\nFull Changelog: https://github.com/TouhouGO/Chogumi/commits/v0.1.0",
+            releaseNotesTextOf(markdown),
+        )
+    }
+
+    @Test
     fun `普通的一段说明原样留着`() {
         assertEquals("第一版公开发布。", releaseNotesTextOf("第一版公开发布。"))
     }
