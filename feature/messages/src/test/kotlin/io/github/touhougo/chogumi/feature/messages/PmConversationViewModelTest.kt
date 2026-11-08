@@ -47,7 +47,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -403,7 +403,11 @@ class PmConversationViewModelTest {
         withTimeout(WAIT_BUDGET_MS) { firstReachedServer.await() }
         withContext(main.dispatcher) { vm.erase(messages[1]) { gone.incrementAndGet() } }
 
-        vm.viewModelScope.coroutineContext[kotlinx.coroutines.Job]!!.cancelAndJoin()
+        // 页面销毁同生产一样在主线程上取消作用域：在途那笔放锁也要回到主线程，排队那笔在同一次取消里一起取消，接不到锁。
+        // 在测试线程上取消时，逐个取消子协程的间隙里主线程会先放锁、启动排队那笔，生产里没有这个间隙
+        val pageJob = vm.viewModelScope.coroutineContext[Job]!!
+        withContext(main.dispatcher) { pageJob.cancel() }
+        pageJob.join()
         assertEquals(1, site.eraseRequests.get(), "排队的第二笔随页面销毁，没有再访问服务器")
         assertEquals(0, gone.get())
     }
