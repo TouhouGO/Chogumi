@@ -107,6 +107,12 @@ internal class BackgroundDecoding(
 /** bangumi API 要求自定义 User-Agent；版本号取自 app 的版本（唯一来源 gradle.properties 的 chogumi.version）。 */
 internal fun userAgent(appVersion: String) = "Chogumi/$appVersion (Android; https://github.com/TouhouGO/Chogumi)"
 
+/**
+ * 网页请求（网页登录与网页会话）的 User-Agent：bgm.tv 的登录 Cookie 和 UA 绑在一起（服务端解 Cookie 的密钥是站点密钥加请求的 UA），
+ * UA 一变，存着的网页会话就解不开，网页那边当作没登录。所以它不带版本号，**永远不改**：改了每个人都要重新用账号密码登录。
+ */
+internal const val WEB_USER_AGENT = "Chogumi (Android; https://github.com/TouhouGO/Chogumi)"
+
 /** 网页操作可能通过 GET 修改服务端；属性随请求保留，让重试决策识别真实操作语义。 */
 internal val WebOperation = AttributeKey<Unit>("WebOperation")
 
@@ -273,13 +279,13 @@ fun createTokenHttpClient(appVersion: String, engine: HttpClientEngine? = null):
 }
 
 /** 网页请求：不跟随跳转、不缓存、不带 OAuth，状态与 Cookie 都由调用方处理。 */
-fun createWebHttpClient(appVersion: String, engine: HttpClientEngine? = null): HttpClient {
+fun createWebHttpClient(engine: HttpClientEngine? = null): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         expectSuccess = false
         followRedirects = false
         installReadRetryAndTimeout()
         install(DefaultRequest) {
-            headers.append("User-Agent", userAgent(appVersion))
+            headers.append("User-Agent", WEB_USER_AGENT)
         }
     }
     return if (engine != null) HttpClient(engine, config) else HttpClient(OkHttp, config)
@@ -308,7 +314,7 @@ fun networkModule(
     single(named(WEB_CLIENT)) {
         // 网页（不是接口）用独立客户端：不跟随跳转（登录、授权、操作链接的结果都在跳转本身）、不缓存、不带令牌，
         // 非 2xx 由使用方自己判。Cookie 由每个请求显式带上。
-        createWebHttpClient(appVersion)
+        createWebHttpClient()
     }
     single { WebSessionApi(get(named(WEB_CLIENT))) }
     single { WebLoginApi(get(named(WEB_CLIENT)), authConfig) }

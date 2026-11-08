@@ -84,6 +84,9 @@ enum class RejectReason {
     /** 加入、退出小组没做成：开放接口没有这两件事，用网页会话做了，回读小组仍没变。 */
     GROUP_MEMBERSHIP_UNAVAILABLE,
 
+    /** 回复没发出去：接口在服务端 5xx（个别话题写入时恒 500），改用网页会话也没发出去，只能去网页端回复。 */
+    REPLY_UNAVAILABLE,
+
     /** 短信没发出去：网页说收件人不存在。 */
     PM_RECEIVER_NOT_FOUND,
 
