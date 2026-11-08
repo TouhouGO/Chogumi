@@ -11,6 +11,8 @@ android {
 }
 
 dependencies {
+    // 玻璃效果开着时列表铺到浮着的玻璃底栏下面：底部让出多少（core:glass LocalGlassContentBottom）
+    implementation(projects.core.glass)
     // 夹具实现的整理动作接口用到 core:model 的类型；本模块开着 Compose 编译器插件，夹具的编译也要有 Compose 运行时
     testFixturesImplementation(projects.core.model)
     testFixturesImplementation(platform(libs.androidx.compose.bom))

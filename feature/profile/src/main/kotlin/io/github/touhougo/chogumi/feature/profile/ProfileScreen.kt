@@ -35,6 +35,8 @@ import io.github.touhougo.chogumi.core.ui.composables.ConfirmDialog
 import io.github.touhougo.chogumi.core.common.draft.ComposerDraft
 import io.github.touhougo.chogumi.core.common.paging.PagedList
 import io.github.touhougo.chogumi.core.foundation.Failure
+import io.github.touhougo.chogumi.core.glass.AboveGlassBar
+import io.github.touhougo.chogumi.core.glass.LocalGlassContentBottom
 import io.github.touhougo.chogumi.core.model.AppFeatures
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.FloorReading
@@ -479,6 +481,7 @@ internal fun ProfileContent(
                     modifier = Modifier.fillMaxSize(),
                     state = gridState,
                     top = GridSpacing,
+                    bottom = LocalGlassContentBottom.current,
                     rowSpacing = profileGridRowSpacingOf(tab),
                 ) {
                     when (tab) {
@@ -541,26 +544,29 @@ internal fun ProfileContent(
             onOpenReport = { loginGate.run(onOpenReport) },
         )
 
-        // 收藏 tab 的右下角 FAB 菜单：切换六个分类（原型 .fabwrap 在手机根层，
-        // 故放在 PullToRefresh 的 BoxScope 里、与内容同级）。跟着按钮组此刻高亮的那一项出现。
-        if (shownTab == ProfileTab.SHELF) {
-            ShelfFabMenu(
-                expanded = fabExpanded,
-                onExpandedChange = { fabExpanded = it },
-                selected = shelf.shownCategory.fabSlot,
-                onSelect = {
-                    fabExpanded = false
-                    onSelectShelf(it)
-                },
-            )
-        }
+        // FAB 与提示条停在玻璃底栏上面（玻璃关着、推进来的页面就是整页）
+        AboveGlassBar {
+            // 收藏 tab 的右下角 FAB 菜单：切换六个分类（原型 .fabwrap 在手机根层，
+            // 故放在 PullToRefresh 的 BoxScope 里、与内容同级）。跟着按钮组此刻高亮的那一项出现。
+            if (shownTab == ProfileTab.SHELF) {
+                ShelfFabMenu(
+                    expanded = fabExpanded,
+                    onExpandedChange = { fabExpanded = it },
+                    selected = shelf.shownCategory.fabSlot,
+                    onSelect = {
+                        fabExpanded = false
+                        onSelectShelf(it)
+                    },
+                )
+            }
 
-        // 社交操作与刷新失败的统一提示；收藏面板开着时画在面板上，这里不画
-        if (!snackbarOnSheet) {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+            // 社交操作与刷新失败的统一提示；收藏面板开着时画在面板上，这里不画
+            if (!snackbarOnSheet) {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         }
     }
 

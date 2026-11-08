@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.foundation.failureOrNull
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
+import io.github.touhougo.chogumi.core.glass.LocalGlassContentBottom
 import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.res.R
@@ -74,7 +75,9 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(0),
         modifier = modifier,
         // 收藏面板开着时提示条画在面板上（页面的在面板下面，看不见）：同一个提示条状态，只换画的位置
-        snackbarHost = { if (!state.collectionSheet.isShown) SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            if (!state.collectionSheet.isShown) SnackbarHost(snackbarHostState, Modifier.padding(bottom = LocalGlassContentBottom.current))
+        },
     ) { padding ->
         TodayHomeContent(
             state = state,
@@ -123,7 +126,7 @@ internal fun TodayHomeContent(
     ScrollToTopOnTabReselect(listState)
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(top = topPadding, bottom = 24.dp),
+        contentPadding = PaddingValues(top = topPadding, bottom = 24.dp + LocalGlassContentBottom.current),
         modifier = modifier.fillMaxSize(),
     ) {
         // 首个 /p1/home 结果到达前只画骨架：各区块数据到达时间不同，

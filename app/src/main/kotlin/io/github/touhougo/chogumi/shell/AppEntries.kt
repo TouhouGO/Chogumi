@@ -5,10 +5,8 @@ package io.github.touhougo.chogumi.shell
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -22,6 +20,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import io.github.touhougo.chogumi.core.glass.AboveBottomBar
 import io.github.touhougo.chogumi.core.model.IndexCategory
 import io.github.touhougo.chogumi.core.model.IndexTarget
 import io.github.touhougo.chogumi.core.model.MonoType
@@ -138,8 +137,8 @@ private fun userCareerCardOf(navigate: (Route) -> Unit, account: SignedInAccount
  * 路由 → 页面，全 App 唯一的接线处。页面只收语义回调（点了哪个条目、哪个用户），去哪一页在这里决定。
  * 没有页面的路由一进就崩，`AppEntriesTest` 守着每种路由都接上了。
  *
- * [bottomPadding] 是底栏的高度：只有顶级页让出它（底栏收起也不让出高度，见 [TopLevelNavigationBar]）；
- * 推进来的页面没有底栏，自己处理系统导航条。
+ * [bottomPadding] 是底栏的高度：只有顶级页让出它（底栏收起也不让出高度，见 [TopLevelNavigationBar]）；玻璃效果开着时
+ * 顶级页铺到浮着的玻璃底栏下面，由页面自己在底部让出（core:glass `AboveBottomBar`）。推进来的页面没有底栏，自己处理系统导航条。
  */
 internal fun appEntries(
     navigate: (Route) -> Unit,
@@ -159,19 +158,20 @@ internal fun appEntries(
     val toIndex = { id: Int -> navigate(Route.IndexDetails(id)) }
     val toBlog = { id: Int -> navigate(Route.BlogDetails(id)) }
     val toGroup = { name: String -> navigate(Route.Group(name)) }
-    // 让出底栏的同时把这段记为已消费：底栏已经含系统导航条，页里的 Scaffold、imePadding 不再把它算第二遍
-    // （否则底部多出一段导航条高度，FAB 离底栏不是 16dp，键盘弹出时上方空出一截）。
-    val aboveBottomBar = BottomBarPadding(bottomPadding).let { Modifier.padding(it).consumeWindowInsets(it) }
+    // 顶级页包在 core:glass 的 AboveBottomBar 里：让出底栏的同时把这段记为已消费——底栏已经含系统导航条，页里的 Scaffold、
+    // imePadding 不再把它算第二遍（否则底部多出一段导航条高度，FAB 离底栏不是 16dp，键盘弹出时上方空出一截）。
+    // 玻璃效果开着时底栏浮在页面上，页面铺到屏幕底、自己在底部让出它。
+    val bottomBar = BottomBarPadding(bottomPadding)
     // 未登录时首页、进度、「我的」三个 tab 没有游客可看的内容：整页换成同一个登录提示，「登录」按钮打开登录页（可以返回）。
     // 未登录的界面全 App 只此一种，页面自己不画未登录分支。
-    val signIn: @Composable (title: Int, message: Int) -> Unit = { title, message ->
+    val signIn: @Composable (title: Int, message: Int, modifier: Modifier) -> Unit = { title, message, modifier ->
         SignInPrompt(
             title = title,
             message = message,
             onLogin = toLogin,
             onSettingsClick = toSettings,
             onBack = null,
-            modifier = aboveBottomBar,
+            modifier = modifier,
         )
     }
 
@@ -198,58 +198,68 @@ internal fun appEntries(
     return entryProvider {
         // ---- 顶级目的地 ----
         entry<Route.Home> {
-            if (isLoggedIn) {
-                HomeScreen(
-                    onSubjectClick = toSubject,
-                    // 入口请求（类型，null 为全部）与切到进度 tab 在这一处一起做。
-                    onProgress = { type ->
-                        progressEntryRequests.open(type)
-                        navigate(Route.Progress)
-                    },
-                    onFeedClick = { navigate(Route.Feed) },
-                    modifier = aboveBottomBar,
-                )
-            } else {
-                signIn(R.string.home, R.string.sign_in_prompt_home)
+            AboveBottomBar(bottomBar) { aboveBottomBar ->
+                if (isLoggedIn) {
+                    HomeScreen(
+                        onSubjectClick = toSubject,
+                        // 入口请求（类型，null 为全部）与切到进度 tab 在这一处一起做。
+                        onProgress = { type ->
+                            progressEntryRequests.open(type)
+                            navigate(Route.Progress)
+                        },
+                        onFeedClick = { navigate(Route.Feed) },
+                        modifier = aboveBottomBar,
+                    )
+                } else {
+                    signIn(R.string.home, R.string.sign_in_prompt_home, aboveBottomBar)
+                }
             }
         }
         entry<Route.Explore> {
-            ExploreScreen(
-                isLoggedIn = isLoggedIn,
-                onLogin = toLogin,
-                onSubjectClick = toSubject,
-                onOpenSearch = { criteria, title, openFilters ->
-                    navigate(exploreSearchRoute(criteria, title, openFilters))
-                },
-                onOpenCalendar = { navigate(exploreCalendarRoute()) },
-                modifier = aboveBottomBar,
-            )
-        }
-        entry<Route.Progress> {
-            if (isLoggedIn) {
-                ProgressScreen(
+            AboveBottomBar(bottomBar) { aboveBottomBar ->
+                ExploreScreen(
+                    isLoggedIn = isLoggedIn,
+                    onLogin = toLogin,
                     onSubjectClick = toSubject,
+                    onOpenSearch = { criteria, title, openFilters ->
+                        navigate(exploreSearchRoute(criteria, title, openFilters))
+                    },
+                    onOpenCalendar = { navigate(exploreCalendarRoute()) },
                     modifier = aboveBottomBar,
                 )
-            } else {
-                signIn(R.string.progress, R.string.sign_in_prompt_progress)
+            }
+        }
+        entry<Route.Progress> {
+            AboveBottomBar(bottomBar) { aboveBottomBar ->
+                if (isLoggedIn) {
+                    ProgressScreen(
+                        onSubjectClick = toSubject,
+                        modifier = aboveBottomBar,
+                    )
+                } else {
+                    signIn(R.string.progress, R.string.sign_in_prompt_progress, aboveBottomBar)
+                }
             }
         }
         entry<Route.Community> {
-            CommunityScreen(
-                isLoggedIn = isLoggedIn,
-                onLogin = toLogin,
-                onUserClick = toUser,
-                onGroupClick = toGroup,
-                onAllGroups = { navigate(Route.AllGroups) },
-                onMyTopics = { navigate(Route.MyTopics) },
-                onConversation = { navigate(Route.PmConversation(it)) },
-                onWrite = { navigate(Route.PmWrite()) },
-                modifier = aboveBottomBar,
-            )
+            AboveBottomBar(bottomBar) { aboveBottomBar ->
+                CommunityScreen(
+                    isLoggedIn = isLoggedIn,
+                    onLogin = toLogin,
+                    onUserClick = toUser,
+                    onGroupClick = toGroup,
+                    onAllGroups = { navigate(Route.AllGroups) },
+                    onMyTopics = { navigate(Route.MyTopics) },
+                    onConversation = { navigate(Route.PmConversation(it)) },
+                    onWrite = { navigate(Route.PmWrite()) },
+                    modifier = aboveBottomBar,
+                )
+            }
         }
         entry<Route.Profile> {
-            if (isLoggedIn) profile(null, null, aboveBottomBar) else signIn(R.string.profile, R.string.sign_in_prompt_profile)
+            AboveBottomBar(bottomBar) { aboveBottomBar ->
+                if (isLoggedIn) profile(null, null, aboveBottomBar) else signIn(R.string.profile, R.string.sign_in_prompt_profile, aboveBottomBar)
+            }
         }
 
         // ---- 独立页 ----
@@ -495,7 +505,7 @@ internal fun appEntries(
     }
 }
 
-/** 顶级页让出底栏的留白：测量时才读 [height]（见 [AppEntries]）。 */
+/** 顶级页让出底栏的留白：测量时才读 [height]（见 [AppEntries]）；玻璃效果开着时 `AboveBottomBar` 在组合时读一次，交给页面。 */
 private class BottomBarPadding(private val height: () -> Dp) : PaddingValues {
     override fun calculateTopPadding(): Dp = 0.dp
     override fun calculateBottomPadding(): Dp = height()

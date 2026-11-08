@@ -24,7 +24,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -42,12 +41,6 @@ import io.github.touhougo.chogumi.core.ui.composables.BarIconButton
 import io.github.touhougo.chogumi.core.ui.composables.LocalBarIconButton
 import kotlin.math.max
 import kotlin.math.roundToInt
-
-/**
- * 玻璃外框里内容区的上内边距：[GlassHeaderTabsFrame] 放进来，页面的列表把它加在 `contentPadding` 的上边，
- * 第一行内容停在 tab 胶囊下面，往上滚时从胶囊、顶边下面滚过。不在玻璃外框里时是 0。
- */
-val LocalGlassContentTop = staticCompositionLocalOf { 0.dp }
 
 /**
  * 玻璃效果开着时 core:ui `HeaderTabsFrame` 的替身（作品详情）：内容从钉住的 tab 胶囊、顶边与顶上的圆钮下面滚过去。

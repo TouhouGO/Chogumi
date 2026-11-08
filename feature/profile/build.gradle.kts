@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    // 玻璃效果开着时列表铺到浮着的玻璃底栏下面：底部让出多少（core:glass LocalGlassContentBottom）
+    implementation(projects.core.glass)
     // 楼层、BBCode 正文、简介等阅读渲染
     implementation(projects.core.reader)
 

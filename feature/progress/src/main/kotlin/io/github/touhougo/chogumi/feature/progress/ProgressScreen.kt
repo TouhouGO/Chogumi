@@ -30,6 +30,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
+import io.github.touhougo.chogumi.core.glass.AboveGlassBar
+import io.github.touhougo.chogumi.core.glass.LocalGlassContentBottom
 import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.res.R
@@ -166,33 +168,36 @@ fun ProgressScreen(
             }
         }
 
-        // 收藏状态筛选：与搜索页共用 core:ui 的 SelectionFabMenu（外观、形变与选中强调只在那里定义）。
-        SelectionFabMenu(
-            expanded = statusFiltering,
-            onExpandedChange = { statusFiltering = it },
-            options = CollectionType.choices,
-            selected = state.collectionStatus,
-            iconRes = { it.iconRes() },
-            // 按当前列表的条目类型分动词（「全部」页签用动画组动词兜底）：
-            // FAB 是筛选器，动词跟当前分类走，不改变任何写入语义。
-            label = { status ->
-                stringResource(status.labelResFor(listSubjectType))
-            },
-            onSelect = viewModel::onSelectStatus,
-            collapsedDescription = stringResource(
-                R.string.progress_status_fab,
-                stringResource(state.collectionStatus.labelResFor(listSubjectType)),
-            ),
-        )
-
-        // 收藏面板开着时提示条画在面板上（这里的在面板下面，看不见）：同一个提示条状态，只换画的位置
-        if (!state.collectionSheet.isShown) {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = FabClearance),
+        // FAB 与提示条停在玻璃底栏上面（玻璃关着时就是整页）
+        AboveGlassBar {
+            // 收藏状态筛选：与搜索页共用 core:ui 的 SelectionFabMenu（外观、形变与选中强调只在那里定义）。
+            SelectionFabMenu(
+                expanded = statusFiltering,
+                onExpandedChange = { statusFiltering = it },
+                options = CollectionType.choices,
+                selected = state.collectionStatus,
+                iconRes = { it.iconRes() },
+                // 按当前列表的条目类型分动词（「全部」页签用动画组动词兜底）：
+                // FAB 是筛选器，动词跟当前分类走，不改变任何写入语义。
+                label = { status ->
+                    stringResource(status.labelResFor(listSubjectType))
+                },
+                onSelect = viewModel::onSelectStatus,
+                collapsedDescription = stringResource(
+                    R.string.progress_status_fab,
+                    stringResource(state.collectionStatus.labelResFor(listSubjectType)),
+                ),
             )
+
+            // 收藏面板开着时提示条画在面板上（这里的在面板下面，看不见）：同一个提示条状态，只换画的位置
+            if (!state.collectionSheet.isShown) {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = FabClearance),
+                )
+            }
         }
     }
 
@@ -244,7 +249,7 @@ private fun ProgressPageContent(
         ProgressPageShape.LOADING -> LazyVerticalGrid(
             columns = GridCells.Fixed(if (tablet) 2 else 1),
             // 底部为 FAB 让出空间（测量依据见 FabClearance）
-            contentPadding = PaddingValues(bottom = FabClearance),
+            contentPadding = PaddingValues(bottom = FabClearance + LocalGlassContentBottom.current),
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = false,
         ) {
@@ -268,7 +273,7 @@ private fun ProgressPageContent(
                 state = gridState,
                 columns = GridCells.Fixed(if (tablet) 2 else 1),
                 // 底部为 FAB 让出空间（测量依据见 FabClearance）
-                contentPadding = PaddingValues(bottom = FabClearance),
+                contentPadding = PaddingValues(bottom = FabClearance + LocalGlassContentBottom.current),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(state.pages[page], key = { it.subjectId }) { item ->

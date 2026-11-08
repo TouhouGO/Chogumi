@@ -36,7 +36,7 @@ import io.github.touhougo.chogumi.core.ui.theme.isDark
  * 开关是设置里的「玻璃效果」，由 [GlassTheme] 按系统版本判一次：Android 12 起才有模糊，Android 13 起才有边缘折射与高光
  * （折射由库按版本自己跳过）。关着时 [rememberGlassLayer] 是 null，调用处画原来的 M3 组件，代码路径与没有玻璃时一样。
  */
-private val LocalGlass = staticCompositionLocalOf { false }
+internal val LocalGlass = staticCompositionLocalOf { false }
 
 /** 系统能不能画玻璃：模糊要 Android 12（RenderEffect）。设置页据此决定显不显示开关，[GlassTheme] 据此决定开不开。 */
 fun glassSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S

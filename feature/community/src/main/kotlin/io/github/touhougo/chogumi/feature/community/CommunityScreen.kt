@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.data.repository.RAKUEN_MAX_TOPICS
+import io.github.touhougo.chogumi.core.glass.LocalGlassContentBottom
 import io.github.touhougo.chogumi.core.model.RakuenFilter
 import io.github.touhougo.chogumi.core.model.groupOf
 import io.github.touhougo.chogumi.core.res.R
@@ -104,7 +105,7 @@ fun CommunityScreen(
     Scaffold(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0),
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = LocalGlassContentBottom.current)) },
     ) { padding ->
         // 页头收起后内容在固定栏下面滚：页头、状态栏那一截、固定栏同为一块页面底色，只靠柔边分层（PinnedEdge.kt）
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -156,7 +157,7 @@ fun CommunityScreen(
                             onRetry = { viewModel.retry(page) },
                             onLoadMore = { viewModel.loadMore(page) },
                             emptyText = stringResource(R.string.community_feed_empty),
-                            contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp + LocalGlassContentBottom.current),
                             skeletonRow = { i, count -> CommunityTopicRowSkeleton(i, count, Modifier.padding(horizontal = 16.dp), kind = kind) },
                             modifier = Modifier.fillMaxSize(),
                             // 超展开除「小组」外接口不能翻页，到上限就是底：页脚说清楚只列到这么多

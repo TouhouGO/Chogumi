@@ -43,6 +43,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
+import io.github.touhougo.chogumi.core.glass.LocalGlassContentBottom
 import io.github.touhougo.chogumi.core.model.ContentDomains
 import io.github.touhougo.chogumi.core.model.ExploreEntry
 import io.github.touhougo.chogumi.core.model.ExploreShelf
@@ -123,7 +124,9 @@ fun ExploreScreen(
         )
         ArrangeSheets(state, viewModel.arranger, currentYear = state.today.year)
         // 收藏面板开着时提示条画在面板上
-        if (!state.posterMarks.sheet.isShown) SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
+        if (!state.posterMarks.sheet.isShown) {
+            SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).padding(bottom = LocalGlassContentBottom.current))
+        }
     }
 }
 
@@ -301,7 +304,7 @@ private fun ExploreTypePage(
     ScrollToTopOnTabReselect(listState)
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 24.dp + LocalGlassContentBottom.current),
         modifier = modifier.fillMaxSize(),
     ) {
         // 固定入口行：随内容滚走。入口为「去别处」的跳转，滚走不影响当前页的使用。
