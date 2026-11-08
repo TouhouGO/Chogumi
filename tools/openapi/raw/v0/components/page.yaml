@@ -1,0 +1,15 @@
+type: object
+required:
+  - total
+  - limit
+  - offset
+properties:
+  total:
+    title: Total
+    type: integer
+  limit:
+    title: Limit
+    type: integer
+  offset:
+    title: Offset
+    type: integer

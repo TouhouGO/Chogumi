@@ -1,0 +1,1461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Chogumi</string>
+    <string name="home">首页</string>
+    <string name="progress">进度</string>
+    <string name="community">社区</string>
+    <string name="profile">我的</string>
+    <string name="settings">设置</string>
+    <string name="login_bangumi">登录 Bangumi</string>
+    <string name="sign_in_prompt_home">登录后，这里会显示你在看的作品</string>
+    <string name="sign_in_prompt_progress">登录后，这里会显示你的观看进度</string>
+    <string name="sign_in_prompt_profile">登录后，这里是你的主页</string>
+    <string name="sign_in_prompt_my_topics">登录后，这里会显示你发起和回复的帖子</string>
+    <string name="manual_token_hint">粘贴 Access Token</string>
+    <string name="manual_token_show">显示 Access Token</string>
+    <string name="manual_token_hide">隐藏 Access Token</string>
+    <string name="manual_token_submit">提交 Token</string>
+    <string name="manual_token_entry">使用 Access Token 登录</string>
+    <string name="login_token_required">请输入 Access Token</string>
+    <string name="login_email">邮箱</string>
+    <string name="login_password">密码</string>
+    <string name="login_captcha">验证码</string>
+    <string name="login_captcha_refresh">换一张验证码</string>
+    <string name="login_password_show">显示密码</string>
+    <string name="login_password_hide">隐藏密码</string>
+    <string name="login_browser_entry">浏览器授权</string>
+    <string name="manual_token_action">Token 登录</string>
+    <string name="login_browser_title">浏览器登录做不了网页才有的操作</string>
+    <string name="login_browser_body">取消收藏角色和人物、解除好友这些操作只有 bgm.tv 网页能做，要用账号密码登录才能在 App 里完成。</string>
+    <string name="login_browser_confirm">继续</string>
+    <string name="logout">退出登录</string>
+    <string name="logout_confirm_title">退出登录？</string>
+    <string name="logout_confirm_body">退出后，标记进度、收藏和发言都要重新登录。</string>
+    <string name="logout_confirm_action">退出</string>
+    <string name="back">返回</string>
+    <string name="search_hint">搜索动画、书籍、游戏…</string>
+    <string name="search_hint_typed">搜索%1$s</string>
+    <string name="search_empty_guide">输入关键词搜索，或用右下角按钮选择类型开始浏览</string>
+    <!-- 只有一个条件时的搜索框提示：不带维度名（「在连载状态「连载中」下搜索」念起来重复）；放不下一行时只缩短引号里那段 -->
+    <string name="search_hint_single">在「%1$s」下搜索</string>
+    <string name="search_hint_multi_tag">在 %1$d 项条件下搜索</string>
+    <string name="search_history">搜索历史</string>
+    <string name="clear_history">清空历史</string>
+    <string name="calendar">每日放送</string>
+    <string name="collection_wish">想看</string>
+    <string name="collection_done">看过</string>
+    <string name="collection_doing">在看</string>
+    <string name="collection_on_hold">搁置</string>
+    <string name="collection_dropped">抛弃</string>
+    <!--
+      以下按**条目类型**分动词的收藏状态（读/看/听/玩），供徽章与进度页筛选菜单使用，
+      与上面那组通用词（想看/看过/在看）语义不同：通用词用于「这个条目属于哪一类收藏」，
+      这组用于「以该类型自己的动词称呼这个状态」。
+      依据 bgm.tv 网页端的收藏选择器：
+      书籍 想读/读过/在读、动画 想看/看过/在看、音乐 想听/听过/在听、游戏 想玩/玩过/在玩；
+      **搁置/抛弃在 bgm.tv 不区分条目类型**，故不拆分。
+      三次元（real）在 bgm.tv 也用看类动词，归入动画一组。
+    -->
+    <string name="collection_wish_book">想读</string>
+    <string name="collection_wish_anime">想看</string>
+    <string name="collection_wish_music">想听</string>
+    <string name="collection_wish_game">想玩</string>
+    <string name="collection_done_book">读过</string>
+    <string name="collection_done_anime">看过</string>
+    <string name="collection_done_music">听过</string>
+    <string name="collection_done_game">玩过</string>
+    <string name="collection_doing_book">在读</string>
+    <string name="collection_doing_anime">在看</string>
+    <string name="collection_doing_music">在听</string>
+    <string name="collection_doing_game">在玩</string>
+    <string name="edit_collection">收藏管理</string>
+    <string name="poster_mark">标记状态</string>
+    <string name="poster_mark_undo">撤销标为%1$s</string>
+    <string name="poster_mark_manage">管理</string>
+    <string name="tags">标签</string>
+    <!-- 候选标签菜单入口 chip：数字为菜单内候选标签总数 -->
+    <string name="comment">吐槽</string>
+    <string name="private_collection">仅自己可见</string>
+    <string name="collection_none">还没收藏</string>
+    <string name="collection_saving">保存中</string>
+    <string name="collection_restored">上次没保存的修改还在</string>
+    <string name="collection_discard">放弃</string>
+    <string name="collection_progress_at_end">进度已到最后</string>
+    <string name="collection_mark_as">标为%1$s</string>
+    <string name="collection_finish_all_episodes">正片一起标为全部看完</string>
+    <string name="collection_finish_all_book">话数、卷数一起更新到最新</string>
+    <string name="collection_rating">评分</string>
+    <string name="collection_rating_state">%1$d 分，%2$s</string>
+    <string name="collection_tags_count">%1$d / %2$d</string>
+    <string name="collection_tag_add">添加标签</string>
+    <string name="collection_tag_too_short">标签至少 %1$d 个字</string>
+    <string name="collection_tags_full">最多 %1$d 个标签</string>
+    <string name="collection_tags_suggested">大家常用</string>
+    <string name="text_length_count">%1$d / %2$d</string>
+    <string name="progress_ruler_episodes">看到第几集</string>
+    <string name="progress_ruler_chapters">读到第几话</string>
+    <string name="progress_ruler_volumes">读到第几卷</string>
+    <string name="progress_ruler_total">/ %1$s %2$s</string>
+    <string name="progress_type_in">输入数字</string>
+    <string name="progress_input_no_episode">没有第 %1$s 集</string>
+    <string name="save">保存</string>
+    <!-- 条目详情收藏面板保存失败（参数是可读原因）；收藏信息没取到时点收藏按钮 -->
+    <string name="collection_save_failed">收藏保存失败：%1$s</string>
+    <string name="progress_save_failed">进度保存失败：%1$s</string>
+    <string name="collection_load_failed">收藏信息加载失败</string>
+    <string name="episodes">章节</string>
+    <!-- 关联条目分组标题（关系类型语义见 core/model SubjectRelationKind） -->
+    <string name="relation_sequel">续集</string>
+    <string name="relation_prequel">前传</string>
+    <string name="relation_parent_story">主线故事</string>
+    <string name="relation_summary">总集篇</string>
+    <string name="relation_full_story">全集</string>
+    <string name="relation_side_story">番外篇</string>
+    <string name="relation_spin_off">衍生</string>
+    <string name="relation_same_setting">相同世界观</string>
+    <string name="relation_alternative_version">不同演绎</string>
+    <string name="relation_alternative_setting">不同世界观</string>
+    <string name="relation_character">角色出演</string>
+    <string name="relation_series">系列</string>
+    <string name="relation_main_version">主版本</string>
+    <string name="relation_version">不同版本</string>
+    <string name="relation_dlc">扩展包</string>
+    <string name="relation_collection">合集</string>
+    <string name="relation_in_collection">收录作品</string>
+    <string name="relation_offprint">单行本</string>
+    <string name="relation_album">画集</string>
+    <string name="relation_ost">原声集</string>
+    <string name="relation_opening_song">片头曲</string>
+    <string name="relation_ending_song">片尾曲</string>
+    <string name="relation_character_song">角色歌</string>
+    <string name="relation_insert_song">插入歌</string>
+    <string name="relation_image_song">印象曲</string>
+    <string name="relation_drama">广播剧</string>
+    <string name="relation_collaboration">联动</string>
+    <string name="relation_other">其他</string>
+    <string name="characters">角色</string>
+    <!-- 作品详情：区块标题与元信息 -->
+    <string name="detail_info">资料</string>
+    <string name="detail_staff">制作人员</string>
+    <string name="detail_other_staff">其他制作人员</string>
+    <string name="detail_stats">统计</string>
+    <plurals name="detail_episodes_count">
+        <item quantity="other">%1$d 话</item>
+    </plurals>
+    <string name="detail_expand">展开</string>
+    <string name="detail_collapse">收起</string>
+    <string name="detail_people_show_all">展开全部 %1$d</string>
+    <!-- 作品详情：选项卡、头部、概览、人物、关联子页、悬浮工具栏 -->
+    <string name="detail_tab_overview">概览</string>
+    <string name="detail_tab_volumes">单行本</string>
+    <string name="detail_tab_tracks">曲目</string>
+    <string name="detail_tab_people">人物</string>
+    <string name="detail_tab_community">社区</string>
+    <string name="detail_meta_year">%1$d 年</string>
+    <string name="detail_meta_year_month">%1$d 年 %2$d 月</string>
+    <plurals name="detail_meta_volumes">
+        <item quantity="other">%1$d 卷</item>
+    </plurals>
+    <plurals name="detail_meta_tracks">
+        <item quantity="other">%1$d 首</item>
+    </plurals>
+    <string name="detail_rating_chip_desc">大众评分 %1$s，查看统计</string>
+    <string name="detail_rating_chip_static_desc">大众评分 %1$s</string>
+    <string name="detail_all">全部</string>
+    <string name="detail_related_works">关联作品</string>
+    <string name="detail_overview_empty">这部作品还没有角色和关联作品的资料</string>
+    <string name="detail_character_cv">CV %1$s</string>
+    <string name="detail_staff_more">+%1$d</string>
+    <string name="detail_relations_title">%1$s的关联作品</string>
+    <string name="relation_weight_main">主线</string>
+    <string name="relation_weight_derivative">衍生</string>
+    <string name="relation_weight_music_and_merch">音乐与周边</string>
+    <string name="relation_weight_other">客串与其他</string>
+    <string name="detail_episodes_empty">还没有章节的资料</string>
+    <string name="detail_volumes_empty">还没有单行本的资料</string>
+    <string name="detail_tracks_empty">还没有曲目的资料</string>
+    <string name="detail_track_disc">第 %1$d 碟</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_home_progress">首页与进度</string>
+    <string name="settings_ratings">评分</string>
+    <string name="settings_community">社区</string>
+    <string name="settings_ratings_community">评分与社区</string>
+    <string name="settings_content_filter">内容过滤</string>
+    <string name="settings_profile">个人资料</string>
+    <string name="profile_avatar">头像</string>
+    <string name="profile_change_avatar">换头像</string>
+    <string name="profile_pick_another">换一张</string>
+    <string name="profile_nickname">昵称</string>
+    <string name="profile_sign">签名</string>
+    <string name="profile_bio">自我介绍</string>
+    <string name="profile_needs_password_login">改资料要用账号密码登录，请在设置里退出后重新登录</string>
+    <string name="theme_follow_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="settings_nsfw">显示 NSFW 内容</string>
+    <string name="settings_nsfw_logged_out">登录后可在 bgm.tv 账号中开启</string>
+    <string name="settings_nsfw_locked">注册满 60 天后可开启</string>
+    <string name="settings_nsfw_loading">正在读取账号设置…</string>
+    <string name="settings_nsfw_load_failed">读取账号设置失败：%1$s</string>
+    <string name="settings_experience_mode">专注模式</string>
+    <string name="settings_friend_marks">显示好友标识</string>
+    <string name="settings_public_ratings">显示公共评分</string>
+    <string name="settings_cover_scores">封面显示评分</string>
+    <string name="settings_to_watch_limit">首页待看数量</string>
+    <string name="settings_progress_default_type">进度页默认分类</string>
+    <string name="settings_display_scale">界面大小</string>
+    <string name="settings_display_scale_width">%1$d dp</string>
+    <string name="settings_refresh_rate">刷新率</string>
+    <string name="settings_refresh_rate_hz">%1$d Hz</string>
+    <string name="settings_reading_text_size">阅读字号</string>
+    <string name="settings_reading_text_size_small">小</string>
+    <string name="settings_reading_text_size_standard">标准</string>
+    <string name="settings_reading_text_size_large">大</string>
+    <string name="settings_cover_quality">封面画质</string>
+    <string name="settings_cover_quality_auto">自动</string>
+    <string name="settings_cover_quality_large">大图</string>
+    <string name="settings_cover_quality_original">原图</string>
+    <string name="settings_image_cache">图片缓存</string>
+    <string name="settings_image_cache_clear_title">清理图片缓存？</string>
+    <string name="settings_image_cache_clear_body">缓存会删掉，需要时重新下载。</string>
+    <string name="settings_image_cache_clear_action">清理</string>
+    <string name="all">全部</string>
+    <string name="anime">动画</string>
+    <string name="book">书籍</string>
+    <string name="real">三次元</string>
+    <string name="game">游戏</string>
+    <string name="music">音乐</string>
+    <string name="meta_collections">%1$d 人收藏</string>
+    <string name="anime_book_real_game">全部类型</string>
+    <string name="retry">重试</string>
+    <!-- 启动时恢复本地会话与偏好超过 5 秒（慢不等于失败，读完自动进入） -->
+    <string name="slow_start_notice">正在读取本地设置…</string>
+    <string name="startup_restore_failed">无法恢复本地设置，请重试</string>
+    <!-- 失败原因（core:foundation Failure → core:ui Failure.text()，唯一映射） -->
+    <string name="failure_offline">网络连接失败，请检查网络</string>
+    <string name="failure_timeout">请求超时，请稍后重试</string>
+    <string name="failure_interrupted">网络连接中断，请重试</string>
+    <string name="failure_storage">无法写入本机存储，请检查剩余空间后重试</string>
+    <string name="composer_send_unsure">不确定是否已发出，已刷新，请确认后再发</string>
+    <string name="failure_http_bad_request">请求参数有误</string>
+    <string name="failure_http_unauthorized">登录状态已失效</string>
+    <string name="failure_http_forbidden">没有权限执行此操作</string>
+    <string name="failure_http_not_found">未找到请求的资源</string>
+    <string name="failure_http_too_many_requests">操作过于频繁，请稍后重试</string>
+    <string name="failure_http_server">服务器开小差了，请稍后重试（HTTP %1$d）</string>
+    <string name="failure_http_redirect">请求被重定向（HTTP %1$d）</string>
+    <string name="failure_http_other">请求失败（HTTP %1$d）</string>
+    <string name="failure_oauth_invalid_grant">授权已失效，请重新登录</string>
+    <string name="failure_oauth_invalid_client">应用凭据无效，请检查配置</string>
+    <string name="failure_oauth_access_denied">授权已取消</string>
+    <string name="failure_bad_response">数据解析失败</string>
+    <string name="failure_not_logged_in">请先登录</string>
+    <string name="failure_session_changed">登录状态已变化，请重试</string>
+    <string name="failure_unknown">未知错误</string>
+    <string name="failure_rule_nsfw_account_too_new">注册满 60 天后可开启</string>
+    <string name="failure_rule_privacy_setting_unavailable">bgm.tv 暂时无法在 App 里修改这一项，可在网页端的个人设置里修改</string>
+    <string name="failure_rule_mono_uncollect_unavailable">bgm.tv 暂时无法在 App 里取消收藏角色和人物，可在网页端的对应页面取消</string>
+    <string name="failure_rule_timeline_delete_unavailable">bgm.tv 暂时无法在 App 里删除动态，可在网页端自己的时间线删除</string>
+    <string name="failure_rule_unfriend_unavailable">bgm.tv 暂时无法在 App 里解除好友，可在网页端对方的主页解除</string>
+    <string name="failure_rule_block_unavailable">bgm.tv 暂时无法在 App 里绝交或取消绝交，可在网页端的隐私设置里操作</string>
+    <string name="failure_action_open_web">去网页</string>
+    <string name="failure_rule_group_membership_unavailable">bgm.tv 暂时无法在 App 里加入或退出这个小组，可在网页端的小组页操作</string>
+    <string name="failure_rule_pm_receiver_not_found">收件人不存在，短信没有发出去</string>
+    <string name="failure_rule_pm_not_sent">短信没有发出去，可以稍后再试</string>
+    <string name="failure_rule_pm_delete_unavailable">这封短信没有删掉，可在网页端的短信页删除</string>
+    <string name="failure_rule_web_login_required">这项操作要用账号密码登录，请在设置里退出后重新登录</string>
+    <string name="failure_rule_login_captcha_wrong">验证码不对，请看新的验证码重新填</string>
+    <string name="failure_rule_login_credentials_wrong">邮箱或密码不对</string>
+    <string name="failure_rule_login_too_many_attempts">输错次数太多，bgm.tv 暂时不让登录，请过 15 分钟再试</string>
+    <string name="failure_rule_login_failed">没能登录，请稍后再试，或换用浏览器登录</string>
+    <string name="failure_rule_login_callback_mismatch">这次授权不是从当前登录发起的，请重新登录</string>
+    <string name="failure_rule_verification_failed">人机验证没有通过，请重新发送</string>
+    <string name="failure_rule_posting_not_allowed">Bangumi 不允许在这里发言：账号可能被禁言，或话题已关闭</string>
+    <string name="failure_rule_edit_not_allowed">这层楼改不了了：楼下已经有人回复，或话题已关闭</string>
+    <string name="failure_rule_group_members_only">这个小组只有成员能发言，先加入小组</string>
+    <string name="failure_rule_image_unreadable">读不出这张图片，换一张试试</string>
+    <string name="empty_doing">还没有在看的条目，去发现页收藏一个吧</string>
+    <string name="progress_search_hint">搜索我的列表</string>
+    <string name="sort_recent">最近操作</string>
+    <string name="sort_latest_aired">最近更新</string>
+    <string name="sort_date">日期</string>
+    <string name="sort_air_date">放送日期</string>
+    <string name="sort_release_date">发售日期</string>
+    <string name="sort_title">名称</string>
+    <string name="sort_rating">评分</string>
+    <!-- 排序菜单分隔线下的两种顺序：时间、评分、名称各一对，默认的在前 -->
+    <string name="sort_new_to_old">新到旧</string>
+    <string name="sort_old_to_new">旧到新</string>
+    <string name="sort_high_to_low">高到低</string>
+    <string name="sort_low_to_high">低到高</string>
+    <string name="sort_a_to_z">A 到 Z</string>
+    <string name="sort_z_to_a">Z 到 A</string>
+    <!-- 进度页筛选面板 -->
+    <string name="progress_status_fab">收藏状态：%1$s</string>
+    <string name="progress_filter_entry">筛选</string>
+    <plurals name="progress_filter_entry_active">
+        <item quantity="other">筛选，已选 %1$d 项</item>
+    </plurals>
+    <plurals name="nav_unread_count">
+        <item quantity="other">%1$d 条未读</item>
+    </plurals>
+    <string name="progress_filter_title">筛选</string>
+    <string name="progress_filter_categories">分类</string>
+    <string name="progress_filter_tags">我的标签</string>
+    <string name="progress_filter_empty">这里的作品还没有标签</string>
+    <plurals name="progress_filter_dimension_selected">
+        <item quantity="other">已选 %1$d 项</item>
+    </plurals>
+    <plurals name="progress_filter_show">
+        <item quantity="other">显示 %1$d 部</item>
+    </plurals>
+    <string name="clear_filters">清除</string>
+    <string name="empty_progress">还没有该状态的条目</string>
+    <!-- 问候整句：时段问候作参数，避免拼接丢分隔符（Figma 01/首页：晚上好，继续你的旅程） -->
+    <string name="view_all">查看全部</string>
+    <string name="trending">近期热门</string>
+    <string name="ranking">排行榜</string>
+    <string name="calendar_watchers">%1$d 人在看</string>
+    <string name="explore">探索</string>
+    <string name="activity">动态</string>
+    <string name="profile_timeline_empty_title">还没有动态</string>
+    <string name="profile_timeline_empty_other">%1$s 还没有动态</string>
+    <string name="friends">好友</string>
+    <string name="everyone">全站</string>
+    <string name="no_content">暂无内容</string>
+    <string name="loading">加载中…</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确定</string>
+    <string name="edit_episodes_hint">输入集数</string>
+    <string name="edit_chapters_hint">输入话数</string>
+    <string name="edit_volumes_hint">输入卷数</string>
+    <string name="episode_decrease">集数减一</string>
+    <string name="episode_increase">集数加一</string>
+    <string name="chapter_decrease">话数减一</string>
+    <string name="chapter_increase">话数加一</string>
+    <string name="volume_decrease">卷数减一</string>
+    <string name="volume_increase">卷数加一</string>
+    <string name="progress_input_empty">输入不能为空</string>
+    <string name="progress_input_not_a_number">请输入有效的非负整数</string>
+    <string name="progress_input_over_limit">不能超过 %1$s %2$s</string>
+    <string name="unit_episode">集</string>
+    <string name="unit_chapter">话</string>
+    <string name="unit_volume">卷</string>
+    <string name="floor_react_add">添加贴贴</string>
+    <string name="floor_edit">编辑</string>
+    <string name="floor_menu">楼层操作</string>
+    <string name="floor_delete_confirm">删除这层楼？删掉就找不回来了</string>
+    <string name="bbcode_long_image">长图</string>
+    <string name="image_failed">图片加载失败</string>
+    <string name="image_open">查看图片</string>
+    <!-- 遮罩里画不出图片，换成这段文字标记 -->
+    <string name="bbcode_image_marker">[图片]</string>
+    <string name="image_actions">保存或分享</string>
+    <string name="image_save">保存</string>
+    <string name="image_share">分享</string>
+    <string name="image_save_failed">图片没有保存成功</string>
+    <string name="image_share_failed">图片没有分享出去</string>
+    <string name="rating_description">评分 %1$d</string>
+    <string name="close">关闭</string>
+    <string name="sheet_handle">拖动条</string>
+    <string name="sheet_expand">展开面板</string>
+    <string name="sheet_collapse">收起面板</string>
+    <string name="publish">发布</string>
+    <string name="reply">回复</string>
+    <string name="composer_status_title">发动态</string>
+    <string name="composer_comment">发表评论</string>
+    <string name="composer_reply_topic">回复楼主</string>
+    <string name="composer_reply_floor">回复 %1$s</string>
+    <string name="composer_placeholder">说点什么…</string>
+    <string name="composer_send">发送</string>
+    <string name="composer_bold">加粗</string>
+    <string name="composer_italic">斜体</string>
+    <string name="composer_underline">下划线</string>
+    <string name="composer_strike">删除线</string>
+    <string name="composer_image">图片</string>
+    <string name="composer_link">链接</string>
+    <string name="composer_poll">投票</string>
+    <string name="composer_size">字号</string>
+    <string name="composer_quote">引用</string>
+    <string name="composer_mask">遮罩</string>
+    <string name="composer_code">代码</string>
+    <string name="composer_smileys">表情</string>
+    <string name="composer_clear">清空</string>
+    <string name="composer_style">文字样式</string>
+    <string name="composer_size_large">大</string>
+    <string name="composer_size_medium">中</string>
+    <string name="composer_size_small">小</string>
+    <string name="composer_size_large_label">大号字</string>
+    <string name="composer_size_medium_label">中号字</string>
+    <string name="composer_size_small_label">小号字</string>
+    <string name="composer_insert">插入</string>
+    <string name="composer_block">段落</string>
+    <string name="composer_preview">预览</string>
+    <string name="composer_insert_link">插入链接</string>
+    <string name="composer_insert_image">插入图片</string>
+    <string name="composer_url">地址</string>
+    <string name="composer_link_text">文字</string>
+    <string name="composer_edit_floor">编辑 %1$s</string>
+    <string name="composer_edit_post">编辑正文</string>
+    <string name="composer_new_topic">在 %1$s 发帖</string>
+    <string name="composer_topic_title">标题</string>
+    <string name="composer_topic_body">正文</string>
+    <string name="composer_title_optional">主题（可选）</string>
+    <string name="smiley_family_classic">BangumiTV by dsm</string>
+    <string name="smiley_family_tv">BangumiTV by Cinnamor</string>
+    <string name="smiley_family_vs">BangumiTV by 神戸小鳥</string>
+    <string name="smiley_family_500">BangumiTV by 五行行行行行啊</string>
+    <string name="smiley_family_musume">Bangumi 娘 by 貓魚</string>
+    <string name="smiley_family_blake">Blake 娘 by 貓魚</string>
+    <string name="smiley_family_kaomoji">颜文字</string>
+    <string name="replies_count">回复 %1$d</string>
+    <string name="delete">删除</string>
+    <string name="delete_activity_confirm">删除这条动态？此操作无法撤销。</string>
+    <string name="verification">安全验证</string>
+    <string name="theme_color">主题色</string>
+    <string name="theme_color_source">配色</string>
+    <string name="theme_color_preset">配色方案</string>
+    <string name="theme_color_system">系统取色</string>
+    <string name="theme_color_system_hint">颜色取自系统壁纸</string>
+    <string name="theme_color_custom_short">自定义</string>
+    <string name="theme_preset_mono">黑白</string>
+    <string name="theme_preset_ink">墨</string>
+    <string name="theme_preset_cinnabar">朱砂</string>
+    <string name="theme_preset_fuchsia">紫红</string>
+    <string name="theme_preset_violet">鲜紫</string>
+    <string name="theme_preset_indigo">黛蓝</string>
+    <string name="theme_preset_azure">亮蓝</string>
+    <string name="theme_preset_peacock">孔雀</string>
+    <string name="theme_preset_pine">墨绿</string>
+    <string name="theme_preset_mocha">摩卡</string>
+    <string name="theme_color_custom">自定义颜色</string>
+    <string name="theme_color_hex">十六进制颜色，如 #F09199</string>
+    <string name="theme_color_invalid">请输入六位十六进制颜色</string>
+    <string name="theme_color_pink">粉色</string>
+    <string name="theme_color_blue">蓝色</string>
+    <string name="theme_color_purple">紫色</string>
+    <string name="theme_color_orange">橙色</string>
+    <string name="app_icon">应用图标</string>
+    <string name="app_icon_tv_navy">藏青小电视</string>
+    <string name="app_icon_tv_pink">粉色小电视</string>
+    <string name="app_icon_tv_on_pink">粉底小电视</string>
+    <string name="app_icon_sakura_pink">粉色樱花</string>
+    <string name="app_icon_sakura_rainbow">彩色樱花</string>
+    <string name="empty_search">没有找到匹配的条目</string>
+    <string name="page_more">更多</string>
+    <string name="page_more_web">网页</string>
+    <string name="page_more_share">分享</string>
+    <string name="page_more_collect">收录</string>
+    <!-- 我的：资料头与五个 tab -->
+    <string name="profile_overview">概览</string>
+    <string name="profile_shelf">收藏</string>
+    <string name="profile_social">好友</string>
+    <string name="profile_joined_at">加入时间</string>
+    <string name="profile_location">所在地</string>
+    <string name="profile_site">个人主页</string>
+    <string name="profile_friends_count">我关注的</string>
+    <string name="empty_shelf">还没有公开的收藏</string>
+    <string name="profile_followers_count">关注我的</string>
+    <string name="profile_others_following">关注</string>
+    <string name="profile_others_followers">粉丝</string>
+    <string name="profile_collection_characters">角色</string>
+    <string name="profile_collection_persons">人物</string>
+    <string name="profile_collection_characters_persons">角色与人物</string>
+    <string name="empty_following">还没有关注任何人</string>
+    <string name="empty_others_following">%1$s 还没有关注任何人</string>
+    <string name="empty_others_followers">还没有人关注 %1$s</string>
+
+    <!--
+      个人主页。资料头数字行、关于折叠简介、他人操作、好友网格、收藏 FAB、日志目录。
+      文案对照 2026-10-03 实测的网页个人页与原型的左栏说明。
+    -->
+    <!-- 关于：折叠简介 -->
+    <string name="profile_info">资料</string>
+    <!-- 资料头 @用户名 下面一行：yyyy-MM-dd 加入 -->
+    <string name="profile_joined">%1$s 加&#x2060;入</string>
+    <!-- 资料头数字行：好友 / 日志 / 目录 -->
+    <!-- 他人主页：操作行与 ⋮ 菜单 -->
+    <string name="add_friend">加为好友</string>
+    <string name="unfriend">解除好友</string>
+    <string name="profile_already_friend">已是好友</string>
+    <string name="profile_message">短消息</string>
+    <!-- 连通按钮组放不下时组尾收纳其余选项的「更多」格（读屏念这个） -->
+    <string name="choice_group_more">更多选项</string>
+    <string name="block">绝交</string>
+    <!-- 他人主页：绝交条 -->
+    <string name="profile_blocked_banner">你已与 %1$s 绝交</string>
+    <string name="profile_unblock">取消绝交</string>
+    <!-- 绝交确认框 -->
+    <string name="block_confirm_title">与 %1$s 绝交？</string>
+    <string name="block_confirm_body">绝交后，%1$s 不能再回复你、给你发短消息，你们的动态也互不出现。随时可以在 %1$s 的主页取消。</string>
+    <string name="block_confirm_action">绝交</string>
+    <!-- 加好友撤销 -->
+    <string name="profile_unfriend_confirm_title">解除好友关系？</string>
+    <string name="profile_unfriend_confirm_body">解除后不再是好友，随时可以再加。</string>
+    <string name="profile_unfriend_confirm_action">解除</string>
+    <!-- 报告面板 -->
+    <string name="report">报告</string>
+    <string name="report_title">报告 %1$s</string>
+    <string name="report_title_post">报告 %1$s 的发言</string>
+    <string name="copy">复制</string>
+    <string name="report_comment_label">补充说明（选填，最多 2000 字）</string>
+    <string name="report_submit">提交</string>
+    <!-- 报告提交成功后确认态里的关闭按钮：不用「取消」，因为事情已经办成了 -->
+    <string name="report_done">完成</string>
+    <string name="report_reason_abuse">辱骂、人身攻击</string>
+    <string name="report_reason_spam">刷屏、无关内容</string>
+    <string name="report_reason_political">政治相关</string>
+    <string name="report_reason_illegal">违法信息</string>
+    <string name="report_reason_privacy">泄露隐私</string>
+    <string name="report_reason_cheat_score">涉嫌刷分</string>
+    <string name="report_reason_flame">引战</string>
+    <string name="report_reason_advertisement">广告</string>
+    <string name="report_reason_spoiler">剧透</string>
+    <string name="report_reason_other">其他</string>
+    <!-- 好友网格 -->
+    <!-- 日志 / 目录只读页 -->
+    <string name="empty_followers">还没有人关注你</string>
+    <string name="debug_link_title">调试：按链接跳转</string>
+    <string name="debug_link_hint">输入 bgm.tv 链接、条目 ID 或用户名，例如 https://bgm.tv/user/demo_user</string>
+    <string name="debug_crash_title">调试：上次崩溃</string>
+    <string name="debug_crash_none">没有崩溃记录</string>
+    <string name="debug_crash_show_full">展开全文</string>
+    <string name="debug_crash_clear">清除记录</string>
+    <string name="debug_link_field">链接或用户名</string>
+    <string name="debug_link_go">跳转</string>
+    <string name="debug_link_unrecognized">认不出这个链接，或者 App 里还没有这个页面</string>
+
+    <!--
+      时间线收藏动词。来源：Bangumi 服务端 lib/timeline/type.ts，memo.type 里编码的收藏类型；
+      cat/type → 文案键的映射只在 core:ui 的 presentationOf（其余动词见下方「动态页重做」）。
+    -->
+    <!--
+      收藏动作按**条目类型**分动词（读/看/听/玩），与 CollectionTypeBadge 那套
+      通用词（想看/看过/在看）语义不同，故单列，不复用 collection_* 键。
+    -->
+    <string name="timeline_collect_wish_book">想读</string>
+    <string name="timeline_collect_wish_anime">想看</string>
+    <string name="timeline_collect_wish_music">想听</string>
+    <string name="timeline_collect_wish_game">想玩</string>
+    <string name="timeline_collect_done_book">读过</string>
+    <string name="timeline_collect_done_anime">看过</string>
+    <string name="timeline_collect_done_music">听过</string>
+    <string name="timeline_collect_done_game">玩过</string>
+    <string name="timeline_collect_doing_book">在读</string>
+    <string name="timeline_collect_doing_anime">在看</string>
+    <string name="timeline_collect_doing_music">在听</string>
+    <string name="timeline_collect_doing_game">在玩</string>
+    <string name="timeline_collect_on_hold">搁置了</string>
+    <string name="timeline_collect_dropped">抛弃了</string>
+    <string name="timeline_collect_unknown">更新了收藏</string>
+    <!-- 互动区 -->
+    <!-- 描述片段：模板在资源里，数字是服务端数据（见 core:ui 的 timelineSegmentText） -->
+    <plurals name="timeline_group_members">
+        <item quantity="other">%1$d 位成员</item>
+    </plurals>
+    <plurals name="timeline_index_total">
+        <item quantity="other">%1$d 个关联内容</item>
+    </plurals>
+    <string name="timeline_progress_eps_total">章节 %1$s</string>
+    <plurals name="timeline_progress_eps_update">
+        <item quantity="other">%1$d 话</item>
+    </plurals>
+    <string name="timeline_progress_vols_total">卷数 %1$s</string>
+    <plurals name="timeline_progress_vols_update">
+        <item quantity="other">%1$d 卷</item>
+    </plurals>
+
+    <!-- 个人统计 Tab -->
+    <string name="profile_stats_unrated">未评分</string>
+
+    <!-- 角色与人物详情 (Mono Details) -->
+    <!-- 角色页 / 人物页 -->
+    <string name="mono_role_main">主角</string>
+    <string name="mono_role_supporting">配角</string>
+    <string name="mono_role_guest">客串</string>
+    <string name="mono_role_extra">闲角</string>
+    <string name="mono_role_narrator">旁白</string>
+    <string name="mono_career_seiyu">声优</string>
+    <string name="mono_career_artist">歌手</string>
+    <string name="mono_career_actor">演员</string>
+    <string name="mono_career_mangaka">漫画家</string>
+    <string name="mono_career_writer">作家</string>
+    <string name="mono_career_illustrator">插画家</string>
+    <string name="mono_career_producer">制作人</string>
+    <string name="mono_all_info">全部资料</string>
+    <string name="mono_representative_characters">代表角色</string>
+    <plurals name="mono_indexes_entry">
+        <item quantity="other">被 %1$d 个目录收录</item>
+    </plurals>
+    <string name="mono_sort_rating">评分从高到低</string>
+    <string name="mono_sort_time">时间从新到旧</string>
+    <string name="mono_sort_rating_hint">评分人数不足 %1$d 的作品排在后面，按评分人数排。</string>
+    <string name="mono_collect">收藏</string>
+    <string name="comment_deleted">该回复不可见</string>
+    <string name="mono_comments_title">吐槽箱</string>
+    <plurals name="comment_expand_replies">
+        <item quantity="other">展开其余 %1$d 条回复</item>
+    </plurals>
+    <string name="mono_works_character">出演作品</string>
+    <string name="mono_works_person">参与作品</string>
+    <string name="comment_collapse">收起</string>
+    <string name="mono_relations_title">关联人物</string>
+    <string name="mono_indexes_title_count">关联目录（%1$d）</string>
+
+    <!-- 组合筛选 -->
+    <string name="search_clear_query">清除搜索词</string>
+    <string name="search_sort_rank">排名</string>
+    <string name="search_sort_trends">热度</string>
+    <string name="search_sort_collects">收藏</string>
+    <string name="search_sort_tagged">标注数</string>
+    <string name="search_sort_date">日期</string>
+    <string name="search_sort_title">名称</string>
+    <string name="search_month">月份</string>
+    <string name="search_month_value">%1$d 月</string>
+    <string name="search_remove_condition">移除 %1$s</string>
+    <string name="search_out_of_range">数值超出允许范围</string>
+    <string name="search_empty_tag">标签不能为空</string>
+    <string name="search_excluded_tag">暂不支持排除标签</string>
+    <string name="search_unknown_type">无效条目类型</string>
+    <string name="search_unknown_dimension_value">该分类不适用于当前条目类型</string>
+    <string name="search_filters">筛选</string>
+    <string name="search_filters_selected">筛选，已选 %1$d 项</string>
+    <string name="search_type_fab">条目类型：%1$s</string>
+    <string name="search_condition_labeled">%1$s：%2$s</string>
+    <string name="search_dimension_hint">用右下角按钮选择条目类型后，可按形式、来源、地区等筛选</string>
+    <string name="search_dim_category">形式</string>
+    <string name="search_dim_series">系列或单本</string>
+    <string name="search_dim_platform">平台</string>
+    <string name="search_dim_source">来源</string>
+    <string name="search_dim_genre">题材</string>
+    <string name="search_dim_genre_game">玩法</string>
+    <string name="search_dim_genre_music">形式</string>
+    <string name="search_dim_theme">题材</string>
+    <string name="search_dim_region">地区</string>
+    <string name="search_dim_audience">受众</string>
+    <string name="search_dim_content_rating">分级</string>
+    <string name="search_dim_publication_status">连载状态</string>
+
+    <!-- 筛选面板：选法标记、题材区、其他已选、搜索建议、折叠 -->
+    <string name="search_mode_single">单选</string>
+    <string name="search_mode_multi">可多选，同时满足</string>
+    <string name="search_theme_section">题材</string>
+    <string name="search_other_selected">其他已选</string>
+    <string name="search_dim_tag">标签</string>
+    <string name="search_filter_field_hint">搜题材、公司、人名等</string>
+    <string name="search_suggestion_fallback">按「%1$s」筛选</string>
+    <string name="search_suggestion_fallback_note">常用词里没有</string>
+    <string name="search_suggestion_selected">已选</string>
+    <string name="search_suggestion_note_selected">%1$s（%2$s）</string>
+    <string name="search_show_all">全部 %1$d 个</string>
+    <string name="search_collapse">收起</string>
+    <string name="search_suggestion_catalog_count">%1$s 次标记</string>
+
+    <!-- 搜索页图钉：把条件放上探索页成一个模块、改名、移除 -->
+    <string name="search_pin">固定到探索页</string>
+    <string name="search_unpin">从探索页移除</string>
+    <string name="search_rename_preset">重命名模块</string>
+
+    <string name="search_time">时间</string>
+    <string name="search_time_any">不限</string>
+    <string name="search_time_earlier_end">更早</string>
+    <string name="search_time_later_end">更晚</string>
+    <string name="search_time_year">%1$d 年</string>
+    <string name="search_time_year_month">%1$d 年 %2$d 月</string>
+    <string name="search_time_decade">%1$d 年代</string>
+    <string name="search_time_from">%1$d 年及以后</string>
+    <string name="search_time_until">%1$d 年及以前</string>
+    <string name="search_time_range">%1$d–%2$d 年</string>
+    <string name="search_time_month_hint">拖动两端选年份范围，两端停在同一年后可以选月份。</string>
+    <string name="search_time_same_year_hint">同一年里还可以选月份，选完月份按月份筛。</string>
+    <string name="search_time_range_hint">拉到同一年后才能选月份。年份范围只能按排名、收藏排序。</string>
+
+    <!-- 搜索页：条件叫法与排序说明 -->
+    <string name="search_condition_theme">题材</string>
+
+    <!--
+      EP 按钮与章节方格。
+      `ep_button_*` 的 %1$d 是集号（sort 的整数部分，非 id）；`ep_button_waiting_days_compact` 的 %1$d 是还有几天
+      （列表行倒计时环里的字）；
+      `ep_button_waiting_a11y` 的 %2$s 是「明天/N 天后」（唯一映射在 EpButton 内，
+      UTC+8 口径由调用方传入的「今天」决定）。**没有「今天」**：今天播出算已播出、可标记。
+    -->
+    <string name="ep_button_waiting_days_compact">%1$d天</string>
+    <string name="ep_button_pending_count">+%1$d</string>
+    <string name="episode_summary_current">看到第 %1$s 集</string>
+    <string name="episode_summary_none">还没开始看</string>
+    <plurals name="episode_summary_total">
+        <item quantity="other">共 %1$d 集</item>
+    </plurals>
+    <string name="episode_summary_aired">已播 %1$d</string>
+    <string name="episode_summary_finished">已完结</string>
+    <string name="episode_state_watched">看过</string>
+    <string name="episode_state_current">看到这里</string>
+    <string name="episode_state_next">下一集</string>
+    <string name="episode_state_aired">已播出，未看</string>
+    <string name="episode_state_wish">网页上标了想看</string>
+    <string name="episode_state_dropped">网页上标了抛弃</string>
+    <string name="episode_state_unaired">未播出</string>
+    <string name="episode_tile_desc">%1$s，%2$s</string>
+    <string name="episode_tile_desc_airing">%1$s，%2$s，%3$s</string>
+    <string name="episode_tile_airs_today">今天播出</string>
+    <string name="episode_tile_airs_on">%1$s播出</string>
+    <string name="episode_tile_long_press">单集详情</string>
+    <string name="episode_jump_forward_title">标到第 %1$s 集</string>
+    <string name="episode_jump_back_title">退回到第 %1$s 集</string>
+    <plurals name="episode_jump_fill_text">
+        <item quantity="other">一次标记 %1$d 集为看过</item>
+    </plurals>
+    <plurals name="episode_jump_clear_text">
+        <item quantity="other">取消 %1$d 集的看过</item>
+    </plurals>
+    <string name="episode_jump_mixed_text">标记 %1$d 集为看过，取消 %2$d 集</string>
+    <string name="episode_jump_confirm_hint">再点一次这一格确认</string>
+    <string name="episode_unaired_tip">第 %1$s 集 %2$s播出</string>
+    <string name="episode_legend_wish">想看</string>
+    <string name="episode_legend_dropped">抛弃</string>
+    <string name="episode_range_desc">第 %1$s–%2$s 集，看了 %3$d 集</string>
+    <string name="episodes_finished_title">全部看完了</string>
+    <!-- 播出日缺失/不合法：与网格「按已播出显示」一致，不说「尚未播出」 -->
+    <string name="episode_detail_airdate_unknown">播出日未知</string>
+    <string name="episode_detail_airdate">%1$s 播出</string>
+    <string name="episode_comments_empty">还没有评论</string>
+    <string name="episode_specials_title">特别篇</string>
+    <string name="ruler_latest">最新</string>
+    <string name="episode_type_sp">SP</string>
+    <string name="episode_type_op">OP</string>
+    <string name="episode_type_ed">ED</string>
+    <string name="episode_type_pre">预告</string>
+    <string name="episode_type_mad">MAD</string>
+    <string name="episode_type_other">其他</string>
+
+    <!-- 通知与社区 -->
+    <string name="notification_title">通知</string>
+    <string name="unread">未读</string>
+    <string name="notification_mark_all_read">全部标为已读</string>
+    <string name="notification_empty">暂无通知</string>
+    <string name="notification_bell_cd">通知与短信</string>
+    <string name="notification_bell_unread_cd">通知与短信，有未读</string>
+    <string name="inbox_tab_messages">短信</string>
+    <string name="pm_empty">还没有短信</string>
+    <string name="pm_web_login_required">短信只在 bgm.tv 网页上有，用账号密码登录后才能在 App 里看。请在设置里退出后重新登录</string>
+
+    <!-- 通知类型文案 -->
+    <string name="notify_type_unknown">收到新通知</string>
+    <string name="notify_type_group_topic_reply">在你的小组话题中发表了新回复</string>
+    <string name="notify_type_group_post_reply">在小组话题中回复了你</string>
+    <string name="notify_type_subject_topic_reply">在你的条目讨论中发表了新回复</string>
+    <string name="notify_type_subject_post_reply">在条目讨论中回复了你</string>
+    <string name="notify_type_character_topic_reply">在角色讨论中发表了新回复</string>
+    <string name="notify_type_character_post_reply">在角色讨论中回复了你</string>
+    <string name="notify_type_blog_topic_reply">在你的日志中发表了新回复</string>
+    <string name="notify_type_blog_post_reply">在日志中回复了你</string>
+    <string name="notify_type_episode_topic_reply">在章节讨论中发表了新回复</string>
+    <string name="notify_type_episode_post_reply">在章节讨论中回复了你</string>
+    <string name="notify_type_index_comment">在目录中给你留言了</string>
+    <string name="notify_type_index_reply">在目录中回复了你</string>
+    <string name="notify_type_person_reply">在人物讨论中回复了你</string>
+    <string name="notify_type_request_friend">请求与你成为好友</string>
+    <string name="notify_type_accept_friend">通过了你的好友请求</string>
+    <string name="notify_type_doujin_club_topic_reply">在你的社团讨论中发表了新回复</string>
+    <string name="notify_type_doujin_club_post_reply">在社团讨论中回复了你</string>
+    <string name="notify_type_doujin_subject_reply">在同人作品中回复了你</string>
+    <string name="notify_type_doujin_event_topic_reply">在你的展会讨论中发表了新回复</string>
+    <string name="notify_type_doujin_event_post_reply">在展会讨论中回复了你</string>
+    <string name="notify_type_timeline_reply">回复了你的吐槽</string>
+    <string name="notify_type_group_mention">在小组话题中提到了你</string>
+    <string name="notify_type_subject_mention">在条目讨论中提到了你</string>
+    <string name="notify_type_character_mention">在角色讨论中提到了你</string>
+    <string name="notify_type_person_mention">在人物讨论中提到了你</string>
+    <string name="notify_type_index_mention">在目录中提到了你</string>
+    <string name="notify_type_timeline_mention">在动态中提到了你</string>
+    <string name="notify_type_blog_mention">在日志中提到了你</string>
+    <string name="notify_type_episode_mention">在章节讨论中提到了你</string>
+    <string name="notify_type_doujin_club_shoutbox_mention">在社团的留言板中提到了你</string>
+    <string name="notify_type_doujin_club_topic_mention">在社团讨论中提到了你</string>
+    <string name="notify_type_doujin_subject_mention">在同人作品中提到了你</string>
+    <string name="notify_type_doujin_event_topic_mention">在展会讨论中提到了你</string>
+    <string name="notify_type_subject_patch_accepted">你的条目修改已被接受</string>
+    <string name="notify_type_episode_patch_accepted">你的章节修改已被接受</string>
+    <string name="notify_type_subject_patch_rejected">你的条目修改已被拒绝</string>
+    <string name="notify_type_episode_patch_rejected">你的章节修改已被拒绝</string>
+    <string name="notify_type_subject_patch_expired">你的条目修改已经过期</string>
+    <string name="notify_type_episode_patch_expired">你的章节修改已经过期</string>
+    <string name="notify_type_character_patch_accepted">你的角色修改已被接受</string>
+    <string name="notify_type_person_patch_accepted">你的人物修改已被接受</string>
+    <string name="notify_type_character_patch_rejected">你的角色修改已被拒绝</string>
+    <string name="notify_type_person_patch_rejected">你的人物修改已被拒绝</string>
+    <string name="notify_type_character_patch_expired">你的角色修改已经过期</string>
+    <string name="notify_type_person_patch_expired">你的人物修改已经过期</string>
+    <string name="notify_type_subject_patch_reply">你参与的条目修改有新回复</string>
+    <string name="notify_type_episode_patch_reply">你参与的章节修改有新回复</string>
+    <string name="notify_type_character_patch_reply">你参与的角色修改有新回复</string>
+    <string name="notify_type_person_patch_reply">你参与的人物修改有新回复</string>
+    <string name="home_today_title">今日</string>
+    <string name="home_to_watch_section">待看</string>
+    <string name="home_schedule_section">追更时间表</string>
+    <string name="home_continue_section">继续</string>
+    <!-- 「继续」候选全被顶部覆盖时，模块收成的唯一一行：进入进度页的完整在看/在读列表（全部类型）。 -->
+    <string name="home_continue_all_progress">查看全部进度</string>
+    <!-- 区块标题右侧的「全部」入口：待看与继续共用（跳进度页）。 -->
+    <string name="home_section_all">全部</string>
+    <string name="home_doing_section">也在进行</string>
+    <string name="home_friends_section">好友在看</string>
+    <plurals name="home_friends_count">
+        <item quantity="other">%1$d 位好友%2$s</item>
+    </plurals>
+
+    <!-- 进度文案：全 App 唯一（集 / 话 / 卷），中文全中文、英文全英文。 -->
+    <string name="progress_episode">第 %1$s 集</string>
+    <string name="progress_book_chapter">第 %1$d 话</string>
+    <string name="progress_book_volume">第 %1$d 卷</string>
+    <string name="ep_button_waiting_a11y">%1$s 尚未播出（%2$s）</string>
+    <!-- 相对天数（全 App 唯一）：时间表分组、EP 按钮等待态、动态日期头与相对时间共用 -->
+    <string name="day_offset_today">今天</string>
+    <string name="day_offset_yesterday">昨天</string>
+    <string name="day_offset_tomorrow">明天</string>
+    <string name="day_offset_days">%1$d 天后</string>
+
+    <!-- 列表行进度文字：带单位，免得「0 / 51」被读成一对标识符；书籍的话/卷沿用 progress_book_* 的词汇 -->
+    <plurals name="progress_row_episodes">
+        <item quantity="other">看过 %1$d / %2$d 集</item>
+    </plurals>
+    <plurals name="progress_row_episodes_unknown">
+        <item quantity="other">看过 %1$d 集</item>
+    </plurals>
+    <string name="progress_row_chapters">读过 %1$d / %2$d 话</string>
+    <string name="progress_row_chapters_unknown">读过 %1$d 话</string>
+    <string name="progress_row_volumes">读过 %1$d / %2$d 卷</string>
+    <string name="progress_row_volumes_unknown">读过 %1$d 卷</string>
+    <string name="progress_row_numbers">%1$d / %2$d</string>
+    <string name="progress_row_number_unknown">%1$d</string>
+    <!-- 分季条目：本篇的系列集号区间，接在进度文字后面 -->
+
+    <!-- 探索页：固定入口与模块标题（32 个叶子类型） -->
+    <string name="explore_title_filters">全部筛选</string>
+    <string name="explore_title_new_season">%1$d 月新番</string>
+    <string name="explore_title_catch_up_season">%1$d 月番回顾</string>
+    <string name="explore_title_this_month_book">本月新刊</string>
+    <string name="explore_title_this_month_music">本月新碟</string>
+    <string name="explore_title_this_month_game">本月发售</string>
+    <string name="explore_title_this_month_real">本月开播</string>
+    <string name="explore_title_this_month_default">本月新作</string>
+    <string name="explore_title_today_on_air">今日放送</string>
+    <string name="explore_title_theme_browse">按题材浏览</string>
+    <string name="explore_title_decade_browse">按年代浏览</string>
+    <string name="explore_title_company_browse_anime">按动画公司浏览</string>
+    <string name="explore_title_company_browse_game">按游戏公司浏览</string>
+    <string name="explore_title_company_browse_default">按制作公司浏览</string>
+    <string name="explore_title_platform_browse">按平台浏览</string>
+    <string name="explore_title_genre_browse">按玩法浏览</string>
+    <string name="explore_title_format_browse">按形式浏览</string>
+    <string name="explore_title_region_browse">按地区浏览</string>
+    <string name="explore_title_tokusatsu">特摄专区</string>
+    <string name="explore_tile_all_of">全部%1$s</string>
+
+    <!-- 探索页第一次进来的聚焦引导：长按封面标记、长按标题整理 -->
+    <string name="explore_guide_mark_title">长按封面，直接标记</string>
+    <string name="explore_guide_mark_text">按住任一作品的封面，朝一个方向滑过去再松手，就能标成看过、想看或在看。</string>
+    <string name="explore_guide_next">下一步</string>
+    <string name="explore_guide_arrange_title">整理探索页</string>
+    <string name="explore_guide_arrange_text">长按任一模块的标题，可以调整顺序、隐藏或添加模块。</string>
+    <string name="explore_guide_done">知道了</string>
+    <string name="explore_guide_arrange">去整理</string>
+    <!-- 探索页整理模块：整理列表、编辑面板、添加模块 -->
+    <string name="explore_arrange_title">整理模块</string>
+    <string name="explore_arrange_enter">整理模块</string>
+    <string name="explore_arrange_add">添加模块</string>
+    <string name="explore_arrange_done">完成</string>
+    <string name="explore_arrange_empty">这一页没有模块，从「添加模块」放上来</string>
+    <string name="explore_shelf_edit">编辑模块</string>
+    <string name="explore_shelf_new_works">新建作品模块</string>
+    <string name="explore_shelf_new_works_detail">一个词，一行作品</string>
+    <string name="explore_shelf_new_tiles">新建方块模块</string>
+    <string name="explore_shelf_new_tiles_detail">几个词，一个词一块</string>
+    <string name="explore_shelf_name">名称</string>
+    <string name="explore_shelf_tiles_default_name">我的方块</string>
+    <string name="explore_shelf_conditions">条件</string>
+    <string name="explore_shelf_add_condition">条件</string>
+    <string name="explore_shelf_sort">排序</string>
+    <string name="explore_shelf_style">样式</string>
+    <string name="explore_shelf_tiles">方块</string>
+    <string name="explore_shelf_add_tile">方块</string>
+    <string name="explore_shelf_drawing">画法</string>
+    <string name="explore_shelf_remove">移除模块</string>
+    <string name="explore_shelf_kind_tiles">方块</string>
+    <string name="explore_shelf_group_custom">我建的</string>
+    <string name="explore_shelf_group_fixed">固定模块与预设方块</string>
+    <string name="explore_shelf_show">加到页面</string>
+    <string name="explore_shelf_hide">从页面移除</string>
+    <string name="explore_style_poster_row">海报行</string>
+    <string name="explore_style_focus">焦点</string>
+    <string name="explore_style_chart">榜单</string>
+    <string name="explore_style_bento">拼盘</string>
+    <string name="explore_style_cover_flow">封面流</string>
+    <string name="explore_style_deck">卡堆</string>
+    <string name="explore_style_spine">书脊</string>
+    <string name="explore_style_timeline">年表</string>
+    <string name="explore_drawing_color">色块</string>
+    <string name="explore_drawing_stack">合集</string>
+    <string name="explore_drawing_cover">代表作</string>
+    <string name="explore_drawing_logo">标志</string>
+    <string name="explore_drawing_ruler">刻度尺</string>
+
+    <!-- 可长按后拖动排序的列表：读屏的自定义动作与把手 -->
+    <string name="reorder_move_up">上移</string>
+    <string name="reorder_move_down">下移</string>
+    <string name="reorder_remove">移除</string>
+    <string name="reorder_drag_handle">长按后拖动排序</string>
+
+    <!-- 探索页组合模块（15 个固定组合，自然人话，不用「A × B」格式） -->
+    <!-- 放送日历：我在追标记 -->
+    <string name="calendar_following">在追</string>
+
+    <!-- 近期热门大图上的名次角标 -->
+    <string name="explore_hero_rank">#%1$d 热门</string>
+    <string name="explore_focus_score_unit">分</string>
+    <string name="explore_deck_next">下一张</string>
+    <string name="explore_focus_score_rank">分，第 %1$d 名</string>
+
+    <!-- 探索页「今日放送」副标题：周几、共几部（两段由 MetaText 以圆点连成一行） -->
+    <plurals name="work_count">
+        <item quantity="other">%1$d 部</item>
+    </plurals>
+    <string-array name="weekday_names">
+        <item>周一</item>
+        <item>周二</item>
+        <item>周三</item>
+        <item>周四</item>
+        <item>周五</item>
+        <item>周六</item>
+        <item>周日</item>
+    </string-array>
+
+    <!-- 每日放送重做 -->
+    <string name="calendar_title">每日放送</string>
+    <string name="calendar_following_section">我在追</string>
+    <string name="calendar_watchers_count">%1$s 在看</string>
+    <string name="calendar_day_today_accessibility">%1$s（今天）</string>
+    <string name="calendar_unknown_time">时刻未知</string>
+    <string name="calendar_now">现在</string>
+
+    <!-- 加载更多页脚与到底文案 -->
+    <string name="load_more_loading">正在加载更多</string>
+    <string name="load_more_failed">没加载出来</string>
+    <string name="load_more_end_search">没有更多结果了</string>
+    <string name="load_more_end_relations">没有更多关联了</string>
+    <string name="load_more_end_shelf">没有更多收藏了</string>
+    <string name="load_more_end_social">没有更多人了</string>
+    <string name="load_more_end_blogs">没有更多日志了</string>
+    <string name="load_more_end_timeline">没有更早的动态了</string>
+    <!-- 全站动态到底：服务端的全站时间线只留最近一千条左右 -->
+    <string name="load_more_end_timeline_everyone">全站动态只能往前看最近一千条左右</string>
+    <!-- 按类别往前找了一大段没找到时停下：「往前翻了 1200 条动态，没再找到日志」 -->
+    <plurals name="timeline_scan_paused">
+        <item quantity="other">往前翻了 %1$d 条动态，没再找到%2$s</item>
+    </plurals>
+    <string name="load_more_continue">继续往前找</string>
+    <!-- 按类别筛、翻到底也没有一条：「好友动态里没有日志」 -->
+    <string name="timeline_empty_friends">好友动态里没有%1$s</string>
+    <string name="timeline_empty_everyone">最近一千条左右的全站动态里没有%1$s</string>
+    <string name="load_more_end_indexes">没有更多目录了</string>
+    <string name="profile_indexes_created">创建的</string>
+    <string name="profile_indexes_collected">收藏的</string>
+    <string name="profile_blogs_title">日志</string>
+    <string name="profile_indexes_title">目录</string>
+    <string name="empty_blogs">还没有公开的日志</string>
+    <string name="empty_indexes">还没有目录</string>
+    <plurals name="comments_count">
+        <item quantity="other">%1$d 条留言</item>
+    </plurals>
+    <string name="comment_section_title">评论区</string>
+    <!-- 顶栏排序按钮的读屏文案：「排序：评分从高到低」 -->
+    <string name="sort_menu_description">排序：%1$s</string>
+    <string name="sort_menu_description_with_direction">排序：%1$s，%2$s</string>
+    <plurals name="index_items_count">
+        <item quantity="other">%1$d 个条目</item>
+    </plurals>
+    <string name="profile_stats_friend">好友</string>
+    <string name="profile_stats_blog">日志</string>
+    <string name="profile_stats_index">目录</string>
+    <!-- 动态页重做 -->
+    <string name="timeline_filter_all">全部</string>
+    <string name="timeline_filter_progress">进度</string>
+    <string name="timeline_filter_collect">收藏</string>
+    <string name="timeline_filter_status">吐槽</string>
+    <string name="timeline_filter_blog">日志</string>
+    <string name="timeline_filter_mono">人物</string>
+    <string name="timeline_filter_friend">好友</string>
+    <string name="timeline_filter_group">小组</string>
+    <string name="timeline_filter_wiki">维基</string>
+    <string name="timeline_filter_index">目录</string>
+    <string name="timeline_verb_watch_to">看到</string>
+    <string name="timeline_verb_read_to">读到</string>
+    <string name="timeline_verb_wish">想看</string>
+    <string name="timeline_verb_watched">看过</string>
+    <string name="timeline_verb_dropped">抛弃了</string>
+    <string name="timeline_verb_tsukkomi">吐槽</string>
+    <string name="timeline_verb_sign">改了签名</string>
+    <string name="timeline_verb_nickname">改了昵称</string>
+    <string name="timeline_verb_blog">写了日志</string>
+    <string name="timeline_verb_index">创建了目录</string>
+    <string name="timeline_verb_mono_created">创建了</string>
+    <string name="timeline_verb_mono_collected">收藏了</string>
+    <string name="timeline_verb_add_friend">加了好友</string>
+    <string name="timeline_verb_join_group">加入了小组</string>
+    <string name="timeline_verb_create_group">创建了小组</string>
+    <string name="timeline_verb_register">加入了 Bangumi</string>
+    <string name="timeline_verb_join_eden">加入了乐园</string>
+    <string name="timeline_verb_mystery">有了新的动态</string>
+    <string name="timeline_verb_new_subject">添加了新条目</string>
+    <string name="timeline_verb_unsupported">发布了暂不支持的动态</string>
+    <plurals name="timeline_batch_count_book">
+        <item quantity="other">%1$d 本书</item>
+    </plurals>
+    <plurals name="timeline_batch_count_anime">
+        <item quantity="other">%1$d 部动画</item>
+    </plurals>
+    <plurals name="timeline_batch_count_music">
+        <item quantity="other">%1$d 张音乐</item>
+    </plurals>
+    <plurals name="timeline_batch_count_game">
+        <item quantity="other">%1$d 部游戏</item>
+    </plurals>
+    <plurals name="timeline_group_count">
+        <item quantity="other">%1$d 条</item>
+    </plurals>
+    <string name="timeline_author_skeleton_sample">动态作者姓名很长需要换行</string>
+    <string name="timeline_episode_single">EP %1$s</string>
+    <string name="timeline_episode_range">EP %1$s–%2$s</string>
+    <string name="timeline_line_with_text">%1$s「%2$s」</string>
+    <string name="list_separator">、</string>
+    <string name="relative_time_just_now">刚刚</string>
+    <plurals name="relative_time_minutes">
+        <item quantity="other">%1$d 分钟前</item>
+    </plurals>
+    <plurals name="relative_time_hours">
+        <item quantity="other">%1$d 小时前</item>
+    </plurals>
+    <plurals name="relative_time_days">
+        <item quantity="other">%1$d 天前</item>
+    </plurals>
+    <string name="timeline_title">动态</string>
+    <string name="timeline_reaction_like_count">贴贴 %1$d</string>
+    <string name="timeline_no_replies">还没有回复</string>
+
+    <!-- 生涯：生涯卡与完整统计页 -->
+    <string name="career_stats_title_self">我的生涯</string>
+    <string name="career_who_self">我</string>
+    <string name="career_stats_title_other">%1$s 的生涯</string>
+    <string name="career_card_done">部作品完成</string>
+    <string name="career_card_doing">部正在追</string>
+    <string name="career_card_average">均分</string>
+    <string name="career_card_average_stricter">均分，比大众严 %1$s</string>
+    <string name="career_card_average_same">均分，和大众一致</string>
+    <string name="career_card_average_lenient">均分，比大众松 %1$s</string>
+    <string name="career_card_likes">最爱%1$s</string>
+    <string name="career_persona_anime">%1$s迷</string>
+    <string name="career_persona_anime_plain">动画迷</string>
+    <string name="career_persona_book">%1$s书虫</string>
+    <string name="career_persona_book_plain">书虫</string>
+    <string name="career_persona_game">%1$s玩家</string>
+    <string name="career_persona_game_plain">玩家</string>
+    <string name="career_persona_music">%1$s乐迷</string>
+    <string name="career_persona_music_plain">乐迷</string>
+    <string name="career_persona_real">%1$s剧迷</string>
+    <string name="career_persona_real_plain">剧迷</string>
+    <string name="career_trait_newcomer">刚入场的%1$s</string>
+    <string name="career_trait_strict">挑剔的%1$s</string>
+    <string name="career_trait_even">随和的%1$s</string>
+    <string name="career_trait_lenient">心软的%1$s</string>
+    <string name="career_refresh_now">立即同步</string>
+    <string name="career_full_stats">完整统计</string>
+    <string name="career_empty_self">还没有%1$s收藏。\n收藏一部之后，这里会长出%1$s生涯。</string>
+    <string name="career_empty_other">%1$s 没有公开的%2$s收藏</string>
+    <string name="career_summarizing">正在汇总 %1$s 公开的 %2$d %3$s%4$s</string>
+    <string name="career_summarizing_progress">正在汇总 %1$s 公开的 %2$d %3$s%4$s（%5$d / %6$d 页）</string>
+    <string name="career_summarize_action">汇总 %1$s 的 %2$d %3$s</string>
+    <string name="career_unit_title">部</string>
+    <string name="career_unit_book">本</string>
+    <string name="career_unit_album">张</string>
+    <string name="career_unit_volume">卷</string>
+    <string name="career_unit_chapter">话</string>
+    <string name="career_unit_episode">集</string>
+    <string name="career_unit_hour">小时</string>
+    <string name="career_unit_day">天</string>
+    <string name="career_unit_platform">个</string>
+    <string name="career_kpi_volumes">读过的卷数</string>
+    <string name="career_kpi_chapters">读过的话数</string>
+    <string name="career_kpi_finished_book">读完</string>
+    <string name="career_kpi_finished">看完</string>
+    <string name="career_kpi_episodes">看过的集数</string>
+    <string name="career_kpi_watch_time">投入时间</string>
+    <string name="career_kpi_platforms">平台</string>
+    <string name="career_length_up_to_13">≤13 集</string>
+    <string name="career_length_14_to_26">14–26 集</string>
+    <string name="career_length_27_to_52">27–52 集</string>
+    <string name="career_length_over_52">52 集以上</string>
+    <string name="career_ladder_description">进度阶梯</string>
+    <string name="career_ladder_others">另有 %1$s %2$d、%3$s %4$d</string>
+    <string name="career_tip_count">%1$s %2$d %3$s</string>
+    <string name="career_tip_share">%1$s：%2$d %3$s（%4$d%%）</string>
+    <plurals name="career_tip_score">
+        <item quantity="other">%1$d 分：%2$d %3$s</item>
+    </plurals>
+    <string name="career_tip_cell">%1$s %2$d %3$s（%4$s）</string>
+    <string name="career_decade_name">%1$d 年代</string>
+    <string name="career_a_top_rated">%1$d %2$s打了 %3$d 分以上</string>
+    <string name="career_a_length">%1$s的最多，占 %2$d%%</string>
+    <string name="career_a_genre">%1$s最多，%2$d %3$s</string>
+    <string name="career_sync_last">上次同步 %1$s</string>
+    <string name="career_sec_time_machine">时光机</string>
+    <string name="career_ans_lag">平均晚 %1$s 年才看</string>
+    <string name="career_ans_added">这几年收了 %1$d %2$s</string>
+    <string name="career_decade_short">%1$02d 年代</string>
+    <string name="career_tip_time">%1$d 年收了 %2$d %3$s%4$s的作品：%5$s</string>
+    <string name="career_titles_more">%1$s 等</string>
+    <string name="career_sec_score">打分</string>
+    <string name="career_ans_score_lower">平均 %1$s，比大众低 %2$s</string>
+    <string name="career_ans_score_higher">平均 %1$s，比大众高 %2$s</string>
+    <string name="career_ans_score_same">平均 %1$s，和大众一样</string>
+    <string name="career_ans_score_mine">平均 %1$s</string>
+    <string name="career_ans_score_need">再打 %1$d %2$s就有了</string>
+    <string name="career_sub_gap">%1$s − 大众</string>
+    <string name="career_tip_gap">%1$s：%2$s %3$d，大众 %4$s</string>
+    <string name="career_sec_quadrant">口味象限</string>
+    <string name="career_ans_quadrant">%1$d %2$s私心偏爱</string>
+    <string name="career_quad_acclaimed">公认神作 %1$d</string>
+    <string name="career_quad_personal">私心偏爱 %1$d</string>
+    <string name="career_quad_letdown">众望难符 %1$d</string>
+    <string name="career_quad_ordinary">公认一般 %1$d</string>
+    <string name="career_sec_favorites">最爱</string>
+    <string name="career_sec_genres">题材版图</string>
+    <string name="career_tip_genre">%1$s %2$d %3$s，平均 %4$s 分</string>
+    <string name="career_sec_popularity">冷门度</string>
+    <string name="career_ans_popularity">一半作品不到 %1$s 人收藏</string>
+    <string name="career_sub_niche">最冷门的 %1$d %2$s</string>
+    <string name="career_members">%1$s 人</string>
+    <string name="career_tip_members">%1$s：%2$s 人收藏</string>
+    <string name="career_dot_scale">＝%1$d %2$s</string>
+    <string name="career_tip_dots">%1$d %2$s：%3$s</string>
+    <string name="career_sub_rank">排名</string>
+    <string name="career_rank_tier_100">前 100</string>
+    <string name="career_rank_tier_500">101–500</string>
+    <string name="career_rank_tier_2000">501–2000</string>
+    <string name="career_rank_tier_rest">2000 以后</string>
+    <string name="career_rank_none">无排名</string>
+    <string name="career_sec_length">篇幅</string>
+    <string name="career_sec_status">收藏走到哪</string>
+    <string name="career_ans_status">%1$d %2$s%3$s，%4$d %2$s%5$s</string>
+    <string name="career_kpi_finish_rate">填坑率</string>
+    <string name="career_sec_ring">年轮</string>
+    <plurals name="career_ans_ring">
+        <item quantity="other">%1$d 年看了 %2$d 集</item>
+    </plurals>
+    <string name="career_ring_streak">最长连看</string>
+    <string name="career_ring_busiest">最多的一天</string>
+    <string name="career_ring_days">看番天数</string>
+    <plurals name="career_tip_day">
+        <item quantity="other">%1$s 看了 %2$d 集：%3$s</item>
+    </plurals>
+    <string name="career_tip_day_none">%1$s 没看</string>
+    <string name="career_sec_clock">几点看</string>
+    <string name="career_ans_clock">%1$d%% 在晚上十点以后</string>
+    <string name="career_clock_peak">%1$d 点</string>
+    <plurals name="career_tip_hour">
+        <item quantity="other">%1$d 点到 %2$d 点 %3$d 集</item>
+    </plurals>
+    <plurals name="career_tip_weekday">
+        <item quantity="other">%1$s %2$d 集</item>
+    </plurals>
+    <string name="career_sec_chase">追得多紧</string>
+    <string name="career_ans_chase">%1$d%% 在首播一周内看</string>
+    <string name="career_chase_same_day">首播当天</string>
+    <string name="career_chase_week">一周内</string>
+    <string name="career_chase_month">一月内</string>
+    <string name="career_chase_year">一年内</string>
+    <string name="career_chase_later">更久以后</string>
+    <string name="career_sec_span">一部看多久</string>
+    <plurals name="career_ans_span">
+        <item quantity="other">一般 %1$d 天看完一部</item>
+    </plurals>
+    <string name="career_span_days">%1$d 天</string>
+    <plurals name="career_tip_span">
+        <item quantity="other">%1$s：%2$s 到 %3$s，%4$d 天</item>
+    </plurals>
+    <string name="career_sec_voice">声优</string>
+    <string name="career_ans_voice">%1$s 出现在 %2$d %3$s里</string>
+    <string name="career_count">%1$d %2$s</string>
+    <string name="career_sec_studio">制作公司</string>
+    <string name="career_ans_studio">%1$s 做了 %2$d %3$s</string>
+    <string name="career_sync_running">正在同步收藏…</string>
+    <string name="career_sync_running_pages">正在同步收藏：%1$d / %2$d 页</string>
+    <!-- 楼层组件与用户卡片 -->
+    <string name="comment_op_badge">楼主</string>
+    <string name="friend_mark">好友</string>
+    <string name="comment_expand_full">展开全文</string>
+    <string name="comment_quote_separator">：</string>
+    <string name="user_card_view_profile">查看主页</string>
+    <!-- 统计 tab -->
+    <plurals name="stats_rated_by">
+        <item quantity="other">%1$d 人打分</item>
+    </plurals>
+    <string name="stats_rank_number">#%1$d</string>
+    <string name="stats_tip_score">%1$d 分：%2$d 人</string>
+    <string name="stats_score_description">1 到 10 分各多少人打</string>
+    <string name="stats_ruler_description">各收藏状态的人打的平均分</string>
+    <string name="stats_group_mean">%1$s %2$s</string>
+    <string name="stats_you_mark">你 %1$d</string>
+    <string name="stats_episode_heat_title">每集讨论</string>
+    <plurals name="stats_episode_tip">
+        <item quantity="other">第 %1$s 集：%2$d 条讨论</item>
+    </plurals>
+    <string name="stats_series_title">系列</string>
+    <string name="stats_series_description">系列各部的评分</string>
+    <string name="stats_lifeline_title">这部作品的一生</string>
+    <string name="stats_lifeline_description">放送前、放送中、完结后的评分与每集讨论</string>
+    <string name="stats_phase_before">放送前</string>
+    <string name="stats_phase_airing">放送中</string>
+    <string name="stats_phase_after">完结后</string>
+    <string name="stats_today">今天</string>
+    <string name="stats_pace_day">每天 %1$d 人</string>
+    <string name="stats_pace_week">每周 %1$d 人</string>
+    <string name="stats_pace_month">每月 %1$d 人</string>
+    <string name="stats_flow_title">开始%1$s的人去了哪</string>
+    <string name="stats_flow_started">开始%1$s</string>
+    <string name="stats_flow_branch_desc">%1$s %2$d，%3$s</string>
+    <string name="stats_flow_count_desc">%1$s %2$d</string>
+    <string name="stats_share_percent">%1$s%%</string>
+    <string name="stats_share_under_one" formatted="false">&lt;1%</string>
+    <string name="label_with_count">%1$s %2$d</string>
+    <string name="career_unit_percent" formatted="false">%</string>
+    <string name="stats_recs_title">喜欢这部的人也喜欢</string>
+    <string-array name="rating_level_names">
+        <item>不忍直视</item>
+        <item>很差</item>
+        <item>差</item>
+        <item>较差</item>
+        <item>不过不失</item>
+        <item>还行</item>
+        <item>推荐</item>
+        <item>力荐</item>
+        <item>神作</item>
+        <item>超神作</item>
+    </string-array>
+    <string name="stats_open_web">在网页查看「透视」↗</string>
+    <string name="verb_root_watch">看</string>
+    <string name="verb_root_read">读</string>
+    <string name="verb_root_listen">听</string>
+    <string name="verb_root_play">玩</string>
+
+    <!-- 社区 tab / 谁在看 / 话题页 / 社区列表子页 -->
+    <string name="community_reviews">评论</string>
+    <string name="community_board">讨论版</string>
+    <string name="thread_page_title">讨论</string>
+    <string name="episode_page_title">章节讨论</string>
+    <string name="community_indexes">目录</string>
+    <string name="community_indexes_title">收录该作品的目录</string>
+    <plurals name="community_reviews_count">
+        <item quantity="other">%1$d 篇</item>
+    </plurals>
+    <plurals name="community_board_count">
+        <item quantity="other">%1$d 帖</item>
+    </plurals>
+    <plurals name="community_indexes_count">
+        <item quantity="other">%1$d 个</item>
+    </plurals>
+    <!-- 谁在看一行里的一组：人数 + 状态（「682 在读」）；三组之间靠留白分开，不用分隔号 -->
+    <string name="community_watching_pair">%1$s %2$s</string>
+    <string name="community_comments_empty">还没有人吐槽</string>
+    <string name="community_board_empty">还没有讨论</string>
+    <string name="community_reviews_empty">还没有评论</string>
+    <string name="community_indexes_empty">还没有目录收录</string>
+    <string name="community_list_end">已经到底了</string>
+    <string name="my_topics">我的帖子</string>
+    <string name="my_topics_created">我发起的</string>
+    <string name="my_topics_replied">我回复的</string>
+    <string name="my_topics_drafts">草稿</string>
+    <string name="my_topics_created_empty">还没有发起过小组话题</string>
+    <string name="my_topics_replied_empty">还没有回复过小组话题</string>
+    <string name="my_topics_drafts_empty">没有草稿</string>
+    <string name="draft_delete">删除草稿</string>
+    <string name="community_mute_group">屏蔽小组「%1$s」</string>
+    <string name="about">关于</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_copyright">版权所有 © 2026 TouhouGO</string>
+    <string name="about_legal">%1$s 是自由软件，按 GNU 通用公共许可证第 3 版（GPL-3.0）发布。本程序不提供任何担保。</string>
+    <string name="about_source">源码</string>
+    <string name="about_privacy">隐私说明</string>
+    <string name="about_author">作者主页</string>
+    <string name="about_license_texts">许可原文</string>
+    <string name="about_libraries">第三方库与素材</string>
+    <string name="about_third_party_androidx">AndroidX 与 Jetpack Compose</string>
+    <string name="about_third_party_kotlin">Kotlin 与 kotlinx</string>
+    <string name="about_third_party_ktor">Ktor、OkHttp 与 Okio</string>
+    <string name="about_third_party_coil">Coil</string>
+    <string name="about_third_party_koin">Koin</string>
+    <string name="about_third_party_material_symbols">Material Symbols</string>
+    <string name="about_third_party_material_kolor">Material Kolor</string>
+    <string name="about_third_party_colormath">Colormath</string>
+    <string name="about_third_party_jsoup">jsoup</string>
+    <string name="about_third_party_slf4j">SLF4J</string>
+    <string name="about_third_party_desugar">desugar_jdk_libs</string>
+    <string name="about_third_party_bangumi_smileys">Bangumi 表情</string>
+    <string name="about_bangumi_smileys_license">版权归 Bangumi 番组计划，未声明开源许可</string>
+    <string name="about_third_party_platform_logos">平台标志（Nintendo Switch、PS5、Windows、Xbox）</string>
+    <string name="about_platform_logos_license">图形 CC0 1.0（Simple Icons），商标归各自所有者</string>
+    <string name="about_third_party_android_robot">Android 机器人</string>
+    <string name="about_android_robot_license">Google 创作并分享，按 CC BY 3.0 使用</string>
+    <string name="about_runtime_data">运行时取用的数据</string>
+    <string name="about_third_party_bangumi_data">bangumi-data（放送时刻）</string>
+    <string name="muted_groups">屏蔽的小组</string>
+    <string name="muted_groups_empty">没有屏蔽的小组</string>
+    <string name="muted_groups_unmute">取消屏蔽</string>
+    <string name="blocked_users">屏蔽的用户</string>
+    <string name="blocked_users_empty">没有绝交的用户</string>
+    <string name="blocked_users_unblock">取消绝交</string>
+    <string name="community_page_groups">小组</string>
+    <string name="community_group_feed_partial">部分小组没取到，先显示其余小组的帖子</string>
+    <string name="community_page_rakuen">超展开</string>
+    <string name="rakuen_filter_group">小组</string>
+    <string name="rakuen_filter_subject">作品</string>
+    <string name="rakuen_filter_episode">单集</string>
+    <string name="rakuen_filter_character">角色</string>
+    <string name="rakuen_filter_person">人物</string>
+    <string name="community_feed_empty">还没有帖子</string>
+    <string name="rakuen_list_end">超展开只列出最近的 %1$d 帖</string>
+    <string name="all_groups">全部小组</string>
+    <string name="all_groups_empty">还没有小组</string>
+    <string name="group_topics">讨论</string>
+    <string name="group_created_year">创建于 %1$d 年</string>
+    <string name="group_joined">已加入</string>
+    <string name="group_join">加入小组</string>
+    <string name="group_pin">置顶</string>
+    <string name="group_unpin">取消置顶</string>
+    <string name="group_leave_confirm_title">退出「%1$s」？</string>
+    <string name="group_leave_confirm_action">退出</string>
+    <string name="group_mute">屏蔽小组</string>
+    <string name="group_pinned">已置顶</string>
+    <string name="group_new_topic">发帖</string>
+    <string name="community_collectors_title">谁在看</string>
+    <string name="community_collectors_recent">最近</string>
+    <string name="community_collectors_empty">还没有人收藏</string>
+    <string name="community_collector_action">%1$s%2$s</string>
+    <plurals name="topic_reply_count">
+        <item quantity="other">%1$d 条回复</item>
+    </plurals>
+    <string name="topic_sort_floor">楼层顺序</string>
+    <string name="topic_sort_hot">最热</string>
+    <string name="topic_sort_latest">最新</string>
+    <string name="topic_op_only">只看楼主</string>
+    <string name="topic_scroll_to_top">回到顶部</string>
+
+    <!-- 目录页 -->
+    <string name="index_updated">更新于 %1$s</string>
+    <string name="index_collect">收藏目录</string>
+    <!-- 目录顶栏收藏按钮的读屏：「已收藏，12 人收藏」 -->
+    <string name="collected">已收藏</string>
+    <string name="collect_action_desc">%1$s，%2$s</string>
+    <string name="index_category_subject">作品</string>
+    <string name="index_category_character">角色</string>
+    <string name="index_category_person">人物</string>
+    <string name="index_category_episode">章节</string>
+    <string name="index_category_blog">日志</string>
+    <string name="index_category_group_topic">小组话题</string>
+    <string name="index_category_subject_topic">作品话题</string>
+    <string name="index_entries_title">收录</string>
+    <string name="index_sort_order">收录顺序</string>
+    <string name="index_sort_rating">按评分</string>
+    <string name="index_comments_title">留言</string>
+    <string name="index_comments_empty">还没有留言</string>
+    <string name="index_edit">编辑目录</string>
+    <string name="index_edit_action">编辑</string>
+    <string name="index_title_label">名称</string>
+    <string name="index_description_label">介绍</string>
+    <string name="index_private">私密</string>
+    <string name="index_add_link">收录链接</string>
+    <string name="index_add_link_placeholder">粘贴 bgm.tv 链接</string>
+    <string name="index_add_link_kind">识别为%1$s</string>
+    <string name="index_add_link_unsupported">不是能收录的链接</string>
+    <string name="index_add">收录</string>
+    <string name="index_remove_entry">移出目录</string>
+    <string name="index_comment_edit">编辑评语</string>
+    <string name="index_comment_title">评语</string>
+    <string name="index_comment_placeholder">收录这一项的理由</string>
+    <string name="index_reorder_too_many">这次挪动要改 %1$d 项的顺序，服务端每 5 分钟最多改 %2$d 次，没有保存</string>
+    <string name="index_delete_confirm_title">删除目录？</string>
+    <string name="index_delete_confirm_body">「%1$s」和收录的内容会一并删除，无法恢复。</string>
+    <string name="index_pick_title">收录到目录</string>
+    <string name="index_create">新建目录</string>
+    <string name="index_pick_create">创建</string>
+    <string name="turnstile_unreachable">验证组件没有加载出来，请检查网络后重试</string>
+    <string name="combination_title_more">%1$s 等</string>
+    <string name="weekday_narrow_mon">一</string>
+    <string name="weekday_narrow_tue">二</string>
+    <string name="weekday_narrow_wed">三</string>
+    <string name="weekday_narrow_thu">四</string>
+    <string name="weekday_narrow_fri">五</string>
+    <string name="weekday_narrow_sat">六</string>
+    <string name="weekday_narrow_sun">日</string>
+    <string name="collection_remove">移除收藏</string>
+    <string name="collection_remove_confirm">移除《%1$s》的收藏？评分、标签和吐槽也会一并移除。</string>
+    <string name="collection_removing">正在移除…</string>
+    <string name="collection_remove_failed">收藏移除失败：%1$s</string>
+    <string name="failure_rule_subject_uncollect_unavailable">收藏仍然存在，请稍后重试</string>
+    <string name="reaction_poll_title">投票</string>
+    <string name="reaction_poll_show_results">看结果</string>
+    <string name="reaction_poll_hide_results">收起结果</string>
+    <string name="reaction_poll_percent">%1$d%%</string>
+    <plurals name="reaction_poll_total">
+        <item quantity="other">共 %1$d 票</item>
+    </plurals>
+    <string name="reaction_poll_question">问题（可不写）</string>
+    <string name="reaction_poll_option">选项 %1$d</string>
+    <string name="reaction_poll_option_smiley">选项 %1$d 的表情</string>
+    <string name="reaction_poll_remove_option">删除选项 %1$d</string>
+    <string name="reaction_poll_add_option">添加选项</string>
+    <string name="reaction_poll_remove">移除投票</string>
+    <string name="pm_conversation_empty">这个会话里没有短信了</string>
+    <string name="pm_message_menu">短信操作</string>
+    <string name="pm_erase_confirm_title">删除这条短信？</string>
+    <string name="pm_conversation_not_found">没有找到之前的短信</string>
+    <string name="pm_write">写信</string>
+    <string name="pm_write_to">写给 %1$s</string>
+    <string name="pm_write_to_username">写给 @%1$s</string>
+    <string name="pm_recipient_hint">用户名或昵称</string>
+    <string name="pm_recent_contacts">最近联系人</string>
+    <string name="pm_recipients_none">没有找到</string>
+    <string name="pm_recipients_empty">还没有最近联系人和好友</string>
+
+    <!-- 桌面小组件 -->
+    <string name="widget_progress_title">在看</string>
+    <string name="widget_progress_description">在看的作品，点 +1 标下一集</string>
+    <string name="widget_subject_title">追一部</string>
+    <string name="widget_subject_description">一部作品的进度，点一下看完下一集</string>
+    <string name="widget_heat_description">每天看了几集，和生涯里的年轮一样</string>
+    <string name="widget_sign_in_prompt">登录后在这里标进度</string>
+    <string name="widget_open_app">打开 App</string>
+    <string name="widget_empty">还没有在看的作品</string>
+    <string name="widget_load_failed">读不出进度，点一下打开 App</string>
+    <string name="widget_write_failed">没同步上，点一下重试</string>
+    <string name="widget_progress_total">/ %1$d</string>
+    <string name="widget_plus_one">+1</string>
+    <string name="widget_plus_one_description">标记下一集看过</string>
+    <string name="widget_mark_next">看完%1$s</string>
+    <string name="widget_read_next">读完%1$s</string>
+    <string name="widget_finished">都看完了</string>
+    <string name="widget_picker_title">选一部作品</string>
+    <string name="widget_subject_missing">这部不在在看里了，点一下换一部</string>
+    <string name="widget_today_title">今日放送</string>
+    <string name="widget_today_description">今天播哪几部，在追的点 +1 标下一集</string>
+    <string name="widget_today_empty">今天没有放送</string>
+    <string name="widget_week_title">本周追番</string>
+    <string name="widget_week_description">这七天每天播哪几部在追的</string>
+    <string name="widget_week_empty">这七天没有在追的番播出</string>
+    <string name="widget_week_more">+%1$d</string>
+    <string name="widget_calendar_load_failed">读不出放送表，点一下打开 App</string>
+    <plurals name="widget_heat_month">
+        <item quantity="other">这个月 %1$d 集</item>
+    </plurals>
+</resources>

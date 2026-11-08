@@ -1,0 +1,153 @@
+# 版本目录。命名规则（全仓一条）：
+# - 依赖别名 = Maven 坐标去掉组织前缀后的「组路径-构件名」，重复的段只留一次
+#   （androidx.compose.ui:ui-graphics → androidx-compose-ui-graphics，io.coil-kt.coil3:coil-compose → coil3-compose）；
+# - 版本键 = 依赖族名，同族共用一个键；
+# - build-logic 编译约定插件要用的 Gradle 插件构件以 gradle-plugin- 开头；
+# - 插件别名 = 插件 id 去掉 org.jetbrains. / plugin. 之类的命名空间段。
+
+[versions]
+sdk-compile = "37"
+sdk-min = "24"
+sdk-target = "37"
+
+android-gradle-plugin = "9.4.0"
+android-desugar = "2.1.5"
+kotlin = "2.4.20"
+ksp = "2.3.12"
+kotlinx-coroutines = "1.11.0"
+kotlinx-serialization = "1.11.0"
+
+androidx-activity = "1.13.0"
+androidx-baselineprofile = "1.5.0"
+androidx-benchmark = "1.5.0"
+androidx-browser = "1.8.0"
+androidx-compose-bom = "2026.09.00"
+androidx-compose-material3 = "1.5.0-alpha28"
+androidx-concurrent = "1.2.0"
+androidx-core = "1.19.0"
+androidx-core-splashscreen = "1.2.0"
+androidx-datastore = "1.2.1"
+androidx-glance = "1.2.0"
+androidx-lifecycle = "2.11.0"
+androidx-navigation3 = "1.2.0"
+androidx-profileinstaller = "1.4.1"
+androidx-room = "2.8.4"
+androidx-test = "1.7.0"
+androidx-test-ext = "1.3.0"
+androidx-test-uiautomator = "2.4.0"
+androidx-webkit = "1.17.1"
+androidx-work = "2.12.0"
+
+coil3 = "3.6.2"
+koin = "4.2.2"
+koin-compiler = "1.2.1"
+jsoup = "1.23.2"
+ktor = "3.5.2"
+materialkolor = "5.0.1"
+
+junit4 = "4.13.2"
+robolectric = "4.17"
+# Robolectric 跑测试用的 Android 系统包：单测一律 `@Config(sdk = [34])`，对应 Android 14 这一份；
+# 末尾的 i7 是 Robolectric 4.17 的预插桩版本，升级 Robolectric 时一起改（对不上时测试报找不到这个 jar）。
+robolectric-android-all = "14-robolectric-10818077-i7"
+slf4j = "2.0.16"
+
+[libraries]
+# AndroidX
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
+androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "androidx-benchmark" }
+androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidx-compose-bom" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "androidx-compose-material3" }
+androidx-compose-material3-windowsizeclass = { module = "androidx.compose.material3:material3-window-size-class" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-concurrent-futures = { module = "androidx.concurrent:concurrent-futures", version.ref = "androidx-concurrent" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidx-core-splashscreen" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidx-datastore" }
+androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "androidx-glance" }
+androidx-glance-appwidget-testing = { module = "androidx.glance:glance-appwidget-testing", version.ref = "androidx-glance" }
+androidx-glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "androidx-glance" }
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "androidx-navigation3" }
+androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "androidx-profileinstaller" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "androidx-room" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "androidx-room" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
+androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "androidx-room" }
+androidx-test-core = { module = "androidx.test:core", version.ref = "androidx-test" }
+androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-test-ext" }
+androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidx-test-uiautomator" }
+androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "androidx-webkit" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidx-work" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "androidx-work" }
+
+# Kotlin 与 KotlinX
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+# 网络、网页解析、图片、依赖注入、取色
+coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+coil3-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil3" }
+coil3-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil3" }
+coil3-svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil3" }
+koin-android = { module = "io.insert-koin:koin-android" }
+koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel" }
+koin-core = { module = "io.insert-koin:koin-core" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
+
+# 构建与测试
+android-desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "android-desugar" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+robolectric-android-all = { module = "org.robolectric:android-all-instrumented", version.ref = "robolectric-android-all" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+
+# build-logic 编译约定插件用的 Gradle 插件构件
+gradle-plugin-android = { module = "com.android.tools.build:gradle", version.ref = "android-gradle-plugin" }
+gradle-plugin-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+gradle-plugin-kotlin-compose = { module = "org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin", version.ref = "kotlin" }
+gradle-plugin-koin-compiler = { module = "io.insert-koin:koin-compiler-gradle-plugin", version.ref = "koin-compiler" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "android-gradle-plugin" }
+android-library = { id = "com.android.library", version.ref = "android-gradle-plugin" }
+android-test = { id = "com.android.test", version.ref = "android-gradle-plugin" }
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "androidx-baselineprofile" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+koin-compiler = { id = "io.insert-koin.compiler.plugin", version.ref = "koin-compiler" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
+# 本仓库的约定插件（build-logic）
+chogumi-android-application = { id = "chogumi.android.application" }
+chogumi-android-baselineprofile = { id = "chogumi.android.baselineprofile" }
+chogumi-android-compose = { id = "chogumi.android.compose" }
+chogumi-android-feature = { id = "chogumi.android.feature" }
+chogumi-android-library = { id = "chogumi.android.library" }
+chogumi-android-robolectric = { id = "chogumi.android.robolectric" }
+chogumi-jvm-library = { id = "chogumi.jvm.library" }
+chogumi-koin = { id = "chogumi.koin" }

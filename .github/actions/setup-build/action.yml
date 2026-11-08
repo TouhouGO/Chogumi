@@ -1,0 +1,16 @@
+# CI 与发版共用的构建环境：JDK 21（gradle/gradle-daemon-jvm.properties）与 Gradle 缓存。
+# Android SDK 用 runner 自带的，缺的平台与 build-tools 由 AGP 按需下载。
+# Gradle 缓存（依赖、转换后的依赖、构建缓存 build-cache-1）只由 main 上的运行写，PR 与标签只读 main 写下的那份：
+# ci.yml 每天夜里的预热（warm）写，公开仓库里合入后的整仓也写。
+name: 构建环境
+description: JDK 与 Gradle 缓存
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: temurin
+        java-version: 21
+    - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
+      with:
+        cache-read-only: ${{ github.ref != 'refs/heads/main' }}

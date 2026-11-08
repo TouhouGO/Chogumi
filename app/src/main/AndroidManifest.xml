@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- CustomTabUriHandler 找浏览器：Android 11 起不声明就看不见别的应用能不能开网页。 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <category android:name="android.intent.category.BROWSABLE" />
+
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher_sakura_pink"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_sakura_pink"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Chogumi"
+        tools:targetApi="33">
+
+        <activity
+            android:name=".shell.AppActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Chogumi.Starting"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
+          桌面入口：每个图标一个，同一时刻只开着一个（设置 →「应用图标」切换，feature:settings 的 appIconSpecOf 与这里一一对应）。
+          类名不随 applicationId 的调试后缀变，换名会让用户选过的图标回到默认。
+        -->
+        <activity-alias
+            android:name="io.github.touhougo.chogumi.launcher.SakuraPink"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sakura_pink"
+            android:roundIcon="@mipmap/ic_launcher_sakura_pink"
+            android:targetActivity=".shell.AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="io.github.touhougo.chogumi.launcher.SakuraRainbow"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sakura_rainbow"
+            android:roundIcon="@mipmap/ic_launcher_sakura_rainbow"
+            android:targetActivity=".shell.AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="io.github.touhougo.chogumi.launcher.TvNavy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tv_navy"
+            android:roundIcon="@mipmap/ic_launcher_tv_navy"
+            android:targetActivity=".shell.AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="io.github.touhougo.chogumi.launcher.TvPink"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tv_pink"
+            android:roundIcon="@mipmap/ic_launcher_tv_pink"
+            android:targetActivity=".shell.AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="io.github.touhougo.chogumi.launcher.TvOnPink"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tv_on_pink"
+            android:roundIcon="@mipmap/ic_launcher_tv_on_pink"
+            android:targetActivity=".shell.AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
+          从外面进来的链接只由它接：浏览器的 OAuth 回跳与别的应用里点开的 Bangumi 网页链接。它把地址原样交给 AppActivity，
+          并把任务清回它（授权页的 Custom Tab 一并清掉，实例只剩一个）；AppActivity 因此不必是 singleTask，从桌面图标回来
+          不会清掉正在看的页面。taskAffinity 为空：它自己开新任务时（应用没在跑，调用方带 NEW_TASK）那个任务随它关掉，
+          AppActivity 落进应用自己的任务，不继承它的 excludeFromRecents。
+        -->
+        <activity
+            android:name=".shell.LinkActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <!-- 地址由 app/build.gradle.kts 的 oauthCallback* 生成，同时是 BuildConfig.OAUTH_REDIRECT_URI -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="${oauthCallbackScheme}"
+                    android:host="${oauthCallbackHost}"
+                    android:path="${oauthCallbackPath}" />
+            </intent-filter>
+            <!--
+              Bangumi 网页链接：域名与路径是 core:ui inAppRoute 认的那些（LinkManifestContractTest 守着两边一致）。
+              这些域名不归我们，不能 autoVerify：系统设置「默认打开」里列出这几个网址，用户勾上后才直接进应用。
+              前缀下应用没有的页面（/subject/1/comments、/group/discover……）进来后交给浏览器（CustomTabUriHandler 不绕回自己）。
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+
+                <data android:host="bgm.tv" />
+                <data android:host="www.bgm.tv" />
+                <data android:host="m.bgm.tv" />
+                <data android:host="next.bgm.tv" />
+                <data android:host="bangumi.tv" />
+                <data android:host="www.bangumi.tv" />
+                <data android:host="chii.in" />
+
+                <data android:pathPrefix="/subject/" />
+                <data android:pathPrefix="/ep/" />
+                <data android:pathPrefix="/character/" />
+                <data android:pathPrefix="/person/" />
+                <data android:pathPrefix="/user/" />
+                <data android:pathPrefix="/group/" />
+                <data android:pathPrefix="/blog/" />
+                <data android:pathPrefix="/index/" />
+                <data android:pathPrefix="/pm/conversation/" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

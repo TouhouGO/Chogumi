@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 热力图的一格：四周各缩 1dp（格间 2dp），白色由小组件按档着色 -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="1dp">
+    <shape android:shape="rectangle">
+        <corners android:radius="2dp" />
+        <solid android:color="@android:color/white" />
+    </shape>
+</inset>

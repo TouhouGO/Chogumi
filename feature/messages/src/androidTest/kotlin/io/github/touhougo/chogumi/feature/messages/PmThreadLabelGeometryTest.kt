@@ -1,0 +1,61 @@
+package io.github.touhougo.chogumi.feature.messages
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.touhougo.chogumi.core.model.PmThread
+import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class PmThreadLabelGeometryTest {
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    fun 默认窗口与380dp大字号下真实主题标签保持48dp目标() {
+        var narrow by mutableStateOf(false)
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, fontScale = if (narrow) 1.1f else 1f),
+            ) {
+                ChogumiTheme {
+                    Column(Modifier.width(if (narrow) 380.dp else 448.dp)) {
+                        PmThreadLabel(PmThread(THREAD_ID, TITLE), onReply = {})
+                    }
+                }
+            }
+        }
+
+        for (state in listOf(false, true)) {
+            compose.runOnIdle { narrow = state }
+            compose.waitForIdle()
+            compose.onNodeWithText(TITLE).assertHasClickAction()
+            val bounds = compose.onNodeWithText(TITLE).fetchSemanticsNode().touchBoundsInRoot
+            val minTouchPx = with(compose.density) { 48.dp.toPx() }
+            assertEquals("${if (state) "380dp/1.1" else "默认"}的真实主题标签热区高度", minTouchPx, bounds.height, 0.5f)
+        }
+    }
+
+    private companion object {
+        const val THREAD_ID = 1
+        const val TITLE = "主题"
+    }
+}

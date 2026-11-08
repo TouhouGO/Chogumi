@@ -1,0 +1,63 @@
+{
+  "sources": [
+    {
+      "id": "v0",
+      "commit": "60fdc32daf1d717f8446bad75fd2c3dc44805642",
+      "host": "https://api.bgm.tv",
+      "repository": "https://github.com/bangumi/server",
+      "version": "v0",
+      "entry": "raw/v0/v0.yaml",
+      "baseline": {
+        "paths": 46,
+        "operations": 55,
+        "schemas": 67
+      },
+      "files": {
+        "raw/v0/components/avatar.yaml": "fbb233b7c032a35277d7d44bb4fb5fb536367536b610f98eae6b0e4796dae6bd",
+        "raw/v0/components/creator.yaml": "b5f9837042b085baa069603941e5db800703956be5d85f931cf89341fd0cc6e3",
+        "raw/v0/components/episode.yaml": "7db899c795988bcb11b62c5d8c6f939dcf7a22793cb5b9a3aa84b9ea99fceaa4",
+        "raw/v0/components/episode_collection_type.yaml": "536c69a5235ebf69067de73201d672784e98e838ffffb46accda0944dbbba40f",
+        "raw/v0/components/error_detail.yaml": "0f859583ead73e0b845d992038621b569b40180f2fc46fca3fb313de42fb8564",
+        "raw/v0/components/get-user-episodes-collection.yaml": "3517075dd72d4f74287e8285422f6a5dc866c72fa8bb92cb4dc80eaaf426f4ce",
+        "raw/v0/components/page.yaml": "c39123b4f3616d04f2252624df8e6f4af2db7f0f9bef085679bb57253a0a5861",
+        "raw/v0/components/private_message.yaml": "8e7322f503c42adb2e63899644e315be0c43678d131375779c888f1e5fe0cb90",
+        "raw/v0/components/subject_cat_anime.yaml": "87633616f6210dd0c770141ef82ea66a0ebd9fdc0742b0b7ae16c4c652f4b801",
+        "raw/v0/components/subject_cat_book.yaml": "a70d76c6cf2b6b6a27eb47e9337a0dc76268f3d394d92ecd36cc0bf7c5913e54",
+        "raw/v0/components/subject_cat_game.yaml": "7486f14757cd3a435561f2f65f7791b11f1cd1c8725f536a82a4ae390896f0b7",
+        "raw/v0/components/subject_cat_real.yaml": "420f6a83ff10c0acfe8d6052bd92e328f3ff132a2c801b168416dc174d884dc7",
+        "raw/v0/components/subject_collection_type.yaml": "edf5131a3877fee5822535f23b5128e24c746abf10ba80496b8677f59d58bd41",
+        "raw/v0/components/subject_image.yaml": "386b92dd90471346f459a2b7aa3d17055be93e568294272f557bc738837d59a1",
+        "raw/v0/components/subject_tags.yaml": "9419c2408197b7838841b91722a7296aaee978a3773db983bf70c91f44db7c9b",
+        "raw/v0/components/subject_type.yaml": "78bd90bd273406729a0f65edf41f60790447c1cad56e3445b01fff8332716705",
+        "raw/v0/components/subject_v0.yaml": "e20d56ee6df9183ad868acb50c383db5a0b784d22abec3a3211bc8c00ab266fc",
+        "raw/v0/components/subject_v0_slim.yaml": "e8d50700c1cc64a8012f21bd55736b959263c6bd4cbc32978e379630573c1525",
+        "raw/v0/components/user.yaml": "de2ae582902221721b6959847cea1e748b5d89eb6de432bc9088f08e07143497",
+        "raw/v0/components/user_group.yaml": "bf0fd3860c6bd60e104e77d72c84689d81f46a32c09ba1a3c652386ef7d87e15",
+        "raw/v0/components/user_subject_collection.yaml": "176b540392dafc756d79eb931eb060cb9ab973cf676b2c28c96debaec2ebca9d",
+        "raw/v0/components/user_subject_collection_modify_payload.yaml": "30d4c5f4ff36dff924b0c5079a4afd31e79b00a493e8d594be8607871bb8b88e",
+        "raw/v0/components/wiki_v0.yaml": "e37518ce89aa0f29a8e6d83c2d1615a5c8302d128d6fa1a511291462dc71e58f",
+        "raw/v0/v0.yaml": "e415ffb14fefb7df2833c7afe789107297217ed624668f1c63fbfb0a361df807"
+      }
+    },
+    {
+      "id": "p1",
+      "commit": "af07f44db89e8808efa18566c462f71e5880af4f",
+      "host": "https://next.bgm.tv",
+      "repository": "https://github.com/bangumi/server-private",
+      "version": "p1",
+      "entry": "raw/p1/openapi.json",
+      "baseline": {
+        "paths": 165,
+        "operations": 216,
+        "schemas": 168
+      },
+      "files": {
+        "raw/p1/openapi.json": "103b72363b8f3609cf08f2a672ffd0ce49ad43876ddc1938353e4d1416ffb0a0"
+      }
+    }
+  ],
+  "tools": {
+    "openapi-typescript": "7.13.0",
+    "yaml": "2.9.1"
+  }
+}

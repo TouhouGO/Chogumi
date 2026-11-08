@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 看图页「保存」：API 28 及以下写公共图片目录要这个权限，29 起经 MediaStore 不用（core:ui ImageExport.kt） -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <application>
+        <!-- 看图页「分享」：authority 与 ImageExport.kt 的 shareAuthorityOf 是同一个 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.images"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/image_share_paths" />
+        </provider>
+    </application>
+</manifest>

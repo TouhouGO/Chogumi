@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 起启动屏由系统画：不指定图标，系统画用户点的那个入口的图标（设置 →「应用图标」选的） -->
+    <style name="Theme.Chogumi.Starting" parent="Theme.Chogumi.Starting.Base">
+        <item name="android:windowSplashScreenAnimatedIcon">@null</item>
+    </style>
+</resources>

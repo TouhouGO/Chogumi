@@ -1,0 +1,28 @@
+<div id="headerSubject" class="clearit">
+    <div class="subjectNav">
+<ul class="navTabs">
+<li><a href="/pm/inbox.chii">短信</a></li>
+<li><a href="/pm/compose.chii">撰写</a></li>
+</ul>
+    </div>
+</div>
+<div class="mainWrapper">
+<div id="contentPM" class="clearit">
+<div id="pm_main">
+<form name="new_pm" id="pmForm" method="post" action="/pm/create.chii">
+<input type="hidden" name="formhash" value="FORMHASH">
+<table align="center" width="99%" class="topic_list">
+<tbody><tr><td width="10%">收件人</td><td valign="top" align="left"><input name="msg_receivers" id="msg_receivers" class="inputtext" type="text" size="30" value=""> <span class="tip">(请填写username)</span><br><span class="alarm">你填写的一位或多位收件人不存在</span></td></tr>
+<tr><td width="10%">主题</td><td align="left"><input id="msg_title" name="msg_title" class="inputtext" type="text" size="30" value="Chogumi 测试"> <span class="tip">可选</span> <span class="alarm"></span></td></tr>
+<tr><td valign="top" width="10%">正文</td><td valign="top" align="left"><textarea name="msg_body" id="msg_body" rows="10" class="quick" style="width:350px;" onkeydown="seditor_ctlent(event,'pmForm');">Chogumi 不存在收件人测试。</textarea><br><span class="tip">每封短信最多可以写1000字</span><br><span class="alarm"></span></td></tr>
+<tr><td valign="top" width="10%"></td><td valign="top"><div id="submitBtnO"><input class="inputBtn" value="发送" name="submit" type="submit"> <span class="tip">&nbsp;&nbsp;使用 Ctrl+Enter 或 Alt+S 快速提交 | <a href="/help/bbcode" class="l" target="_blank">BBCode指南</a></span></div></td></tr>
+</tbody></table>
+</form>
+</div>
+
+<div id="pm_sidebar"><h2 class="title">最近联系人</h2></div>
+
+<div id="pm_sidebar">
+<h2 class="title"><a href="/user/400200/friends" class="l">查看好友列表</a></h2>
+</div>
+</div>

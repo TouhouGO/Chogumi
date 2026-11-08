@@ -1,0 +1,41 @@
+example:
+  "avatar":
+    "large": "https://lain.bgm.tv/pic/user/l/000/00/00/1.jpg?r=1391790456"
+    "medium": "https://lain.bgm.tv/pic/user/m/000/00/00/1.jpg?r=1391790456"
+    "small": "https://lain.bgm.tv/pic/user/s/000/00/00/1.jpg?r=1391790456"
+  "sign": "Awesome!"
+  "username": "sai"
+  "nickname": "Sai🖖"
+  "id": 1
+  "user_group": 1
+title: User
+description: |
+  实际的返回值可能包括文档未声明的 `url` 字段，此字段主要用于开发者从 api 响应直接转跳到网页。
+  客户端开发者请不用依赖于此特性，此字段的值随时可能会改变。
+required:
+  - id
+  - username
+  - nickname
+  - user_group
+  - avatar
+  - sign
+type: object
+properties:
+  id:
+    title: ID
+    type: integer
+  username:
+    title: Username
+    type: string
+    description: 唯一用户名，初始与 UID 相同，可修改一次
+  nickname:
+    title: Nickname
+    type: string
+  user_group:
+    "$ref": "./user_group.yaml"
+  avatar:
+    "$ref": "./avatar.yaml"
+  sign:
+    title: Sign
+    description: 个人签名
+    type: string

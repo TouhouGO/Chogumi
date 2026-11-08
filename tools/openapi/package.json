@@ -1,0 +1,13 @@
+{
+  "name": "chogumi-openapi-contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "refresh": "node refresh.mjs",
+    "check": "node refresh.mjs --check && node check-coverage.mjs && node --test contract.test.mjs"
+  },
+  "dependencies": {
+    "openapi-typescript": "7.13.0",
+    "yaml": "2.9.1"
+  }
+}

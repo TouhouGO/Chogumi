@@ -1,0 +1,108 @@
+# 合并前检查：跑的就是 tools/ci/check.sh，什么时候合、认不认 CI 见 docs/dev/workflow.md「合并前」。
+# PR 上按改动选范围（check.sh changed，scope.py 决定）；合入 main 后跑整仓，兜住按改动漏掉的地方。
+# 三个任务并行：门禁与合同（不用 Gradle），Gradle 检查分成单测一份、其余（仪器测试编译、打包、lint、R8）一份（check.sh --part）。
+#
+# 私有仓库的 Actions 按分钟计费：合入后的整仓只在公开仓库自动跑，私有仓库里手动触发（mode = full）；草稿 PR 不跑，
+# 攒够改动、标成 ready for review 时才跑一轮（之后每次推送照常跑）。
+# 每天夜里预热一次 Gradle 构建缓存（check.sh warm：全部编译、单测只演不跑），PR 从缓存取没改的模块。私有仓库的缓存只靠它写；
+# 公开仓库合入后的整仓也写缓存，夜里这一次不计费。
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    # 默认的三种之外再加 ready_for_review：草稿标成 ready 的那一刻跑一轮
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  schedule:
+    # 北京时间每天 03:00
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: full 整仓检查；warm 只预热 Gradle 构建缓存
+        type: choice
+        options: [full, warm]
+        default: full
+
+# PR 上新推送取消还在跑的旧一轮；main 上的各轮互不取消（预热半路取消就存不进缓存）
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+      || (github.event_name == 'push' && !github.event.repository.private)
+      || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/openapi/package-lock.json
+      - name: 门禁
+        run: tools/ci/check.sh lint
+      - name: 合同
+        run: tools/ci/check.sh contracts
+
+  gradle:
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+      || (github.event_name == 'push' && !github.event.repository.private)
+      || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
+    name: ${{ matrix.part }}
+    strategy:
+      # 一份红了另一份照样跑完：一轮看全所有的红
+      fail-fast: false
+      matrix:
+        part: [tests, builds]
+    runs-on: ubuntu-latest
+    # runner 自带 CI=true：没有 oauth-app.properties 也照常打 debug 包（不能网页登录），见 app/build.gradle.kts 的凭据校验
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          # scope.py 要和基准分支比
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-build
+      - name: 检查（PR 按改动）
+        if: github.event_name == 'pull_request'
+        run: tools/ci/check.sh --part ${{ matrix.part }} changed "origin/${{ github.base_ref }}"
+      - name: 检查（整仓）
+        if: github.event_name != 'pull_request'
+        run: tools/ci/check.sh --part ${{ matrix.part }}
+      - name: 失败时保留测试报告
+        if: failure()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: reports-${{ matrix.part }}
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+            **/build/reports/lint-results-*.html
+          retention-days: 14
+          if-no-files-found: ignore
+
+  warm:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'warm')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-build
+      - name: 预热 Gradle 构建缓存
+        run: tools/ci/check.sh warm

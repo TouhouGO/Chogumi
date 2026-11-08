@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- 桌面小组件（Glance）：在看列表、单部作品、观看热力图、今日放送、本周追番。接收器由系统广播更新，必须导出 -->
+        <receiver
+            android:name=".widget.ProgressWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_progress_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_progress" />
+        </receiver>
+        <receiver
+            android:name=".widget.SubjectWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_subject_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_subject" />
+        </receiver>
+        <receiver
+            android:name=".widget.HeatWidgetReceiver"
+            android:exported="true"
+            android:label="@string/career_sec_ring">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_heat" />
+        </receiver>
+        <receiver
+            android:name=".widget.TodayWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today" />
+        </receiver>
+        <receiver
+            android:name=".widget.WeekWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_week_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week" />
+        </receiver>
+
+        <!-- 单部作品放上时选作品：由桌面启动，所以导出。窗口主题取应用的（随深浅色换底色），首帧之前不闪白 -->
+        <activity
+            android:name=".widget.SubjectWidgetPickerActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,50 @@
+# 参考仓库（本地活字典，不入库）
+.reference
+
+# 开发过程的记录：调查报告、历史原型、flaky 测试记录（只在本机）。不带结尾的 /：worktree 里的软链接也要忽略
+.devdoc
+
+# Gradle
+.gradle/
+build/
+
+# Android / IntelliJ
+.idea/
+*.iml
+captures/
+.kotlin/
+
+# 签名
+*.jks
+*.keystore
+
+# 项目根的本机配置：SDK 路径（local.properties）、bgm.tv 应用凭据（oauth-app.properties）；只有 gradle.properties 进仓库
+/*.properties
+!/gradle.properties
+
+# 运行日志与脚本状态文件不入库
+/*.log
+/*.status
+
+# 系统
+.DS_Store
+.superpowers/
+
+# 契约工具依赖（刷新 tools/openapi 时生成，不入库）
+node_modules/
+tools/.cache_companies/
+
+# Agent 与工具的本机目录（会话设置、worktree、技能、规则草稿），不入库
+.claude
+.agents
+.agent-skills
+.kilo/
+.mimosa/
+.v2c/
+.playwright-mcp/
+.grok/
+.mirasim/
+.pi/
+
+# Python 门禁 / 采样脚本运行时缓存
+__pycache__/

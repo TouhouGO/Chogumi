@@ -1,0 +1,11 @@
+{
+  "source": "v0",
+  "actions": [
+    {"pointer": "/info/version", "value": "snapshot-60fdc32daf1d717f8446bad75fd2c3dc44805642", "reason": "上游版本为空；以固定 commit 标注快照，不冒充上游发布版本。"},
+    {"pointer": "/components/schemas/Character/properties/infobox", "value": {"$ref": "#/components/schemas/WikiV0"}, "reason": "web/res/character.go:34 的 Infobox 为 V0wiki；原文 items:object 丢失已知结构，恢复已有 WikiV0 合同。"},
+    {"pointer": "/components/schemas/PersonDetail/properties/infobox", "value": {"$ref": "#/components/schemas/WikiV0"}, "reason": "web/res/person.go:38 的 Infobox 为 V0wiki；原文 items:object 丢失已知结构，恢复已有 WikiV0 合同。"},
+    {"pointer": "/components/schemas/CharacterRevision/allOf/1/properties/data/type", "value": "object", "reason": "web/res/revision.go:77 为 map[string]CharacterRevisionDataItem；原文只有 additionalProperties，明确补回 object。"},
+    {"op": "remove", "pointer": "/components/schemas/WikiV0/items/properties/value/type", "reason": "原文 type:object 与 anyOf 的 string/array 相交为空；同文件 example 与 web/res 的 V0wiki 明确只允许 string/array，移除矛盾的 object 约束。"},
+    {"op": "remove", "pointer": "/components/schemas/Subject/properties/infobox/items/properties/value/type", "reason": "同 WikiV0：相对引用展开后的重复结构保留 string/array 联合，移除矛盾的 object 约束。"}
+  ]
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 调试包与正式包能同装，桌面上要分得开。 -->
+<resources>
+    <string name="app_name">Chogumi 调试</string>
+</resources>

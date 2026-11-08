@@ -1,0 +1,22 @@
+{
+  "source": "p1",
+  "actions": [
+    {"pointer": "/info/version", "value": "snapshot-af07f44db89e8808efa18566c462f71e5880af4f", "reason": "上游版本缺失；以固定 commit 标注快照，不冒充上游发布版本。"},
+    {"pointer": "/openapi", "value": "3.1.0", "reason": "原文声明 3.0.3 却含 11 处 type:null；提升到支持 null 类型的 3.1 JSON Schema 方言，保留 anyOf、required 和显式 null 的全部语义。原始文件不变。"},
+    {"pointer": "/paths/~1p1~1debug/get/responses/200/content/application~1json/schema", "value": {"type":"object","required":["requestID"],"properties":{"requestID":{"type":"string"}}}, "reason": "routes/private/index.ts:78-80 实际只返回 requestID；补足 t.Any 的已知形状。该调试能力保留合同但在能力表明确不接客户端。"},
+    {"pointer": "/paths/~1p1~1logout/post/responses/200", "value": {"description":"无响应体；清除会话 Cookie"}, "reason": "routes/private/routes/auth.ts:75-88 不返回 JSON；原始空 schema 不应伪装成任意 JSON 响应。"},
+    {"pointer": "/paths/~1p1~1passkey~1login~1verify/post/responses/200/content/application~1json/schema", "value": {"$ref":"#/components/schemas/SlimUser"}, "reason": "routes/private/routes/passkey.ts:281-290 返回 SlimUser 的八个字段；恢复 t.Any 丢失的已知结构。"},
+    {
+      "pointer": "/paths/~1p1~1passkey~1login~1options/post/responses/200/content/application~1json/schema/properties/options",
+      "reason": "lib/passkey/webauthn.ts:64-88 调用 generateAuthenticationOptions 并返回 WebAuthn PublicKeyCredentialRequestOptionsJSON；显式保留 challenge、rpId、timeout、allowCredentials、userVerification 与开放 extensions 字典。usernameless 模式省略 allowCredentials。仅为源码/协议静态补足，未验证真实 Passkey 登录。",
+      "value": {
+        "type":"object", "required":["challenge"],
+        "properties": {
+          "challenge":{"type":"string"}, "rpId":{"type":"string"}, "timeout":{"type":"integer"}, "userVerification":{"type":"string"},
+          "allowCredentials":{"type":"array","items":{"type":"object","required":["id","type"],"properties":{"id":{"type":"string"},"type":{"type":"string"},"transports":{"type":"array","items":{"type":"string"}}}}},
+          "extensions":{"type":"object","additionalProperties":true}
+        }
+      }
+    }
+  ]
+}

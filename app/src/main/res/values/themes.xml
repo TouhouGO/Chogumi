@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 界面全部由 Compose 绘制；窗口主题只管首帧之前的底色，与启动屏同色 -->
+    <style name="Theme.Chogumi" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <!-- Android 12 以前启动屏由兼容库画，只能写死一个图标：默认图标 -->
+    <style name="Theme.Chogumi.Starting.Base" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_sakura_pink</item>
+        <item name="postSplashScreenTheme">@style/Theme.Chogumi</item>
+    </style>
+
+    <style name="Theme.Chogumi.Starting" parent="Theme.Chogumi.Starting.Base" />
+
+    <color name="window_background">#FFF8F8</color>
+</resources>

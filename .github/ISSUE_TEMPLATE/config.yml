@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/TouhouGO/Chogumi/security/advisories/new
+    about: 请走私密报告，不要开公开 issue
+  - name: bgm.tv 网站或接口的问题
+    url: https://bgm.tv/group/dev
+    about: 网页上做同样的操作也出错时，请到 Bangumi 的番组开发小组反馈

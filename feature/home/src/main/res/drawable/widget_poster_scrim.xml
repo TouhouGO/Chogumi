@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单部作品海报底部的暗影：从透明到深色，压在封面上，让浅色字看得清（不随配色变） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:endColor="#CC140A0C"
+        android:startColor="#00140A0C" />
+</shape>

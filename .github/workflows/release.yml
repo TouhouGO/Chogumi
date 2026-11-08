@@ -1,0 +1,53 @@
+# 发版：推 `v<版本>` 标签（版本即 gradle.properties 的 chogumi.version），出正式签名包并建草稿 Release。
+# 签名、证书核对与 mapping 归档只走 tools/release/formal_release.py（docs/dev/guide.md §4.5），这里只把 Secrets 落成它读的受控文件。
+# 草稿在设备验收（guide.md「正式包验收清单」）之后由负责人手动发布。
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-build
+      - name: 落受控文件
+        env:
+          CHOGUMI_RELEASE_KEYSTORE: ${{ secrets.CHOGUMI_RELEASE_KEYSTORE }}
+          CHOGUMI_RELEASE_PASSWORD: ${{ secrets.CHOGUMI_RELEASE_PASSWORD }}
+          CHOGUMI_OAUTH_CLIENT_ID: ${{ secrets.CHOGUMI_OAUTH_CLIENT_ID }}
+          CHOGUMI_OAUTH_CLIENT_SECRET: ${{ secrets.CHOGUMI_OAUTH_CLIENT_SECRET }}
+          # 批准的正式证书指纹（tools/release/new_release_key.py 生成密钥时打出）；换密钥才改这里
+          CHOGUMI_RELEASE_CERT_SHA256: D4:C0:E3:51:84:AB:E5:54:F6:6C:0A:52:D5:08:B0:F0:85:68:1C:AA:61:2D:10:64:81:FA:59:8D:60:46:AA:9D
+        run: |
+          config=$(python3 -I tools/release/ci_release_config.py "$RUNNER_TEMP/chogumi-release")
+          echo "CHOGUMI_RELEASE_CONFIG=$config" >> "$GITHUB_ENV"
+      - name: 构建、签名、核验与归档
+        run: python3 -I tools/release/formal_release.py
+      - name: 建草稿 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive=$(find "$RUNNER_TEMP/chogumi-release/archive" -mindepth 1 -maxdepth 1 -type d -name 'chogumi-*')
+          version=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["versionName"])' "$archive/release.json")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "标签 $GITHUB_REF_NAME 与包的版本 $version 不一致：标签应为 v$version" >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "Chogumi $version" "$archive"/*
+      - name: 清掉受控文件
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/chogumi-release" oauth-app.properties
