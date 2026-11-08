@@ -30,6 +30,7 @@ fun Failure.notice(): NoticeText.Resource = when (this) {
         RejectReason.TIMELINE_DELETE_UNAVAILABLE -> NoticeText.Resource(R.string.failure_rule_timeline_delete_unavailable)
         RejectReason.BLOCK_UNAVAILABLE -> NoticeText.Resource(R.string.failure_rule_block_unavailable)
         RejectReason.GROUP_MEMBERSHIP_UNAVAILABLE -> NoticeText.Resource(R.string.failure_rule_group_membership_unavailable)
+        RejectReason.REPLY_UNAVAILABLE -> NoticeText.Resource(R.string.failure_rule_reply_unavailable)
         RejectReason.PM_RECEIVER_NOT_FOUND -> NoticeText.Resource(R.string.failure_rule_pm_receiver_not_found)
         RejectReason.PM_NOT_SENT -> NoticeText.Resource(R.string.failure_rule_pm_not_sent)
         RejectReason.PM_DELETE_UNAVAILABLE -> NoticeText.Resource(R.string.failure_rule_pm_delete_unavailable)

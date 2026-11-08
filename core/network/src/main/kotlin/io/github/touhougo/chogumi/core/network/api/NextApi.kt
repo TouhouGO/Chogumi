@@ -223,6 +223,10 @@ class NextApi(
     suspend fun replyComments(owner: CommentOwner, id: Int, content: String, replyTo: Int, turnstileToken: String, accessToken: String): Int =
         postReply("$NEXT_API_HOST/p1/${owner.path}/$id/comments", content, replyTo, turnstileToken, accessToken)
 
+    /** [owner] 的 [id] 的评论区全部楼层（与 [replyComments] 同一个地址）：发一条之后回读确认用。需要登录。 */
+    suspend fun getComments(owner: CommentOwner, id: Int, accessToken: String): List<CommentDto> =
+        client.get("$NEXT_API_HOST/p1/${owner.path}/$id/comments") { pinSessionToken(accessToken) }.body()
+
     /**
      * 改自己在作品讨论版的一层楼（主楼与楼中楼、帖子正文都是楼）。不需要人机验证。服务端只许改自己的、没删除的、
      * 楼下还没有楼中楼的，话题关闭后不许改，这些都回 403。需要登录。

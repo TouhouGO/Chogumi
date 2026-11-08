@@ -13,10 +13,11 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 
 class WebClientFactoryTest {
+    /** bgm.tv 的登录 Cookie 与 UA 绑定：网页请求的 UA 一变，存着的网页会话全部失效，所以 UA 不带版本号，这里钉死原文。 */
     @Test
-    fun `网页请求携带应用标识与显式Cookie`() = runTest {
+    fun `网页请求携带不带版本号的固定应用标识与显式Cookie`() = runTest {
         val client = testWebClient { request ->
-            assertEquals("Chogumi/test (Android; https://github.com/TouhouGO/Chogumi)", request.headers[HttpHeaders.UserAgent])
+            assertEquals("Chogumi (Android; https://github.com/TouhouGO/Chogumi)", request.headers[HttpHeaders.UserAgent])
             assertEquals("chii_auth=account", request.headers[HttpHeaders.Cookie])
             assertNull(request.headers[HttpHeaders.Authorization])
             respond("page")

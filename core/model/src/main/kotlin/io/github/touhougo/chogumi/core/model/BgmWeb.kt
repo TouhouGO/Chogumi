@@ -73,6 +73,14 @@ object BgmWeb {
         return floor(page, if (isPost) 0 else postId)
     }
 
+    /** [box] 的评论区所在的网页（回复表单在这一页上）：目录的留言在单独的一页，其余就是对象自己的页。 */
+    fun commentsPage(box: CommentSurface.Box) = when (box) {
+        is CommentSurface.Episode -> episode(box.episodeId)
+        is CommentSurface.Blog -> blog(box.blogId)
+        is CommentSurface.Index -> "${index(box.indexId)}/comments"
+        is CommentSurface.Mono -> mono(box.type, box.id)
+    }
+
     /** 用户主页；[userKey] 由 [userKeyOf] 得出（网页两种都认）。 */
     fun user(userKey: String) = "$BGM_SITE/$USER/${segment(userKey)}"
 

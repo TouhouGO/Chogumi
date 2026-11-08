@@ -44,7 +44,7 @@ class CommentRepositoryTest {
         }
         tokenStore.completeSession(tokenStore.beginSession("token"), userId = 7, username = "me")
         val drafts = testDraftRepository(backgroundScope, tokens = tokenStore)
-        return CommentRepositoryImpl(NextApi(testApiClient(engine)), tokenStore, drafts, TestClock(10))
+        return CommentRepositoryImpl(NextApi(testApiClient(engine)), tokenStore, drafts, TestClock(10), testWebSessionRepository(tokenStore, noWebClient()))
     }
 
     @Test

@@ -13,6 +13,7 @@ import io.github.touhougo.chogumi.core.network.api.WebSessionApi
 import io.github.touhougo.chogumi.core.network.api.webUserIdOf
 import io.github.touhougo.chogumi.core.network.model.web.PmOutgoing
 import io.github.touhougo.chogumi.core.network.model.web.ProfileForm
+import io.github.touhougo.chogumi.core.network.model.web.WebReplyParent
 import io.github.touhougo.chogumi.core.network.model.web.WebSession
 import io.github.touhougo.chogumi.core.network.model.web.WebUnreadMessages
 
@@ -98,6 +99,17 @@ class WebSessionRepository(
         tokenStore.withSessionToken(knownSession) { _, _ ->
             val (session, _) = verified(knownSession)
             api.eraseTimeline(session, id, pageOf, beforeSend = { tokenStore.requireCurrent(knownSession) })
+        }
+    }
+
+    /**
+     * 带网页会话在 [page]（话题、单集、日志、角色人物、目录的网页）上回复一条 [content]，回复一层楼时带 [parent]。
+     * 会话的确认同 [perform]；发没发出去由调用方回读楼层确认。
+     */
+    suspend fun reply(knownSession: AccountSession, page: String, content: String, parent: WebReplyParent?) {
+        tokenStore.withSessionToken(knownSession) { _, _ ->
+            val (session, _) = verified(knownSession)
+            api.reply(session, page, content, parent, beforeSend = { tokenStore.requireCurrent(knownSession) })
         }
     }
 

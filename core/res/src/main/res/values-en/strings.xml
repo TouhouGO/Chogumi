@@ -275,6 +275,7 @@
     <string name="failure_rule_group_membership_unavailable">bgm.tv can\'t join or leave this group in the app right now. Use the group\'s web page instead.</string>
     <string name="failure_rule_pm_receiver_not_found">The recipient doesn\'t exist. The message wasn\'t sent.</string>
     <string name="failure_rule_pm_not_sent">The message wasn\'t sent. Try again later.</string>
+    <string name="failure_rule_reply_unavailable">The reply wasn\'t posted. Reply on the web instead.</string>
     <string name="failure_rule_pm_delete_unavailable">The message wasn\'t deleted. Delete it on the web messages page instead.</string>
     <string name="failure_rule_web_login_required">This needs an email and password login. Log out in Settings and log in again.</string>
     <string name="failure_rule_login_captcha_wrong">Wrong captcha. Enter the new one.</string>

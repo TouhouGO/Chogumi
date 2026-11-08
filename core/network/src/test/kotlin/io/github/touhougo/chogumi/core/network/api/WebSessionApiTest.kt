@@ -10,6 +10,7 @@ import io.github.touhougo.chogumi.core.network.PmSamples
 import io.github.touhougo.chogumi.core.network.createWebHttpClient
 import io.github.touhougo.chogumi.core.network.model.web.PmOutgoing
 import io.github.touhougo.chogumi.core.network.model.web.ProfileForm
+import io.github.touhougo.chogumi.core.network.model.web.WebReplyParent
 import io.github.touhougo.chogumi.core.network.model.web.WebSession
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -80,7 +81,6 @@ class WebSessionApiTest {
 
     private fun api(pages: Map<String, String> = emptyMap()) = WebSessionApi(
         createWebHttpClient(
-            "test",
             MockEngine { request ->
                 requests += request
                 val page = pages[request.url.toString()]
@@ -269,7 +269,6 @@ class WebSessionApiTest {
         val posts = AtomicInteger()
         val api = WebSessionApi(
             createWebHttpClient(
-                "test",
                 MockEngine { request ->
                     if (request.method.value == "GET") {
                         if (reads.incrementAndGet() == 2) secondRead.complete(Unit)
@@ -316,7 +315,6 @@ class WebSessionApiTest {
     /** 记下每个请求，按 [answer] 回答（地址 → 状态、跳转地址、正文）。 */
     private fun answeringApi(answer: (HttpRequestData) -> Triple<HttpStatusCode, String?, String>) = WebSessionApi(
         createWebHttpClient(
-            "test",
             MockEngine { request ->
                 requests += request
                 val (status, location, body) = answer(request)
@@ -347,6 +345,58 @@ class WebSessionApiTest {
             ),
             (request.body as FormDataContent).formData.entries().flatMap { (name, values) -> values.map { name to it } },
         )
+    }
+
+    /** 回复表单照 2026-11-08 实测的话题页裁剪（六类页面同一张表单）。 */
+    private fun replyPage(extra: String = "") = """<form id="ReplyForm" name="new_comment" method="post" action="/group/topic/375793/new_reply">
+        <input type="hidden" name="formhash" value="560139dc" /><input type="hidden" name="lastview" value="1794120762" />
+        <textarea name="content" id="content" class="reply newReply"></textarea>$extra
+        <div id="submitBtnO"><input class="inputBtn" value="加上去" name="submit" type="submit" /></div></form>"""
+
+    private fun answeringReplyPage(page: String) = answeringApi { request ->
+        if (request.method.value == "GET") Triple(HttpStatusCode.OK, null, page) else Triple(HttpStatusCode.Found, "/group/topic/375793", "")
+    }
+
+    private fun HttpRequestData.formFields() = (body as FormDataContent).formData.entries().flatMap { (name, values) -> values.map { name to it } }
+
+    @Test
+    fun `回复照页面上的回复表单提交_新开一层只填正文`() = runTest {
+        val api = answeringReplyPage(replyPage())
+
+        api.reply(session, "https://bgm.tv/group/topic/375793", "回复 & 换行\n第二行", parent = null) {}
+
+        val post = requests.last()
+        assertEquals("https://bgm.tv/group/topic/375793/new_reply", post.url.toString())
+        assertEquals("https://bgm.tv/group/topic/375793", post.headers[HttpHeaders.Referrer])
+        assertEquals("chii_auth=c00k1e", post.headers[HttpHeaders.Cookie])
+        assertEquals(
+            listOf("formhash" to "560139dc", "lastview" to "1794120762", "content" to "回复 & 换行\n第二行", "submit" to "加上去"),
+            post.formFields(),
+        )
+    }
+
+    @Test
+    fun `回复一层楼时带上主楼与它的作者`() = runTest {
+        val api = answeringReplyPage(replyPage("""<input type="hidden" name="related" value="0" />"""))
+
+        api.reply(session, "https://bgm.tv/group/topic/375793", "楼中楼", WebReplyParent(postId = 4103407, userId = 1183252)) {}
+
+        val fields = requests.last().formFields()
+        assertEquals(listOf("4103407"), fields.filter { it.first == "related" }.map { it.second }, "页面上的 related 被换掉，不重复")
+        assertEquals("1183252", fields.single { it.first == "sub_reply_uid" }.second)
+        assertEquals("1183252", fields.single { it.first == "post_uid" }.second)
+        assertEquals("楼中楼", fields.single { it.first == "content" }.second)
+    }
+
+    @Test
+    fun `回复表单要人机验证或页面上没有回复表单时不提交_按坏响应抛出`() = runTest {
+        for (page in listOf(replyPage("""<div class="cf-turnstile" data-sitekey="x"></div>"""), "<p>话题已关闭</p>")) {
+            requests.clear()
+            val api = answeringReplyPage(page)
+            val failure = assertFailsWith<FailureException> { api.reply(session, "https://bgm.tv/group/topic/375793", "正文", null) {} }
+            assertEquals(Failure.BadResponse, failure.failure)
+            assertTrue(requests.none { it.method.value == "POST" })
+        }
     }
 
     @Test

@@ -55,6 +55,10 @@ Bangumi 服务端先按 `limit / offset` 切数据库结果集，再跳过查不
 - `PATCH /p1/privacy` 恒 500（NSFW 显示开关）；
 - 删除自己的动态：`DELETE /p1/timeline/{id}` 实测 500（权限与频率检查之后的事务或解码出错）；
 - `/p1/subjects` 浏览漏传 allowNsfw。
+- 回复个别话题恒 500：11-08 实测，站务论坛话题 475294 回复楼主两次都是 500，同一账号在沙盒话题回复正常，假的验证令牌回
+  `CAPTCHA_ERROR`。所以验证令牌校验没问题，失败发生在验证通过之后的写入事务里（写楼层、更新回复数、给楼主发提醒）。
+  只有这个话题失败，推断卡在给这位楼主发提醒那一步（`Notify.create`），没有实测到具体原因。网页旧站的回复走另一套代码，
+  这个话题在网页上能回，所以回复改用网页会话补（§1.7「回帖的容灾」）。
 
 网页端能做是因为它用登录 Cookie 走网页链接，OAuth 令牌拿不到那条路。前几项（取消收藏、解除好友、绝交、NSFW、删除动态）因此改走网页会话（§1.7）：写接口的 5xx 经
 `onWebIfServerError`（core:data）用网页会话做同一件事，再回读接口确认；没有网页会话时提示要账号密码登录，网页也没做成时
@@ -111,7 +115,11 @@ Bangumi 服务端先按 `limit / offset` 切数据库结果集，再跳过查不
 有些事只有 bgm.tv 网页能做（写接口恒 5xx，或根本没有接口，如站内短信），网页认的是登录 Cookie，不认 OAuth 令牌。账号密码登录
 （登录页的表单：邮箱、密码、验证码）一次拿到两样：先提交网站的登录表单拿到 Cookie，再用这个网页会话替用户在 OAuth
 授权页点「授权」、换令牌。浏览器授权与手动 Token 登录拿不到 Cookie，网页才有的操作提示要账号密码登录。
-回复与举报通过 p1 POST 接口携带 OAuth 令牌提交，不依赖网页 Cookie。
+回复与举报通过 p1 POST 接口携带 OAuth 令牌提交；回复在接口 5xx 时用网页会话补（下面「回帖的容灾」）。
+
+网页会话的 Cookie 和 User-Agent 绑在一起：服务端解登录 Cookie 的密钥是站点密钥加请求的 UA（`legacySessionAuth`），UA 一变，
+存着的会话就解不开、网页那边当作没登录。网页请求（登录与会话）的 UA 因此是不带版本号的固定值 `WEB_USER_AGENT`，永远不改；
+开放接口的 UA 照常带版本号。登录时不勾网页上的「不保存我的登录状态」（`cookietime`），拿的是长效 Cookie，有效期由网站定，没实测。
 
 ```mermaid
 flowchart LR
@@ -128,6 +136,7 @@ flowchart LR
     session --> profile["改资料（头像、昵称、签名、自我介绍，一次一项）<br/>同一张 /settings 表单，只换 nickname / sign_input / newbio / picfile<br/>回读 GET /p1/users/{username} 确认"]
     session --> blocklist["屏蔽的用户（设置页）<br/>读隐私设置页的绝交名单：用户名与昵称<br/>没有网页会话时只有 GET /p1/blocklist 的数字 id"]
     session --> tml["删除自己的动态<br/>performOnPage 同类：翻自己的时间线页 BgmWeb.userTimeline，<br/>找 tml_del 删除链接，照页面地址加 ajax=1 提交，回 JSON status=ok"]
+    session --> reply["回帖的容灾（接口 5xx 之后）<br/>打开话题、单集、日志、角色人物页或目录留言页（BgmWeb.topic / commentsPage），<br/>照页面上的 ReplyForm 填 content 提交到 …/new_reply；楼中楼加 related、sub_reply_uid、post_uid"]
     session --> group["加入 / 退出小组<br/>performOnPage：打开 BgmWeb.group，点页面上的<br/>/group/{name}/join|bye 链接，再提交它回的确认表单"]
     store --> pmRead["短信列表 / 会话（PmRepository）<br/>WebSessionRepository.page：页面自己的 CHOBITS_UID 是当前账号才算<br/>BgmWeb.pmInbox / pmConversation：/pm/inbox.chii?page=、/pm/conversation/{id}.chii"]
     session --> pmSend["发信 / 回复 / 新主题<br/>POST BgmWeb.PM_CREATE（msg_receivers = 对方 uid，related，new_topic）<br/>302 到会话即做成，会话 id 取自跳转"]
@@ -156,6 +165,11 @@ flowchart LR
   `UserRepository.profileEdits` 加一，设置与自己的主页跟着重读。本地用户缓存不存自我介绍、个人主页、所在地，`getMe` 在 p1 取不到时
   也退回只有基础资料的 v0；个人资料页只画网上读到的 p1 那份（`UserRepository.getEditableProfile`，取不到就是加载失败）：
   拿缺自我介绍的资料打开面板，空着的自我介绍一保存就把网页上的清掉。
+- 回帖的容灾（`replyOnWebIfServerError`，话题与评论区都经它）：接口回 5xx、这个账号有网页会话时，先读一遍楼层，接口其实写进去了
+  （发送之后我在同一层下的同一段正文）就不再发；否则照网页的回复表单提交，再读一遍楼层，我在这一层下多出来的那条就是它。
+  回读不到是「去网页端回复」；没有网页会话、不是 5xx 的失败原样给出。网页的回复表单（2026-11-08 实测，话题、单集、日志、角色、人物、
+  目录六类同一张 `ReplyForm`：formhash、lastview、content、submit）没有人机验证；表单上出现 Turnstile 就不提交，网页这条路只在用户
+  已经过了验证、接口失败之后走。动态的回复不补：网页的动态回复只提交正文（推断，没实测表单），没有「回复哪一条」，补上去会丢掉回复对象。
 - 删除动态例外：网页回 JSON，`status` 为 `ok` 即做成，不回读。动态读取（`/p1/timeline/{id}/replies`、用户时间线）走服务端缓存，
   由异步事件清，刚删完仍读得到，回读会把做成了的删除当成失败；本地列表直接摘掉这一条。
 - 资料（`GET /p1/users/{username}`）上的计数不跟列表同步：`stats.friend` 是服务端缓存的计数，取消好友后要过一阵子才变
