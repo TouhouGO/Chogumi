@@ -4,7 +4,6 @@ import io.github.touhougo.chogumi.core.common.draft.ComposerDrafts
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.token.authenticatedOutcome
 import io.github.touhougo.chogumi.core.data.util.forbiddenAs
-import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
 import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Outcome
@@ -23,7 +22,7 @@ interface CommentRepository {
     /**
      * 在 [box] 发一条，成功是新楼的 id。[replyTo] 0 = 新的一条，否则是所在**主楼**的 id（与话题回复同一语义）；
      * [turnstileToken] 是用户刚过的人机验证令牌。禁言说成 [RejectReason.POSTING_NOT_ALLOWED]。
-     * 接口回 5xx 时用网页会话把同一条送进评论区的网页（[replyOnWebIfServerError]）。
+     * 接口回 5xx 时用网页会话把同一条送进评论区的网页（[replyWithWebFallback]）。
      */
     suspend fun reply(box: CommentSurface.Box, content: String, replyTo: Int, turnstileToken: String): Outcome<Int>
 
@@ -42,11 +41,10 @@ class CommentRepositoryImpl(
     override suspend fun reply(box: CommentSurface.Box, content: String, replyTo: Int, turnstileToken: String) =
         tokenStore.authenticatedOutcome { session, token ->
             val (owner, id) = commentOwnerOf(box)
-            val sentAt = clock.nowMillis() / 1000
-            outcomeOf { nextApi.replyComments(owner, id, content, replyTo, turnstileToken, token) }
-                .replyOnWebIfServerError(webSessions, session, BgmWeb.commentsPage(box), content, replyTo, sentAt) {
-                    nextApi.getComments(owner, id, token).toCommentFloors()
-                }
+            val floors = suspend { nextApi.getComments(owner, id, token).toCommentFloors() }
+            replyWithWebFallback(webSessions, session, BgmWeb.commentsPage(box), content, replyTo, floors) {
+                nextApi.replyComments(owner, id, content, replyTo, turnstileToken, token)
+            }
         }.forbiddenAs(RejectReason.POSTING_NOT_ALLOWED)
 
     override fun <T> replyDrafts(box: CommentSurface.Box, postIdOf: (T) -> Int): ComposerDrafts<T> {

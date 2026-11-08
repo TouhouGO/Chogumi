@@ -7,7 +7,6 @@ import io.github.touhougo.chogumi.core.data.token.withSessionToken
 import io.github.touhougo.chogumi.core.data.util.forbiddenAs
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
-import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.RejectReason
 import io.github.touhougo.chogumi.core.model.BgmWeb
@@ -29,7 +28,7 @@ interface TopicRepository {
     /**
      * 回复话题，成功是新楼的 id。[replyTo] 0 = 新开一层，否则是所在**主楼**的 id（服务端把它原样存成楼中楼的归属）；
      * [turnstileToken] 是用户刚过的人机验证令牌。禁言、话题已关闭说成 [RejectReason.POSTING_NOT_ALLOWED]。
-     * 接口回 5xx 时用网页会话把同一条送进话题的网页（[replyOnWebIfServerError]）。
+     * 接口回 5xx 时用网页会话把同一条送进话题的网页（[replyWithWebFallback]）。
      */
     suspend fun reply(type: TopicType, topicId: Int, content: String, replyTo: Int, turnstileToken: String): Outcome<Int>
 
@@ -47,7 +46,6 @@ class TopicRepositoryImpl(
     private val nextApi: NextApi,
     private val tokenStore: TokenStore,
     private val webSessions: WebSessionRepository,
-    private val clock: AppClock,
 ) : TopicRepository {
 
     override suspend fun getTopic(type: TopicType, topicId: Int): TopicDetailBo =
@@ -61,11 +59,10 @@ class TopicRepositoryImpl(
     override suspend fun reply(type: TopicType, topicId: Int, content: String, replyTo: Int, turnstileToken: String) =
         tokenStore.authenticatedOutcome { session, token ->
             val endpoints = endpoints(type)
-            val sentAt = clock.nowMillis() / 1000
-            outcomeOf { endpoints.reply(topicId, content, replyTo, turnstileToken, token) }
-                .replyOnWebIfServerError(webSessions, session, BgmWeb.topic(type, topicId), content, replyTo, sentAt) {
-                    endpoints.floors(topicId, token)
-                }
+            val page = BgmWeb.topic(type, topicId)
+            replyWithWebFallback(webSessions, session, page, content, replyTo, floors = { endpoints.floors(topicId, token) }) {
+                endpoints.reply(topicId, content, replyTo, turnstileToken, token)
+            }
         }.forbiddenAs(RejectReason.POSTING_NOT_ALLOWED)
 
     override suspend fun editPost(type: TopicType, postId: Int, content: String) =
