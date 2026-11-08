@@ -8,6 +8,7 @@ import io.github.touhougo.chogumi.core.network.api.IndexApi
 import io.github.touhougo.chogumi.core.network.api.MonoApi
 import io.github.touhougo.chogumi.core.network.api.NextApi
 import io.github.touhougo.chogumi.core.network.api.PrivacyApi
+import io.github.touhougo.chogumi.core.network.api.ReleaseApi
 import io.github.touhougo.chogumi.core.network.api.SubjectApi
 import io.github.touhougo.chogumi.core.network.api.TimelineApi
 import io.github.touhougo.chogumi.core.network.api.UserApi
@@ -317,4 +318,6 @@ fun networkModule(
     single { MonoApi(get()) }
     // bangumi-data 不是 bgm.tv 的接口，但只读、要解码、要只读重试，和透视页一样用接口客户端，令牌由它每个请求摘掉。
     single { BangumiDataApi(get()) }
+    // 检查更新读本应用 GitHub Release 的 release.json：同上，只读、用接口客户端，令牌由它每个请求摘掉。
+    single { ReleaseApi(get()) }
 }

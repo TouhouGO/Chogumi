@@ -52,6 +52,18 @@ object PreferenceKeys {
     /** 探索页的聚焦引导走完了（[PreferencesRepository.exploreGuideShown]）：没有这个键 = 还没走完。 */
     val EXPLORE_GUIDE_SHOWN = booleanPreferencesKey("pref_explore_guide_shown")
 
+    /** 自动检查更新开没开（[PreferencesRepository.updateCheck]）：没有这个键 = 开着。 */
+    val UPDATE_CHECK = booleanPreferencesKey("pref_update_check")
+
+    /** 自动检查更新的间隔（`UpdateCheckInterval` 的名字）；读盘经 `PreferencesRepository` 的 `enumOr` 收敛。 */
+    val UPDATE_CHECK_INTERVAL = stringPreferencesKey("pref_update_check_interval")
+
+    /** 上次查到最新版的时刻（epoch 毫秒）：检查间隔从它起算；没查到过就没有这个键。 */
+    val UPDATE_CHECKED_AT = longPreferencesKey("pref_update_checked_at")
+
+    /** 用户在更新提示里「忽略」的那一版的 versionCode：它和更早的版本不再提示。 */
+    val UPDATE_IGNORED_VERSION_CODE = intPreferencesKey("pref_update_ignored_version_code")
+
     /** 最近搜索整表的会话归属；SearchRepository 删除旧行成功后才允许新归属读取。 */
     val RECENT_SEARCH_OWNER = stringPreferencesKey("recent_search_owner")
 

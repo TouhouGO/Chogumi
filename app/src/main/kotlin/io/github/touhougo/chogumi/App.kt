@@ -13,6 +13,7 @@ import io.github.touhougo.chogumi.core.common.debug.CrashRecorder
 import io.github.touhougo.chogumi.core.data.di.dataModule
 import io.github.touhougo.chogumi.core.data.repository.AuthRepository
 import io.github.touhougo.chogumi.core.data.repository.SearchRepository
+import io.github.touhougo.chogumi.core.data.update.AppUpdates
 import io.github.touhougo.chogumi.core.network.AuthConfig
 import io.github.touhougo.chogumi.core.network.networkModule
 import io.github.touhougo.chogumi.core.ui.image.CoverSizeInterceptor
@@ -80,6 +81,10 @@ class App : Application(), SingletonImageLoader.Factory {
         }
         appScope.launch {
             get<SearchRepository>().maintainRecentSearches(appScope)
+        }
+        // 到前台时按间隔检查更新（冷启动也算一次到前台）
+        appScope.launch {
+            get<AppUpdates>().watch(get(named("appForeground")))
         }
         // 桌面上放着小组件时，App 里标的进度、换的配色马上画到桌面上
         appScope.launch {

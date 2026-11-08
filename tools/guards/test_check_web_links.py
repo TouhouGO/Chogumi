@@ -6,19 +6,20 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_web_links import OPENER_HOME, SHARE_HOME, find_violations, unused_allowances
+from check_web_links import INSTALLER_HOME, OPENER_HOME, SHARE_HOME, find_violations, unused_allowances
 
 
 class CheckWebLinksTest(unittest.TestCase):
 
     def violations(self, files: dict[str, str], allowed: set[str] = frozenset(),
-                   opener_home: str | None = None, share_home: str | None = None) -> list[str]:
+                   opener_home: str | None = None, share_home: str | None = None,
+                   installer_home: str | None = None) -> list[str]:
         root = Path(tempfile.mkdtemp())
         for rel, text in files.items():
             path = root / rel
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
-        return find_violations(root, set(allowed), opener_home, share_home)
+        return find_violations(root, set(allowed), opener_home, share_home, installer_home)
 
     def test_手拼主站地址拦下(self):
         found = self.violations({"feature/a/src/main/Page.kt": 'val url = "https://bgm.tv/user/$name"\n'})
@@ -83,8 +84,9 @@ class CheckWebLinksTest(unittest.TestCase):
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_text(text, encoding="utf-8")
         allowed = {"core/model/src/main/BgmWeb.kt", "core/foundation/src/main/BangumiSite.kt"}
-        found = unused_allowances(root, allowed, OPENER_HOME, SHARE_HOME)
-        self.assertEqual(sorted(["core/model/src/main/BgmWeb.kt", OPENER_HOME, SHARE_HOME]), [v.split(": ")[0] for v in found])
+        found = unused_allowances(root, allowed, OPENER_HOME, SHARE_HOME, INSTALLER_HOME)
+        expected = ["core/model/src/main/BgmWeb.kt", OPENER_HOME, SHARE_HOME, INSTALLER_HOME]
+        self.assertEqual(sorted(expected), [v.split(": ")[0] for v in found])
         self.assertTrue(all("放行" in v for v in found), found)
 
     def test_自己起浏览器拦下(self):
@@ -96,6 +98,15 @@ class CheckWebLinksTest(unittest.TestCase):
     def test_外壳的网页打开器放行(self):
         handler = 'class CustomTabUriHandler { fun open() = CustomTabsIntent.Builder(); val a = Intent.ACTION_VIEW }\n'
         self.assertEqual([], self.violations({OPENER_HOME: handler}, opener_home=OPENER_HOME))
+
+    def test_安装器入口只放行ACTION_VIEW(self):
+        install = 'fun Context.installApk(apk: File) = startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, MIME))\n'
+        self.assertEqual([], self.violations({INSTALLER_HOME: install}, installer_home=INSTALLER_HOME))
+        browser = install + 'fun open() = CustomTabsIntent.Builder()\n'
+        found = self.violations({INSTALLER_HOME: browser, "feature/a/src/main/Page.kt": install}, installer_home=INSTALLER_HOME)
+        self.assertEqual(2, len(found))
+        self.assertTrue(any("CustomTabsIntent" in v and v.startswith(INSTALLER_HOME) for v in found), found)
+        self.assertTrue(any(v.startswith("feature/a/src/main/Page.kt:") for v in found), found)
 
     def test_代码标记只在字符串里不算_模板表达式仍拦(self):
         text_only = 'val a = "CustomTabsIntent"\nval b = "ACTION_VIEW"\nval c = "ACTION_SEND"\n'

@@ -14,6 +14,8 @@
 2. 打开网页只经 `LocalUriHandler`（App 外壳放进去的是 CustomTabUriHandler：Custom Tab，没有再退普通浏览器）：
    `CustomTabs*`（CustomTabsIntent、CustomTabsSession……）、`ACTION_VIEW` 与字符串 `"android.intent.action.VIEW"`
    只许出现在 CustomTabUriHandler.kt。各页自己起浏览器，有的进 Custom Tab、有的跳出 App，返回时的表现就各不相同。
+   例外：应用内更新把下好的安装包交给系统安装器也是 `ACTION_VIEW`（数据是 content: 的 APK，不是网页），只许在 ApkInstall.kt；
+   那里的 `CustomTabs*` 照样拦。
 3. 分享只经 core:ui 的 Share.kt（`shareLink` 分享链接，正文「标题\n链接」；`shareFile` 分享文件）：`ACTION_SEND*`、
    `ACTION_CHOOSER`、`createChooser`、`ShareCompat` 与字符串 `"android.intent.action.SEND…"` / `"…CHOOSER"` 只许出现在
    Share.kt。各处自己拼分享 Intent，正文格式、文件授权就各写各的。
@@ -45,6 +47,8 @@ OPENER = re.compile(r"\bCustomTabs\w*|\bACTION_VIEW\b")
 OPENER_ACTION = re.compile(r"\bandroid\.intent\.action\.VIEW\b")
 OPENER_HOME = "app/src/main/kotlin/io/github/touhougo/chogumi/shell/CustomTabUriHandler.kt"
 OPENER_HINT = "打开网页只经 LocalUriHandler.current.openUri（外壳给的是 Custom Tab）"
+INSTALLER = re.compile(r"\bACTION_VIEW\b")
+INSTALLER_HOME = "app/src/main/kotlin/io/github/touhougo/chogumi/shell/ApkInstall.kt"
 
 SHARER = re.compile(r"\bACTION_SEND\w*|\bACTION_CHOOSER\b|\bcreateChooser\b|\bShareCompat\b")
 SHARER_ACTION = re.compile(r"\bandroid\.intent\.action\.(?:SEND\w*|CHOOSER)\b")
@@ -76,6 +80,7 @@ def find_violations(
     allowed: set[str] = ALLOWED,
     opener_home: str | None = OPENER_HOME,
     share_home: str | None = SHARE_HOME,
+    installer_home: str | None = INSTALLER_HOME,
 ) -> list[str]:
     violations: list[str] = []
     paths = main_sources(root)
@@ -97,6 +102,8 @@ def find_violations(
             if rel == home:
                 continue
             for m in entry_matches(code_pattern, action_pattern, literals, code):
+                if rel == installer_home and code_pattern is OPENER and INSTALLER.fullmatch(m.group(0)):
+                    continue
                 violations.append(f"{rel}:{line_of(literals, m)}: {what}（{m.group(0)}）——{hint}")
     return violations
 
@@ -106,10 +113,11 @@ def unused_allowances(
     allowed: set[str] = ALLOWED,
     opener_home: str = OPENER_HOME,
     share_home: str = SHARE_HOME,
+    installer_home: str = INSTALLER_HOME,
 ) -> list[str]:
-    """放行的文件与两个入口文件不在了、或里面已没有被放行的写法。"""
+    """放行的文件与三个入口文件不在了、或里面已没有被放行的写法。"""
     stale: list[str] = []
-    for rel in sorted({*allowed, opener_home, share_home}):
+    for rel in sorted({*allowed, opener_home, share_home, installer_home}):
         path = root / rel
         found: list[re.Match[str]] = []
         if path.is_file():
@@ -120,6 +128,8 @@ def unused_allowances(
                 found += entry_matches(OPENER, OPENER_ACTION, literals, code)
             if rel == share_home:
                 found += entry_matches(SHARER, SHARER_ACTION, literals, code)
+            if rel == installer_home:
+                found += INSTALLER.finditer(code)
         if not found:
             stale.append(f"{rel}: 放行用不上了（文件不在或已没有被放行的写法）——从放行里删掉")
     return stale

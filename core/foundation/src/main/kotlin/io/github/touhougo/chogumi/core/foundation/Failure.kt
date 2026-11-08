@@ -125,6 +125,9 @@ enum class RejectReason {
 
     /** 非公开小组只有成员能发帖、回复（错误码 `NOT_JOIN_PRIVATE_GROUP_ERROR`，服务端回 401，不能当成登录失效）。 */
     GROUP_MEMBERS_ONLY,
+
+    /** 应用内更新下载的安装包与 release.json 里的 SHA-256 对不上（传坏了或被换了），已删掉，不交给系统安装。 */
+    UPDATE_PACKAGE_MISMATCH,
 }
 
 /** 以 [failure] 为原因的异常：数据层在「要失败」的地方抛它，`toFailure()` 原样取回原因。 */

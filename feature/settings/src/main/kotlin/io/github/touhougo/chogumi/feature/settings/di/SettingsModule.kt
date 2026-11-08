@@ -8,6 +8,7 @@ import io.github.touhougo.chogumi.feature.settings.LauncherAliasIcons
 import io.github.touhougo.chogumi.feature.settings.PreferenceSettingsViewModel
 import io.github.touhougo.chogumi.feature.settings.ProfileSettingsViewModel
 import io.github.touhougo.chogumi.feature.settings.SettingsViewModel
+import io.github.touhougo.chogumi.feature.settings.UpdateSettingsViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -21,4 +22,5 @@ val settingsModule = module {
     viewModelOf(::PreferenceSettingsViewModel)
     viewModelOf(::ContentSettingsViewModel)
     viewModelOf(::ProfileSettingsViewModel)
+    viewModelOf(::UpdateSettingsViewModel)
 }

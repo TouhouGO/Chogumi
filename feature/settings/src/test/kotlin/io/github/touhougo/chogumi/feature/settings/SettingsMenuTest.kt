@@ -49,7 +49,7 @@ class SettingsMenuTest {
             }
         }
 
-        listOf("外观", "首页与进度", "评分与社区", "内容过滤").forEach { title ->
+        listOf("外观", "首页与进度", "评分与社区", "内容过滤", "更新").forEach { title ->
             compose.onNode(hasText(title) and hasClickAction()).performClick()
         }
 

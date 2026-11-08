@@ -22,6 +22,7 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("CollectionProgressSection.kt", "ProgressInputDialog"): "直接输入进度：对话框里是数字输入框",
     ("ComposerSheet.kt", "InsertDialog"): "编辑器插入链接 / 图片：对话框里是地址与文字输入框",
     ("TurnstileDialog.kt", "TurnstileDialog"): "发帖人机验证：对话框里是验证网页",
+    ("AppUpdateDialog.kt", "AppUpdateDialog"): "更新提示：对话框里是更新内容、下载进度，三个选择",
 }
 
 CALL = re.compile(r"(?<![\w.])(?:[a-z]\w*\.)*(AlertDialog|BasicAlertDialog)\s*\(")
