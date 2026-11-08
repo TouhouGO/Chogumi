@@ -242,7 +242,7 @@ val dataModule = module {
     single<MonoRepository> { MonoRepositoryImpl(get(), get(), get(), get()) }
     single<SubjectCommunityRepository> { SubjectCommunityRepositoryImpl(get(), get()) }
     single<CommunityRepository> { CommunityRepositoryImpl(get(), get(), get()) }
-    single<TopicRepository> { TopicRepositoryImpl(get(), get(), get(), get()) }
+    single<TopicRepository> { TopicRepositoryImpl(get(), get(), get()) }
     single<CommentRepository> { CommentRepositoryImpl(get(), get(), get(), get(), get()) }
     single<GroupRepository> { GroupRepositoryImpl(get(), get(), get(named("preferencesDataStore")), get()) }
     single { DraftRepository(get(), get(), get<TokenStore>(), get(named("appScope"))) }

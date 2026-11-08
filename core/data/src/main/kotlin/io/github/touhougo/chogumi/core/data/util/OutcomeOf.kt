@@ -55,7 +55,7 @@ suspend fun <T> Outcome<T>.onWebIfServerError(reason: RejectReason, onWeb: suspe
 suspend fun <T> Outcome<T>.onWebIfUnconfirmed(reason: RejectReason, onWeb: suspend () -> T): Outcome<T> =
     onWebWhen(reason, onWeb) { it.isServerError() || it == Failure.Timeout }
 
-internal fun Failure.isServerError(): Boolean = this is Failure.Http && status in 500..599
+private fun Failure.isServerError(): Boolean = this is Failure.Http && status in 500..599
 
 private suspend fun <T> Outcome<T>.onWebWhen(reason: RejectReason, onWeb: suspend () -> T, unconfirmed: (Failure) -> Boolean): Outcome<T> {
     val failure = (this as? Outcome.Failed)?.failure

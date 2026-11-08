@@ -18,6 +18,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,30 +26,30 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 
 /**
- * 回帖的容灾：开放接口回 5xx 时用网页会话把同一条送进网页的回复表单，先查重、后回读。话题（[TopicRepository]）与
- * 评论区（[CommentRepository]）两类消费方各测一遍。网页表单照 2026-11-08 实测裁剪，楼层 JSON 照接口形状裁剪。
+ * 回帖的容灾：开放接口回 5xx 时用网页会话把同一条送进网页的回复表单；发送之前读的楼层是基线，「这一次发的」只认基线之后多出来的楼。
+ * 话题（[TopicRepository]）与评论区（[CommentRepository]）两类消费方各测一遍。网页表单照 2026-11-08 实测裁剪，楼层 JSON 照接口形状裁剪。
  */
 class ReplyFallbackTest {
     @get:org.junit.Rule
     val resources = TestResources()
 
-    /** 发送时刻：1794120000 秒。 */
-    private val clock = TestClock(1_794_120_000_000L)
-
-    /** 假的开放接口：回复以 [replyStatus] 失败；楼层先是 [before]，网页提交之后是 [after]。 */
+    /** 假的开放接口：回复以 [replyStatus] 失败。楼层：接口回复之前是 [beforeSend]，之后是 [afterApi]（默认不变），网页提交之后是 [afterWeb]。 */
     private var replyStatus = HttpStatusCode.InternalServerError
-    private var before = listOf(floor(100, creator = 5, content = "楼主的主楼"))
-    private var after: List<String>? = null
+    private var beforeSend = listOf(floor(100, creator = 5, content = "楼主的主楼"))
+    private var afterApi: List<String>? = null
+    private var afterWeb: List<String>? = null
+    private val apiReplies = AtomicInteger()
+    private val floorReads = AtomicInteger()
     private lateinit var site: TestWebSite
 
-    private fun floor(id: Int, creator: Int, content: String, createdAt: Long = 1_700_000_000L, replies: List<String> = emptyList()) =
-        """{"id":$id,"creatorID":$creator,"createdAt":$createdAt,"content":"$content","state":0,"replies":[${replies.joinToString(",")}]}"""
+    private fun floor(id: Int, creator: Int, content: String, replies: List<String> = emptyList()) =
+        """{"id":$id,"creatorID":$creator,"createdAt":1794120001,"content":"$content","state":0,"replies":[${replies.joinToString(",")}]}"""
 
-    private fun sub(id: Int, creator: Int, content: String, createdAt: Long) =
-        """{"id":$id,"creatorID":$creator,"createdAt":$createdAt,"content":"$content","state":0}"""
+    private fun sub(id: Int, creator: Int, content: String) =
+        """{"id":$id,"creatorID":$creator,"createdAt":1794120001,"content":"$content","state":0}"""
 
-    private fun comment(id: Int, creator: Int, content: String, createdAt: Long = 1_700_000_000L) =
-        """{"id":$id,"mainID":519,"creatorID":$creator,"relatedID":0,"createdAt":$createdAt,"content":"$content","state":0,"replies":[]}"""
+    private fun comment(id: Int, creator: Int, content: String) =
+        """{"id":$id,"mainID":519,"creatorID":$creator,"relatedID":0,"createdAt":1794120001,"content":"$content","state":0,"replies":[]}"""
 
     private fun replyForm(action: String) = """<form id="ReplyForm" name="new_comment" method="post" action="$action">
         <input type="hidden" name="formhash" value="560139dc" /><input type="hidden" name="lastview" value="1794120762" />
@@ -60,7 +61,15 @@ class ReplyFallbackTest {
             "group":{"id":4215,"name":"sandbox","nsfw":false,"title":"沙盒","icon":{"small":"s","medium":"m","large":"l"},"creatorID":1,"members":1,"accessible":true,"createdAt":1},
             "replies":[${replies.joinToString(",")}]}"""
 
-    private fun currentFloors() = if (site.postCount > 0) after ?: before else before
+    private fun currentFloors(): List<String> {
+        floorReads.incrementAndGet()
+        val apiDone = afterApi ?: beforeSend
+        return when {
+            site.postCount > 0 -> afterWeb ?: apiDone
+            apiReplies.get() > 0 -> apiDone
+            else -> beforeSend
+        }
+    }
 
     private suspend fun TestScope.signIn(webSession: Boolean = true): Pair<TokenStore, WebSessionRepository> {
         val tokenStore = testTokenStore(scope = backgroundScope)
@@ -75,14 +84,15 @@ class ReplyFallbackTest {
         return tokenStore to webSessions
     }
 
-    private fun api(body: (String) -> String) = NextApi(
+    private fun api(body: () -> String) = NextApi(
         resources.apiClient(
             MockEngine { request ->
                 val json = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                 if (request.method == HttpMethod.Post) {
+                    apiReplies.incrementAndGet()
                     respond("""{"statusCode":${replyStatus.value}}""", replyStatus, json)
                 } else {
-                    respond(body(request.url.encodedPath), HttpStatusCode.OK, json)
+                    respond(body(), HttpStatusCode.OK, json)
                 }
             },
         ),
@@ -90,13 +100,13 @@ class ReplyFallbackTest {
 
     private suspend fun TestScope.topics(webSession: Boolean = true): TopicRepository {
         val (tokenStore, webSessions) = signIn(webSession)
-        return TopicRepositoryImpl(api { groupTopic(currentFloors()) }, tokenStore, webSessions, clock)
+        return TopicRepositoryImpl(api { groupTopic(currentFloors()) }, tokenStore, webSessions)
     }
 
     private suspend fun TestScope.comments(): CommentRepository {
         val (tokenStore, webSessions) = signIn()
         val drafts = testDraftRepository(backgroundScope, tokens = tokenStore)
-        return CommentRepositoryImpl(api { "[${currentFloors().joinToString(",")}]" }, tokenStore, drafts, clock, webSessions)
+        return CommentRepositoryImpl(api { "[${currentFloors().joinToString(",")}]" }, tokenStore, drafts, TestClock(), webSessions)
     }
 
     private fun submittedFields(): Map<String, String> = site.submitted.single().second.split('&').associate { field ->
@@ -107,7 +117,7 @@ class ReplyFallbackTest {
     @Test
     fun `话题回复遇服务端5xx时用网页会话回复_回读出新楼的id`() = runTest {
         val repo = topics()
-        after = before + floor(4103407, creator = 7, content = "网页送进去的", createdAt = 1_794_120_001L)
+        afterWeb = beforeSend + floor(4103407, creator = 7, content = "网页送进去的")
 
         assertEquals(Outcome.Success(4103407), repo.reply(TopicType.GROUP, 375793, "网页送进去的", replyTo = 0, turnstileToken = "tk"))
 
@@ -119,7 +129,7 @@ class ReplyFallbackTest {
     @Test
     fun `回复一层楼时网页表单带上主楼与它的作者`() = runTest {
         val repo = topics()
-        after = listOf(floor(100, creator = 5, content = "楼主的主楼", replies = listOf(sub(4103408, 7, "楼中楼", 1_794_120_001L))))
+        afterWeb = listOf(floor(100, creator = 5, content = "楼主的主楼", replies = listOf(sub(4103408, 7, "楼中楼"))))
 
         assertEquals(Outcome.Success(4103408), repo.reply(TopicType.GROUP, 375793, "楼中楼", replyTo = 100, turnstileToken = "tk"))
 
@@ -130,20 +140,20 @@ class ReplyFallbackTest {
     }
 
     @Test
-    fun `接口其实写进去了时不再从网页发第二次`() = runTest {
+    fun `接口其实写进去了时不再从网页发第二次_接口回的正文转义过也认得出`() = runTest {
         val repo = topics()
-        before = before + floor(4103400, creator = 7, content = "已经写进去的", createdAt = 1_794_120_002L)
+        afterApi = beforeSend + floor(4103400, creator = 7, content = "A &amp; B")
 
-        assertEquals(Outcome.Success(4103400), repo.reply(TopicType.GROUP, 375793, "已经写进去的\n", replyTo = 0, turnstileToken = "tk"))
+        assertEquals(Outcome.Success(4103400), repo.reply(TopicType.GROUP, 375793, "A & B", replyTo = 0, turnstileToken = "tk"))
 
         assertEquals(0, site.postCount)
     }
 
     @Test
-    fun `早先发过的同样一句不算这一次写进去了`() = runTest {
+    fun `刚发过同样一句时这一次照样补发_不把上一条当成这一次`() = runTest {
         val repo = topics()
-        before = before + floor(4000000, creator = 7, content = "顶", createdAt = 1_700_000_000L)
-        after = before + floor(4103407, creator = 7, content = "顶", createdAt = 1_794_120_001L)
+        beforeSend = beforeSend + floor(4103300, creator = 7, content = "顶")
+        afterWeb = beforeSend + floor(4103407, creator = 7, content = "顶")
 
         assertEquals(Outcome.Success(4103407), repo.reply(TopicType.GROUP, 375793, "顶", replyTo = 0, turnstileToken = "tk"))
 
@@ -153,7 +163,6 @@ class ReplyFallbackTest {
     @Test
     fun `网页提交之后回读不到新楼时说去网页端回复`() = runTest {
         val repo = topics()
-        after = before
 
         assertEquals(
             Outcome.Failed(Failure.Rejected(RejectReason.REPLY_UNAVAILABLE)),
@@ -162,11 +171,12 @@ class ReplyFallbackTest {
     }
 
     @Test
-    fun `没有网页会话时原样给出接口的5xx_不碰网页`() = runTest {
+    fun `没有网页会话时不读楼层_原样给出接口的5xx`() = runTest {
         val repo = topics(webSession = false)
 
         assertEquals(Outcome.Failed(Failure.Http(500)), repo.reply(TopicType.GROUP, 375793, "正文", replyTo = 0, turnstileToken = "tk"))
 
+        assertEquals(0, floorReads.get())
         assertTrue(site.opened.isEmpty())
         assertEquals(0, site.postCount)
     }
@@ -188,8 +198,8 @@ class ReplyFallbackTest {
     fun `评论区回复遇服务端5xx时送进对象网页的回复表单_目录在留言页`() = runTest {
         for ((box, action) in listOf(CommentSurface.Episode(519) to "https://bgm.tv/subject/ep/519/new_reply", CommentSurface.Index(3) to "https://bgm.tv/index/3/new_reply")) {
             val repo = comments()
-            before = listOf(comment(1, creator = 5, content = "别人的"))
-            after = before + comment(9001, creator = 7, content = "评论区的一条", createdAt = 1_794_120_001L)
+            beforeSend = listOf(comment(1, creator = 5, content = "别人的"))
+            afterWeb = beforeSend + comment(9001, creator = 7, content = "评论区的一条")
 
             assertEquals(Outcome.Success(9001), repo.reply(box, "评论区的一条", replyTo = 0, turnstileToken = "tk"), "$box")
             assertEquals(action, site.submitted.single().first, "$box")
