@@ -1,22 +1,18 @@
 package io.github.touhougo.chogumi.core.glass
 
 import android.os.Build
-import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.interaction.InteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -27,7 +23,6 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
-import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import io.github.touhougo.chogumi.core.ui.theme.isDark
 
 /**
@@ -77,7 +72,8 @@ enum class GlassMaterial { Clear, Labeled, Tinted }
 
 /**
  * 把这个节点画成一块玻璃：采样 [layer] 里它正下方的内容，模糊、调色、边缘折射（Android 13 起），叠上 [material] 的底色、
- * 一圈高光与淡阴影。[pressed] 是按下的进度（0 = 松开，1 = 按住），玻璃随之鼓起；只在绘制阶段读，按下不重组。
+ * 一圈高光与淡阴影。给了 [touch] 时玻璃跟着手指浮起、被拉动（[GlassTouch]，浮起时短边多出 [liftBy]），玻璃上的内容用
+ * [glassContent] 跟着一起动；只在绘制阶段读，按下不重组。
  *
  * 形状只收圆角矩形（含胶囊、圆）：折射按圆角算。
  */
@@ -86,7 +82,8 @@ fun Modifier.glass(
     layer: GlassLayer,
     shape: CornerBasedShape,
     material: GlassMaterial,
-    pressed: () -> Float = NotPressed,
+    touch: GlassTouch? = null,
+    liftBy: Dp = GlassLift,
 ): Modifier {
     val colors = MaterialTheme.colorScheme
     val dark = colors.isDark()
@@ -108,11 +105,7 @@ fun Modifier.glass(
         },
         highlight = { highlight },
         shadow = { shadow },
-        layerBlock = {
-            val bulge = 1f + pressed() * (GlassBulge.toPx() / size.minDimension)
-            scaleX = bulge
-            scaleY = bulge
-        },
+        layerBlock = { if (touch != null) with(touch) { transform(liftBy) } },
         onDrawSurface = {
             if (hue.isSpecified) drawRect(hue, blendMode = BlendMode.Hue)
             drawRect(surface)
@@ -120,30 +113,12 @@ fun Modifier.glass(
     )
 }
 
-/**
- * 按下的进度（0 = 松开，1 = 按住），给 [glass] 的 `pressed`：玻璃轻轻鼓起再弹回，规格取主题的 expressive 空间弹簧
- * （会过冲，按下的那一下像水滴；系统关掉动画时瞬时）。按下的反馈就是玻璃本身，调用处不再叠水波纹。
- */
-@Composable
-fun rememberGlassPress(interactionSource: InteractionSource): () -> Float {
-    val pressed by interactionSource.collectIsPressedAsState()
-    val progress = remember { Animatable(0f) }
-    val spec = LocalAppMotion.current.expressive.fastSpatialSpec<Float>()
-    LaunchedEffect(pressed) { progress.animateTo(if (pressed) 1f else 0f, spec) }
-    return remember(progress) { { progress.value } }
-}
-
-private val NotPressed: () -> Float = { 0f }
-
 /** 模糊半径：背后的字糊开读不出，封面的颜色与大块轮廓还认得出。 */
 private val GlassBlur = 10.dp
 
 /** 边缘折射的带宽与强度（Android 13 起）：边上一圈把背后的内容往里弯，中间保持平。 */
 private val GlassRefractionHeight = 12.dp
 private val GlassRefractionAmount = 20.dp
-
-/** 按住时鼓起的量：短边多出这么多。 */
-private val GlassBulge = 4.dp
 
 private val LightHighlight = Highlight(alpha = 0.9f)
 private val DarkHighlight = Highlight(alpha = 0.5f)

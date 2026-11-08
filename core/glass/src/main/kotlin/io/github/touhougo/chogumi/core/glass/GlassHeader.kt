@@ -53,14 +53,15 @@ val LocalGlassContentTop = staticCompositionLocalOf { 0.dp }
  * 玻璃效果开着时 core:ui `HeaderTabsFrame` 的替身（作品详情）：内容从钉住的 tab 胶囊、顶边与顶上的圆钮下面滚过去。
  *
  * 和 `HeaderTabsFrame` 同样随内容往上滚收起头部、回到内容顶部再往下拉才展开，不同在于：
- * - 头部收到 0，不留顶栏那一截；收起的最后一个顶栏高里内容区跟着上移，内容从 tab 胶囊下面滚过；
- *   内容区的上内边距是 [LocalGlassContentTop]（状态栏 + 顶栏 + tab 胶囊），第一行内容不被盖住；
+ * - 头部收到 0，不留顶栏那一截；tab 胶囊钉住之后内容区不再上移，头部最后那一截从顶边下面退走；
+ *   内容区的上内边距是 [LocalGlassContentTop]（状态栏 + 顶栏 + tab 胶囊），列表在顶部时第一行永远在胶囊下面，
+ *   往上滚才从胶囊、顶边下面滚过；
  * - [tabs] 浮在内容上面（[GlassTabs]，高 [GlassTabsHeight]），停在顶栏下面不再上移；
  * - 顶栏不让位（玻璃圆钮不占布局，一直够得着），由读同一个 [state] 的 [GlassHeaderBar] 画；
  * - 头部与内容一起录进 [glass]：顶边、圆钮、tab 胶囊、主操作都从这里采样，[tabs] 不在里面（玻璃不采自己）；
  * - 顶边（[GlassTopEdge]）画在这里，垫在 [tabs] 下面，盖住状态栏、顶栏与胶囊所在的那一段，头部收起时淡入。
  *
- * 内容区高度固定（屏幕高 + 顶栏那一截），收起头部时只挪位置、不重新量列表，滚动时不重组。
+ * 内容区高度固定（屏幕高），收起头部时只挪位置、不重新量列表，滚动时不重组。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,10 +101,11 @@ fun GlassHeaderTabsFrame(
             state.slot = slot
             state.pinTop = topBarPx
             state.pinBottom = topBarPx + pinned.roundToPx()
-            val contentPlaceable = measurables[1].measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight + topBarPx))
+            val contentPlaceable = measurables[1].measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight))
             layout(constraints.maxWidth, constraints.maxHeight) {
                 // 先放内容再放头部：头部画在内容上面，盖住的只是内容区空着的上内边距，头部里的小标与标签也点得到
-                contentPlaceable.place(0, slot - topBarPx)
+                // 内容跟着 tab 胶囊走：胶囊钉住后不再上移，列表在顶部时第一行不钻到胶囊和顶栏下面
+                contentPlaceable.place(0, max(slot, topBarPx) - topBarPx)
                 headerPlaceable.place(0, offset)
             }
         }
