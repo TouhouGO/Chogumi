@@ -1,6 +1,5 @@
 package io.github.touhougo.chogumi.core.glass
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -8,8 +7,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -42,10 +44,22 @@ fun AboveBottomBar(bar: PaddingValues, content: @Composable (Modifier) -> Unit) 
 }
 
 /**
- * 浮在玻璃底栏之上的一层：铺满父级，底部让出 [LocalGlassContentBottom]。顶级页的 FAB 与提示条放在这里，
- * 位置规则照旧（`SelectionFabMenu` 自己贴右下角、提示条贴底居中），只是停在胶囊上面。玻璃关着时就是铺满父级的一层。
+ * 顶级页的 FAB 与提示条停在玻璃底栏上面：在 [content] 里，父级 Box 的 `align` / `matchParentSize` 都在底部让出
+ * [LocalGlassContentBottom]，位置规则照旧（`SelectionFabMenu` 自己贴右下角、提示条贴底居中），只是整体抬到胶囊上面。
+ * 玻璃关着时让出 0，和直接写在父级 Box 里一样。
+ *
+ * 不另包一层盒子：多一层铺满页面的节点会在点击判定里挡住它下面的兄弟（列表滑不动、点不了），这里只换掉对齐用的作用域。
  */
 @Composable
 fun BoxScope.AboveGlassBar(content: @Composable BoxScope.() -> Unit) {
-    Box(Modifier.matchParentSize().padding(bottom = LocalGlassContentBottom.current), content = content)
+    val bottom = LocalGlassContentBottom.current
+    val scope = remember(this, bottom) { InsetBoxScope(this, bottom) }
+    scope.content()
+}
+
+/** 对齐照父级 Box，对齐之后在底部让出 [bottom]。 */
+private class InsetBoxScope(private val parent: BoxScope, private val bottom: Dp) : BoxScope {
+    override fun Modifier.align(alignment: Alignment): Modifier = with(parent) { align(alignment) }.padding(bottom = bottom)
+
+    override fun Modifier.matchParentSize(): Modifier = with(parent) { matchParentSize() }.padding(bottom = bottom)
 }

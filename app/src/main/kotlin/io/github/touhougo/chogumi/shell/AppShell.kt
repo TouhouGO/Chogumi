@@ -35,8 +35,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.BuildConfig
+import io.github.touhougo.chogumi.core.glass.GlassBarMinimize
 import io.github.touhougo.chogumi.core.glass.GlassLayer
 import io.github.touhougo.chogumi.core.glass.glassSource
+import io.github.touhougo.chogumi.core.glass.glassBarScroll
+import io.github.touhougo.chogumi.core.glass.rememberGlassBarMinimize
 import io.github.touhougo.chogumi.core.glass.rememberGlassLayer
 import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.res.R
@@ -116,13 +119,17 @@ fun AppShell(
         ) {
             // 设置里的「玻璃效果」开着时底栏是玻璃胶囊（GlassNavigationBar.kt），页面区录进这一层供它采样；关着时是 null
             val glass = rememberGlassLayer()
+            // 往下读时玻璃底栏收成左下角一颗圆钮：页面区的滚动交给它（玻璃关着时不接）
+            val minimize = rememberGlassBarMinimize()
             ShellLayout(
                 navigation = topLevelNavigationFor(windowSizeClass.widthSizeClass),
                 glass = glass,
+                minimize = minimize.takeIf { glass != null },
                 bottomBar = {
                     if (glass != null) {
                         GlassNavigationBar(
                             glass = glass,
+                            minimize = minimize,
                             currentTab = navigator.currentTab,
                             destinations = destinations,
                             isVisible = showBottomBar,
@@ -202,12 +209,14 @@ private fun SlowStartNotice(onRetry: () -> Unit) {
  * 外壳布局：主导航（底栏或导航轨）加页面区。页面区 [content] 不论哪种导航形态都在组合里的**同一个位置**：
  * 页面里的可保存状态（页内标签、开着的面板）按组合位置存取，宽度跨过 compact 时 Activity 重建，
  * 页面区若随导航形态换了位置，存下的状态就找不回来，页面全部回到初始状态。所以两种形态共用一个 Scaffold，
- * 只在它前面加不加导航轨、底栏槽里放不放底栏。玻璃效果开着时页面区录进 [glass]，底栏槽里的玻璃底栏从它采样。
+ * 只在它前面加不加导航轨、底栏槽里放不放底栏。玻璃效果开着时页面区录进 [glass]，底栏槽里的玻璃底栏从它采样；页面区的滚动交给
+ * [minimize]，决定玻璃底栏收不收成圆钮。
  */
 @Composable
 internal fun ShellLayout(
     navigation: TopLevelNavigationKind,
     glass: GlassLayer?,
+    minimize: GlassBarMinimize?,
     bottomBar: @Composable () -> Unit,
     rail: @Composable () -> Unit,
     content: @Composable (bottomPadding: Dp) -> Unit,
@@ -222,7 +231,7 @@ internal fun ShellLayout(
         ) { padding ->
             // 只传一次底栏占位，子页不重复补系统导航 inset；导航轨形态没有底栏，占位为 0。
             // 玻璃底栏从页面区采样（[glass] 为 null 时这层什么也不做）；这个 Box 两种情况下都在，页面区的组合位置不随开关变
-            Box(Modifier.glassSource(glass)) { content(padding.calculateBottomPadding()) }
+            Box(Modifier.glassSource(glass).glassBarScroll(minimize)) { content(padding.calculateBottomPadding()) }
         }
     }
 }

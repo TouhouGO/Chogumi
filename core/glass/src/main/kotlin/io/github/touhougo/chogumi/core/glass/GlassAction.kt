@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * 一屏唯一的主操作（[GlassMaterial.Tinted]）：玻璃效果开着时替代页面的 extended FAB，放在 Scaffold 的 `floatingActionButton` 槽里，
- * 位置与 FAB 一样由 Scaffold 管。胶囊形，高与 M3 extended FAB 一样 56dp；按下时玻璃连同内容浮起、跟着手指被拉过去，没有水波纹。
+ * 位置与 FAB 一样由 Scaffold 管。胶囊形，高与 M3 extended FAB 一样 56dp；按下时玻璃连同内容浮起，没有水波纹。
  * [content] 就是 FAB 里原来的那一行（图标 + 文字），颜色由这里给（主色容器上的颜色）。
  */
 @Composable

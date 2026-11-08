@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -72,8 +71,8 @@ enum class GlassMaterial { Clear, Labeled, Tinted }
 
 /**
  * 把这个节点画成一块玻璃：采样 [layer] 里它正下方的内容，模糊、调色、边缘折射（Android 13 起），叠上 [material] 的底色、
- * 一圈高光与淡阴影。给了 [touch] 时玻璃跟着手指浮起、被拉动（[GlassTouch]，浮起时短边多出 [liftBy]），玻璃上的内容用
- * [glassContent] 跟着一起动；只在绘制阶段读，按下不重组。
+ * 一圈高光与淡阴影。给了 [touch] 时玻璃按下浮起（[GlassTouch]，短边多出 [GlassLift]），玻璃上的内容用 [glassContent]
+ * 跟着一起浮；只在绘制阶段读，按下不重组。给了 [export] 时这块玻璃画出来的样子另录进那一层，浮在它上面的放大镜（[GlassTabs]）从那里采样。
  *
  * 形状只收圆角矩形（含胶囊、圆）：折射按圆角算。
  */
@@ -83,7 +82,7 @@ fun Modifier.glass(
     shape: CornerBasedShape,
     material: GlassMaterial,
     touch: GlassTouch? = null,
-    liftBy: Dp = GlassLift,
+    export: LayerBackdrop? = null,
 ): Modifier {
     val colors = MaterialTheme.colorScheme
     val dark = colors.isDark()
@@ -105,7 +104,8 @@ fun Modifier.glass(
         },
         highlight = { highlight },
         shadow = { shadow },
-        layerBlock = { if (touch != null) with(touch) { transform(liftBy) } },
+        layerBlock = { if (touch != null) with(touch) { transform(GlassLift) } },
+        exportedBackdrop = export,
         onDrawSurface = {
             if (hue.isSpecified) drawRect(hue, blendMode = BlendMode.Hue)
             drawRect(surface)

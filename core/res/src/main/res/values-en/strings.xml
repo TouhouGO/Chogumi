@@ -211,6 +211,7 @@
     <string name="settings_nsfw_loading">Reading account settings…</string>
     <string name="settings_nsfw_load_failed">Failed to read account settings: %1$s</string>
     <string name="settings_glass">Glass effect</string>
+    <string name="navigation_bar_expand">Expand navigation bar</string>
     <string name="settings_experience_mode">Focus mode</string>
     <string name="settings_experience_mode_details">Hides community, friends, discussions and notifications</string>
     <string name="settings_friend_marks">Show friend badges</string>

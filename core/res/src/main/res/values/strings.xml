@@ -219,6 +219,7 @@
     <string name="settings_nsfw_loading">正在读取账号设置…</string>
     <string name="settings_nsfw_load_failed">读取账号设置失败：%1$s</string>
     <string name="settings_glass">玻璃效果</string>
+    <string name="navigation_bar_expand">展开导航栏</string>
     <string name="settings_experience_mode">专注模式</string>
     <string name="settings_experience_mode_details">隐藏社区、好友、讨论与通知</string>
     <string name="settings_friend_marks">显示好友标识</string>

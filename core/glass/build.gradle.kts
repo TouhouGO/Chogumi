@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.chogumi.android.library)
     alias(libs.plugins.chogumi.android.compose)
+    alias(libs.plugins.chogumi.android.robolectric)
 }
 
 /**

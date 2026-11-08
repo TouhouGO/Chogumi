@@ -38,8 +38,8 @@ EXPRESSIVE_ALLOWED = {
     "core/ui/src/main/kotlin/io/github/touhougo/chogumi/core/ui/composables/EpisodeTile.kt": "选集格子：标上弹一下、看完荡到 1.1 倍",
     "core/ui/src/main/kotlin/io/github/touhougo/chogumi/core/ui/collection/PosterMarkRing.kt": "长按圆环展开",
     "core/ui/src/main/kotlin/io/github/touhougo/chogumi/core/ui/composables/SelectionFabMenu.kt": "选择 FAB 菜单的展开收起",
-    "core/glass/src/main/kotlin/io/github/touhougo/chogumi/core/glass/GlassTouch.kt": "玻璃按下浮起、跟着手指被拉动、松手弹回",
-    "core/glass/src/main/kotlin/io/github/touhougo/chogumi/core/glass/GlassControls.kt": "玻璃胶囊里选中的那滴滑到新位置时拉长、到位回弹",
+    "core/glass/src/main/kotlin/io/github/touhougo/chogumi/core/glass/GlassTouch.kt": "玻璃按下浮起、松手落回时略过冲",
+    "core/glass/src/main/kotlin/io/github/touhougo/chogumi/core/glass/GlassControls.kt": "玻璃胶囊里的放大镜浮成气泡、跟着手指滑动、到位回弹",
 }
 # `MotionScheme.expressive()` 由 LITERAL 报；这里抓的是 AppMotion 上的那份方案（点名或在 with 里直接取）
 EXPRESSIVE_USE = re.compile(r"(?<![\w$])expressive\b(?!\s*\()|\bExpressiveMotion\b")
