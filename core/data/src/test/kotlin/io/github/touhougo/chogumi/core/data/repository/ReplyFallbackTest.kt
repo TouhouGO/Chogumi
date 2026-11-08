@@ -161,6 +161,17 @@ class ReplyFallbackTest {
     }
 
     @Test
+    fun `同一账号在别处同时发的另一句不算这一次_照样补发`() = runTest {
+        val repo = topics()
+        afterApi = beforeSend + floor(4103350, creator = 7, content = "另一台设备发的")
+        afterWeb = afterApi!! + floor(4103407, creator = 7, content = "这一次的")
+
+        assertEquals(Outcome.Success(4103407), repo.reply(TopicType.GROUP, 375793, "这一次的", replyTo = 0, turnstileToken = "tk"))
+
+        assertEquals(1, site.postCount)
+    }
+
+    @Test
     fun `网页提交之后回读不到新楼时说去网页端回复`() = runTest {
         val repo = topics()
 
