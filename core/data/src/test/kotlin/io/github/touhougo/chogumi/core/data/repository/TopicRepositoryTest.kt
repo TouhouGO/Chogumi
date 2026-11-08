@@ -4,7 +4,6 @@ import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.RejectReason
-import io.github.touhougo.chogumi.core.foundation.testing.TestClock
 import io.github.touhougo.chogumi.core.model.CommentState
 import io.github.touhougo.chogumi.core.model.GroupSummaryBo
 import io.github.touhougo.chogumi.core.model.SubjectType
@@ -60,7 +59,7 @@ class TopicRepositoryTest {
             val session = tokenStore.beginSession("token")
             tokenStore.completeSession(session, userId = loggedInUserId, username = "me")
         }
-        return TopicRepositoryImpl(NextApi(client), tokenStore, testWebSessionRepository(tokenStore, resources.own(noWebClient())), TestClock())
+        return TopicRepositoryImpl(NextApi(client), tokenStore, testWebSessionRepository(tokenStore, resources.own(noWebClient())))
     }
 
     @Test
