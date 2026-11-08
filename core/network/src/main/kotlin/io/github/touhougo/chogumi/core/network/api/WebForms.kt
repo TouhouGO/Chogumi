@@ -3,6 +3,7 @@ package io.github.touhougo.chogumi.core.network.api
 import io.github.touhougo.chogumi.core.foundation.BGM_SITE
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.FailureException
+import io.github.touhougo.chogumi.core.network.model.web.WebReplyParent
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
 import org.jsoup.Jsoup
@@ -140,6 +141,40 @@ internal fun editedPostForm(html: String, edit: FormEdit): WebForm? {
     }
     return WebForm(form.attr("action"), fields, multipart = form.isMultipart(), files = edit.files.toList())
 }
+
+/**
+ * 页面上的回复表单（提交到 `…/new_reply` 的那张），按浏览器填好 [content]、点「加上去」时发出的字段取（[editedPostForm]）；
+ * 回复一层楼时再带上 [parent] 那三项，换掉页面上同名的值。页面上没有回复表单（没登录、话题已关闭），或表单要人机验证
+ * （Turnstile 的组件或它的令牌字段），回 null：网页这条路不替用户过验证。
+ */
+internal fun replyFormOf(html: String, content: String, parent: WebReplyParent?): WebForm? {
+    val document = webDocumentOf(html)
+    val replyForms = document.postForms().filter { REPLY_ACTION in it.attr("action") }
+    if (replyForms.isEmpty() || replyForms.any { it.selectFirst(TURNSTILE_SELECTOR) != null }) return null
+    val form = editedPostForm(replyForms.first().outerHtml(), FormEdit(values = mapOf(REPLY_CONTENT_FIELD to content))) ?: return null
+    if (parent == null) return form
+    val nested = listOf(
+        REPLY_RELATED_FIELD to parent.postId.toString(),
+        REPLY_SUB_UID_FIELD to parent.userId.toString(),
+        REPLY_POST_UID_FIELD to parent.userId.toString(),
+    )
+    val names = nested.map { it.first }.toSet()
+    return form.copy(fields = form.fields.filterNot { it.first in names } + nested)
+}
+
+/** 回复表单提交地址里的那一段（`/group/topic/{id}/new_reply` 等）。 */
+private const val REPLY_ACTION = "/new_reply"
+
+/** 回复表单上正文文本域的字段名。 */
+private const val REPLY_CONTENT_FIELD = "content"
+
+/** 回复一层楼时表单上的三项：所在主楼、那层楼的作者（网页两项都填作者）。 */
+private const val REPLY_RELATED_FIELD = "related"
+private const val REPLY_SUB_UID_FIELD = "sub_reply_uid"
+private const val REPLY_POST_UID_FIELD = "post_uid"
+
+/** Cloudflare Turnstile 的组件与它放令牌的字段。 */
+private const val TURNSTILE_SELECTOR = ".cf-turnstile, [name=cf-turnstile-response]"
 
 /** 相对地址按本页地址补全；空串是本页自己。 */
 internal fun Url.resolve(target: String): String = when {

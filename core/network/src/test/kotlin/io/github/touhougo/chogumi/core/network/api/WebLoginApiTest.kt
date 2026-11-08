@@ -60,7 +60,7 @@ class WebLoginApiTest {
             requests += request
             handler(request)
         }
-        return WebLoginApi(createWebHttpClient("test", engine), config)
+        return WebLoginApi(createWebHttpClient(engine), config)
     }
 
     private fun HttpRequestData.form(): Parameters = (body as FormDataContent).formData

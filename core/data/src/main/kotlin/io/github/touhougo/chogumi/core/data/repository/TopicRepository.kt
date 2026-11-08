@@ -6,8 +6,11 @@ import io.github.touhougo.chogumi.core.data.token.authenticatedOutcome
 import io.github.touhougo.chogumi.core.data.token.withSessionToken
 import io.github.touhougo.chogumi.core.data.util.forbiddenAs
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
+import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.RejectReason
+import io.github.touhougo.chogumi.core.model.BgmWeb
 import io.github.touhougo.chogumi.core.model.TopicDetailBo
 import io.github.touhougo.chogumi.core.model.TopicType
 import io.github.touhougo.chogumi.core.network.api.NextApi
@@ -26,6 +29,7 @@ interface TopicRepository {
     /**
      * 回复话题，成功是新楼的 id。[replyTo] 0 = 新开一层，否则是所在**主楼**的 id（服务端把它原样存成楼中楼的归属）；
      * [turnstileToken] 是用户刚过的人机验证令牌。禁言、话题已关闭说成 [RejectReason.POSTING_NOT_ALLOWED]。
+     * 接口回 5xx 时用网页会话把同一条送进话题的网页（[replyOnWebIfServerError]）。
      */
     suspend fun reply(type: TopicType, topicId: Int, content: String, replyTo: Int, turnstileToken: String): Outcome<Int>
 
@@ -42,6 +46,8 @@ interface TopicRepository {
 class TopicRepositoryImpl(
     private val nextApi: NextApi,
     private val tokenStore: TokenStore,
+    private val webSessions: WebSessionRepository,
+    private val clock: AppClock,
 ) : TopicRepository {
 
     override suspend fun getTopic(type: TopicType, topicId: Int): TopicDetailBo =
@@ -53,8 +59,13 @@ class TopicRepositoryImpl(
         tokenStore.authenticatedOutcome { _, token -> outcomeOf<Unit> { endpoints(type).react(postId, value, token) } }
 
     override suspend fun reply(type: TopicType, topicId: Int, content: String, replyTo: Int, turnstileToken: String) =
-        tokenStore.authenticatedOutcome { _, token ->
-            outcomeOf { endpoints(type).reply(topicId, content, replyTo, turnstileToken, token) }
+        tokenStore.authenticatedOutcome { session, token ->
+            val endpoints = endpoints(type)
+            val sentAt = clock.nowMillis() / 1000
+            outcomeOf { endpoints.reply(topicId, content, replyTo, turnstileToken, token) }
+                .replyOnWebIfServerError(webSessions, session, BgmWeb.topic(type, topicId), content, replyTo, sentAt) {
+                    endpoints.floors(topicId, token)
+                }
         }.forbiddenAs(RejectReason.POSTING_NOT_ALLOWED)
 
     override suspend fun editPost(type: TopicType, postId: Int, content: String) =
@@ -68,6 +79,7 @@ class TopicRepositoryImpl(
     private fun endpoints(type: TopicType): TopicEndpoints = when (type) {
         TopicType.SUBJECT -> TopicEndpoints(
             fetch = { id, token, me -> nextApi.getSubjectTopic(id, token).toDetailBo(me) },
+            floors = { id, token -> nextApi.getSubjectTopic(id, token).replies.toReplyFloors() },
             react = nextApi::setSubjectPostReaction,
             reply = nextApi::replySubjectTopic,
             edit = nextApi::editSubjectPost,
@@ -75,6 +87,7 @@ class TopicRepositoryImpl(
         )
         TopicType.GROUP -> TopicEndpoints(
             fetch = { id, token, me -> nextApi.getGroupTopic(id, token).toDetailBo(me) },
+            floors = { id, token -> nextApi.getGroupTopic(id, token).replies.toReplyFloors() },
             react = nextApi::setGroupPostReaction,
             reply = nextApi::replyGroupTopic,
             edit = nextApi::editGroupPost,
@@ -85,6 +98,8 @@ class TopicRepositoryImpl(
     private class TopicEndpoints(
         /** 取话题并按当前用户映射（[currentUserId] 标出「我」的楼）。 */
         val fetch: suspend (topicId: Int, token: String?, currentUserId: Int?) -> TopicDetailBo,
+        /** 楼层原样（回帖容灾的查重与回读用）。 */
+        val floors: suspend (topicId: Int, token: String) -> List<ReplyFloor>,
         val react: suspend (postId: Int, value: Int?, token: String) -> Unit,
         val reply: suspend (topicId: Int, content: String, replyTo: Int, turnstileToken: String, token: String) -> Int,
         val edit: suspend (postId: Int, content: String, token: String) -> Unit,

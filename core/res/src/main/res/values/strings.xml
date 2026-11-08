@@ -284,6 +284,7 @@
     <string name="failure_rule_group_membership_unavailable">bgm.tv 暂时无法在 App 里加入或退出这个小组，可在网页端的小组页操作</string>
     <string name="failure_rule_pm_receiver_not_found">收件人不存在，短信没有发出去</string>
     <string name="failure_rule_pm_not_sent">短信没有发出去，可以稍后再试</string>
+    <string name="failure_rule_reply_unavailable">回复没有发出去，可在网页端回复</string>
     <string name="failure_rule_pm_delete_unavailable">这封短信没有删掉，可在网页端的短信页删除</string>
     <string name="failure_rule_web_login_required">这项操作要用账号密码登录，请在设置里退出后重新登录</string>
     <string name="failure_rule_login_captcha_wrong">验证码不对，请看新的验证码重新填</string>

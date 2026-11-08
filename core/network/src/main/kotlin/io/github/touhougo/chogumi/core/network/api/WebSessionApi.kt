@@ -8,6 +8,7 @@ import io.github.touhougo.chogumi.core.network.WebOperation
 import io.github.touhougo.chogumi.core.network.model.web.PmOutgoing
 import io.github.touhougo.chogumi.core.network.model.web.ProfileForm
 import io.github.touhougo.chogumi.core.network.model.web.WebSession
+import io.github.touhougo.chogumi.core.network.model.web.WebReplyParent
 import io.github.touhougo.chogumi.core.network.model.web.WebUnreadMessages
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.formData
@@ -199,6 +200,18 @@ class WebSessionApi(private val client: HttpClient) {
         beforeSend()
         val form = editedPostForm(fetch(session, page).bodyAsText(), edit)
             ?: throw FailureException(Failure.Rejected(RejectReason.PRIVACY_SETTING_UNAVAILABLE))
+        beforeSend()
+        post(session, Url(page).resolve(form.action), form, referer = page)
+    }
+
+    /**
+     * 在 [page] 上回复一条 [content]（回复一层楼时带 [parent]）：现读这一页，照页面上的回复表单填好提交（[replyFormOf]），
+     * Referer 是这一页，同在网页上写好点「加上去」。页面上没有回复表单、或表单要人机验证，按坏响应抛出；
+     * 网页只回跳转或一页，发没发出去由调用方回读楼层确认。
+     */
+    suspend fun reply(session: WebSession, page: String, content: String, parent: WebReplyParent?, beforeSend: suspend () -> Unit) {
+        beforeSend()
+        val form = replyFormOf(fetch(session, page).bodyAsText(), content, parent) ?: throw FailureException(Failure.BadResponse)
         beforeSend()
         post(session, Url(page).resolve(form.action), form, referer = page)
     }
