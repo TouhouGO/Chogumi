@@ -26,7 +26,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -64,13 +68,13 @@ class AppUpdatesTest {
         }
     }
 
-    private fun updates(engine: MockEngine, installedVersionCode: Int = 100) = AppUpdates(
+    private fun updates(engine: MockEngine, installedVersionCode: Int = 100, scope: CoroutineScope = resources.scope) = AppUpdates(
         api = ReleaseApi(resources.apiClient(engine)),
         preferences = prefs,
         clock = clock,
         installedVersionCode = installedVersionCode,
         dir = downloadDir,
-        scope = resources.scope,
+        scope = scope,
         io = Dispatchers.IO,
     )
 
@@ -167,6 +171,24 @@ class AppUpdatesTest {
         assertEquals(UpdateDownload.Ready(release(), File(downloadDir, apkName)), done)
         assertEquals(apkBytes.toList(), File(downloadDir, apkName).readBytes().toList())
         assertEquals(listOf(apkName), downloadDir.list()?.toList())
+    }
+
+    @Test
+    fun `取消下载之后不再冒出进度`() = runTest {
+        val downloads = CoroutineScope(SupervisorJob())
+        // 整个包一次就在内存里：读下一块不挂起，取消要等写完、去校验时才生效
+        val updates = updates(engine(served = ByteArray(4 * 64 * 1024)), scope = downloads)
+        // 第一拍进度就在下载线程上原地取消，后面几块照样写完
+        val cancel = launch(Dispatchers.Unconfined) {
+            updates.download.first { it is UpdateDownload.Running && it.written > 0 }
+            updates.closeDownload()
+        }
+
+        updates.startDownload(release())
+        cancel.join()
+        downloads.coroutineContext.job.children.forEach { it.join() }
+
+        assertEquals(UpdateDownload.Idle, updates.download.value)
     }
 
     @Test
