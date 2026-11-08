@@ -1,5 +1,6 @@
 package io.github.touhougo.chogumi.core.data.repository
 
+import io.github.touhougo.chogumi.core.data.db.mapper.unescapeHtmlEntities
 import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.util.onWebIfServerError
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
@@ -13,27 +14,28 @@ import io.github.touhougo.chogumi.core.network.model.p1.CommentDto
 import io.github.touhougo.chogumi.core.network.model.p1.ReplyDto
 import io.github.touhougo.chogumi.core.network.model.web.WebReplyParent
 
-/** 一层楼里回帖容灾要看的几样：哪一层、谁写的、挂在哪层主楼下（新开的一层是 0）。 */
-internal data class ReplyFloor(val id: Int, val creatorId: Int, val parentId: Int)
+/** 一层楼里回帖容灾要看的几样：哪一层、谁写的、挂在哪层主楼下（新开的一层是 0）、正文（接口回的原样）。 */
+internal data class ReplyFloor(val id: Int, val creatorId: Int, val parentId: Int, val content: String)
 
 /** 话题的楼层（主楼带楼中楼）摊平成 [ReplyFloor]。 */
 internal fun List<ReplyDto>.toReplyFloors(): List<ReplyFloor> = flatMap { main ->
-    listOf(ReplyFloor(main.id, main.creatorID, 0)) +
-        main.replies.map { ReplyFloor(it.id, it.creatorID, main.id) }
+    listOf(ReplyFloor(main.id, main.creatorID, 0, main.content)) +
+        main.replies.map { ReplyFloor(it.id, it.creatorID, main.id, it.content) }
 }
 
 /** 评论区的楼层（主楼带楼中楼）摊平成 [ReplyFloor]。 */
 internal fun List<CommentDto>.toCommentFloors(): List<ReplyFloor> = flatMap { main ->
-    listOf(ReplyFloor(main.id.toInt(), main.creatorID, 0)) +
-        main.replies.map { ReplyFloor(it.id.toInt(), it.creatorID, main.id.toInt()) }
+    listOf(ReplyFloor(main.id.toInt(), main.creatorID, 0, main.content)) +
+        main.replies.map { ReplyFloor(it.id.toInt(), it.creatorID, main.id.toInt(), it.content) }
 }
 
 /**
  * 发一条回复（[send]），带容灾：开放接口回 5xx 时（个别话题在服务端写入时恒 500，开发须知 §1.2），用网页会话把同一条
  * [content] 送进网页 [page] 的回复表单。用户在这之前已经过了人机验证，网页这条路只在接口失败之后走，不是绕开验证的入口。
  *
- * 认「是不是这一次发的」只看楼层 id：发送之前先读一遍楼层 [floors] 作基线，之后我在这一层下多出来的、基线里没有的楼才是这一次的。
- * 不比正文（接口回的正文转义过 HTML 实体，与提交的原文不一样），也不按时间窗认（十分钟内再发一遍同样的话会被当成这一次）。
+ * 认「是不是这一次发的」：发送之前先读一遍楼层 [floors] 作基线，之后我在这一层下多出来的、基线里没有的、正文就是 [content] 的楼
+ * 才是这一次的。基线排除之前发过的同一句（不按时间窗认）；比正文排除同一账号在别处同时发的另一句（不然会把它当成这一次、丢掉草稿）。
+ * 接口回的正文可能转义过 HTML 实体，原样与解开实体后的都算。
  *
  * - 没有网页会话（浏览器授权、令牌登录）不读基线、不试，原样给出接口的结果；基线没读到也一样。
  * - 接口回 5xx：再读一遍楼层，接口其实写进去了就回那一层，不再发第二次；否则照网页的回复表单提交，再读一遍，多出来的那条就是它。
@@ -58,7 +60,7 @@ internal suspend fun replyWithWebFallback(
     if (me == null || baseline == null) return sent
     return sent.onWebIfServerError(RejectReason.REPLY_UNAVAILABLE) {
         fun List<ReplyFloor>.newestMine(known: Set<Int>) =
-            filter { it.creatorId == me && it.parentId == replyTo && it.id !in known }.maxByOrNull { it.id }?.id
+            filter { it.creatorId == me && it.parentId == replyTo && it.id !in known && it.content.isSameText(content) }.maxByOrNull { it.id }?.id
         val known = baseline.mapTo(HashSet()) { it.id }
         val afterApi = floors()
         afterApi.newestMine(known)?.let { return@onWebIfServerError it }
@@ -72,3 +74,11 @@ internal suspend fun replyWithWebFallback(
         floors().newestMine(known + afterApi.map { it.id }) ?: throw FailureException(Failure.BadResponse)
     }
 }
+
+/** 接口回的正文 [this] 是不是提交的 [submitted]：不算首尾空白与换行写法（网页表单按 `\r\n` 提交），原样或解开 HTML 实体后相同都算。 */
+private fun String.isSameText(submitted: String): Boolean {
+    val wanted = submitted.normalized()
+    return normalized() == wanted || unescapeHtmlEntities().normalized() == wanted
+}
+
+private fun String.normalized(): String = replace("\r\n", "\n").trim()
