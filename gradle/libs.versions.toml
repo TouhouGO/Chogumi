@@ -44,6 +44,7 @@ koin-compiler = "1.2.1"
 jsoup = "1.23.2"
 ktor = "3.5.2"
 materialkolor = "5.0.1"
+kyant0-backdrop = "2.0.1"
 
 junit4 = "4.13.2"
 robolectric = "4.17"
@@ -117,6 +118,7 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
+kyant0-backdrop = { module = "io.github.kyant0:backdrop", version.ref = "kyant0-backdrop" }
 
 # 构建与测试
 android-desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "android-desugar" }

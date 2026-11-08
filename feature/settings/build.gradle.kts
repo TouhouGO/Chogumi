@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    // 外观里的「玻璃效果」开关：系统能不能画玻璃由 core:glass 判定
+    implementation(projects.core.glass)
     // 设置页清理图片缓存：量与删的是应用唯一的 Coil 加载器的缓存
     implementation(libs.coil3.compose)
     // 个人资料换头像：系统选图器（只选图片）

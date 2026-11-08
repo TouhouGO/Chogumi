@@ -70,7 +70,7 @@ class ShellLayoutStateTest {
         restoration.setContent {
             val navigator = rememberAppNavigator()
             val sheets = remember { PageSheetRegistry() }
-            ShellLayout(navigation = navigation, bottomBar = {}, rail = {}) {
+            ShellLayout(navigation = navigation, glass = null, bottomBar = {}, rail = {}) {
                 NavDisplay(
                     entries = navigator.entries({ key -> NavEntry(key) { PageWithSheet() } }, sheets),
                     onBack = navigator::goBack,

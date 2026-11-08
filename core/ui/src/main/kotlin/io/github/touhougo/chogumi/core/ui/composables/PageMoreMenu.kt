@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -53,9 +55,7 @@ fun PageMoreMenu(link: PageLink, collect: IndexCollect? = null, extra: (@Composa
     val context = LocalContext.current
     val scope = PageMoreMenuScope { expanded = false }
     Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(painterResource(R.drawable.more_vert_24), stringResource(R.string.page_more))
-        }
+        LocalBarIconButton.current(painterResource(R.drawable.more_vert_24), stringResource(R.string.page_more)) { expanded = true }
         val fixed: @Composable ColumnScope.() -> Unit = {
             scope.item(R.string.page_more_web, R.drawable.open_in_new_24) { browser.openUri(link.url) }
             scope.item(R.string.page_more_share, R.drawable.share_24) { context.shareLink(link.title, link.url) }
@@ -68,6 +68,17 @@ fun PageMoreMenu(link: PageLink, collect: IndexCollect? = null, extra: (@Composa
         AppDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, groups = listOfNotNull(fixed, own))
     }
     if (picking && collect != null && picker != null) picker(collect.target) { picking = false }
+}
+
+/** 顶栏里只有图标的动作按钮怎么画：[painter] 与 [contentDescription] 是图标与读屏文字。 */
+typealias BarIconButton = @Composable (painter: Painter, contentDescription: String, onClick: () -> Unit) -> Unit
+
+/**
+ * 顶栏里只有图标的动作按钮（[PageMoreMenu] 的 ⋮）：默认是 M3 的 [IconButton]。顶栏可以换掉它（玻璃效果开着时 core:glass 的
+ * 玻璃顶栏换成玻璃圆钮），⋮ 跟着换，页面与菜单本身不用管。
+ */
+val LocalBarIconButton = staticCompositionLocalOf<BarIconButton> {
+    { painter, contentDescription, onClick -> IconButton(onClick = onClick) { Icon(painter, contentDescription) } }
 }
 
 /** [PageMoreMenu] 里的项（[AppMenuItem]：文字 + 前置图标），点了先收起菜单再执行 [item] 的动作。 */

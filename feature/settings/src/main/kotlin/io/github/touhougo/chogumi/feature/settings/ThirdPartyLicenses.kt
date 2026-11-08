@@ -39,6 +39,7 @@ internal val BundledThirdPartyNotices: List<ThirdPartyNotice> = listOf(
     ThirdPartyNotice("ktor-okhttp-okio", R.string.about_third_party_ktor, ThirdPartyLicense.Spdx(LicenseKind.APACHE_2), "https://ktor.io"),
     ThirdPartyNotice("coil", R.string.about_third_party_coil, ThirdPartyLicense.Spdx(LicenseKind.APACHE_2), "https://coil-kt.github.io/coil/"),
     ThirdPartyNotice("koin", R.string.about_third_party_koin, ThirdPartyLicense.Spdx(LicenseKind.APACHE_2), "https://insert-koin.io"),
+    ThirdPartyNotice("kyant-backdrop", R.string.about_third_party_backdrop, ThirdPartyLicense.Spdx(LicenseKind.APACHE_2), "https://github.com/Kyant0/AndroidLiquidGlass"),
     ThirdPartyNotice("material-symbols", R.string.about_third_party_material_symbols, ThirdPartyLicense.Spdx(LicenseKind.APACHE_2), "https://fonts.google.com/icons"),
     ThirdPartyNotice("material-kolor", R.string.about_third_party_material_kolor, ThirdPartyLicense.Spdx(LicenseKind.MIT), "https://github.com/jordond/materialkolor"),
     ThirdPartyNotice("colormath", R.string.about_third_party_colormath, ThirdPartyLicense.Spdx(LicenseKind.MIT), "https://github.com/ajalt/colormath"),

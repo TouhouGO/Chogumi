@@ -99,10 +99,11 @@ class DetailsSkeletonGeometryTest {
                     onInfoClick = {},
                     onTagClick = {},
                     headerState = rememberCollapsibleHeaderState(),
+                    glass = null,
                     content = {},
                 )
             } else {
-                SubjectDetailsPageSkeleton(topPadding = TOP_PADDING, features = features)
+                SubjectDetailsPageSkeleton(topPadding = TOP_PADDING, features = features, glass = null)
             }
         }
         assertSkeletonMatchesReal(
@@ -149,6 +150,7 @@ class DetailsSkeletonGeometryTest {
                 onInfoClick = {},
                 onTagClick = {},
                 headerState = rememberCollapsibleHeaderState(),
+                glass = null,
                 content = {},
             )
         }

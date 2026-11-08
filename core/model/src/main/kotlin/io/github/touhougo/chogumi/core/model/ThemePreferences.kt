@@ -12,10 +12,15 @@ enum class ThemeColorMode { SEED, PRESET, SYSTEM }
  */
 enum class ThemePreset { MONO, INK, CINNABAR, FUCHSIA, VIOLET, INDIGO, AZURE, PEACOCK, PINE, MOCHA }
 
+/**
+ * 主题设置：配色来源与各来源的选择，加上 [glass]（玻璃效果：浮在内容上的控件画成液态玻璃，默认关；系统低于 Android 12 时不起作用，
+ * 判定在 core:ui 主题里）。
+ */
 data class ThemePreferences(
     val mode: ThemeColorMode = ThemeColorMode.SEED,
     val seedArgb: Long = DEFAULT_SEED,
     val preset: ThemePreset = ThemePreset.INK,
+    val glass: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_SEED = 0xFFF09199L

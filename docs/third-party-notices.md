@@ -11,6 +11,7 @@ Chogumi 以 GPL-3.0 发布。下表列出随 APK 分发的第三方代码与素�
 | ktor-okhttp-okio | Ktor、OkHttp 与 Okio | Apache-2.0 | https://ktor.io |
 | coil | Coil | Apache-2.0 | https://coil-kt.github.io/coil/ |
 | koin | Koin | Apache-2.0 | https://insert-koin.io |
+| kyant-backdrop | Backdrop 与 Shapes（液态玻璃） | Apache-2.0 | https://github.com/Kyant0/AndroidLiquidGlass |
 | material-symbols | Material Symbols | Apache-2.0 | https://fonts.google.com/icons |
 | material-kolor | Material Kolor | MIT | https://github.com/jordond/materialkolor |
 | colormath | Colormath | MIT | https://github.com/ajalt/colormath |

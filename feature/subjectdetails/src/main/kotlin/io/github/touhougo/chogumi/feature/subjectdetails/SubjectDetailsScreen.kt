@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,6 +50,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.orEmpty
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
+import io.github.touhougo.chogumi.core.glass.GlassHeaderBar
+import io.github.touhougo.chogumi.core.glass.GlassHeaderTabsFrame
+import io.github.touhougo.chogumi.core.glass.GlassTabsHeight
+import io.github.touhougo.chogumi.core.glass.GlassTabsPlaceholder
+import io.github.touhougo.chogumi.core.glass.LocalGlassContentTop
+import io.github.touhougo.chogumi.core.glass.rememberGlassHeaderFrameState
 import io.github.touhougo.chogumi.core.model.AppFeatures
 import io.github.touhougo.chogumi.core.model.BgmWeb
 import io.github.touhougo.chogumi.core.model.IndexCategory
@@ -108,39 +115,45 @@ internal fun CollectionFab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val spatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-    val sizeSpec = MaterialTheme.motionScheme.fastSpatialSpec<IntSize>()
     ExtendedFloatingActionButton(
         onClick = onClick,
         modifier = modifier.then(if (state.busy) Modifier.semantics { disabled() } else Modifier),
     ) {
-        AnimatedContent(
-            targetState = CollectionFabLook(
-                busy = state.busy,
-                collected = collection != null,
-                label = collection?.type?.labelResFor(subjectType ?: SubjectType.ANIME) ?: R.string.edit_collection,
-            ),
-            transitionSpec = {
-                (scaleIn(animationSpec = spatialSpec) togetherWith scaleOut(animationSpec = spatialSpec))
-                    .using(SizeTransform(clip = false) { _, _ -> sizeSpec })
-            },
-            label = "collectionFabContent",
-        ) { look ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (look.busy) {
-                    ContentLoadingIndicator(Modifier.size(24.dp), color = LocalContentColor.current)
-                } else {
-                    Icon(
-                        painter = painterResource(if (look.collected) R.drawable.check_24 else R.drawable.add_24),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Text(
-                    text = stringResource(look.label),
-                    modifier = Modifier.padding(start = 8.dp),
+        CollectionFabLabel(state, collection, subjectType)
+    }
+}
+
+/** 收藏按钮里的那一行（图标 + 状态文案）：M3 的 [CollectionFab] 与玻璃版的 [GlassCollectionButton] 共用，过渡见 [CollectionFab]。 */
+@Composable
+internal fun CollectionFabLabel(state: CollectionFabState, collection: UserCollectionBo?, subjectType: SubjectType?) {
+    val spatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val sizeSpec = MaterialTheme.motionScheme.fastSpatialSpec<IntSize>()
+    AnimatedContent(
+        targetState = CollectionFabLook(
+            busy = state.busy,
+            collected = collection != null,
+            label = collection?.type?.labelResFor(subjectType ?: SubjectType.ANIME) ?: R.string.edit_collection,
+        ),
+        transitionSpec = {
+            (scaleIn(animationSpec = spatialSpec) togetherWith scaleOut(animationSpec = spatialSpec))
+                .using(SizeTransform(clip = false) { _, _ -> sizeSpec })
+        },
+        label = "collectionFabContent",
+    ) { look ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (look.busy) {
+                ContentLoadingIndicator(Modifier.size(24.dp), color = LocalContentColor.current)
+            } else {
+                Icon(
+                    painter = painterResource(if (look.collected) R.drawable.check_24 else R.drawable.add_24),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
                 )
             }
+            Text(
+                text = stringResource(look.label),
+                modifier = Modifier.padding(start = 8.dp),
+            )
         }
     }
 }
@@ -163,23 +176,37 @@ internal fun SubjectDetailsFirstScreen(
     onInfoClick: () -> Unit,
     onTagClick: (SearchCriteria) -> Unit,
     headerState: CollapsibleHeaderState,
+    glass: SubjectGlass?,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val header: @Composable () -> Unit = {
+        SubjectDetailsHeader(
+            subject = subject,
+            topPadding = topPadding,
+            features = features,
+            // 评分小标点了去统计 tab；统计 tab 不可见（评分不足 10 人）时小标不可点
+            onRatingClick = { onSelectSection(SubjectDetailsSection.STATS) }
+                .takeIf { SubjectDetailsSection.STATS in sections },
+            onInfoClick = onInfoClick,
+            onTagClick = onTagClick,
+        )
+    }
+    // 玻璃效果开着时换成玻璃外框（SubjectDetailsGlass.kt），头部与内容不变
+    if (glass != null) {
+        GlassHeaderTabsFrame(
+            state = glass.frame,
+            glass = glass.layer,
+            header = header,
+            tabs = { GlassSubjectTabs(glass.layer, sections, selectedSection, onSelectSection) },
+            modifier = modifier,
+            content = content,
+        )
+        return
+    }
     HeaderTabsFrame(
         state = headerState,
-        header = {
-            SubjectDetailsHeader(
-                subject = subject,
-                topPadding = topPadding,
-                features = features,
-                // 评分小标点了去统计 tab；统计 tab 不可见（评分不足 10 人）时小标不可点
-                onRatingClick = { onSelectSection(SubjectDetailsSection.STATS) }
-                    .takeIf { SubjectDetailsSection.STATS in sections },
-                onInfoClick = onInfoClick,
-                onTagClick = onTagClick,
-            )
-        },
+        header = header,
         tabs = {
             SubjectDetailsTabGroup(
                 sections = sections,
@@ -200,8 +227,19 @@ internal fun SubjectDetailsFirstScreen(
 internal fun SubjectDetailsPageSkeleton(
     topPadding: Dp,
     features: AppFeatures,
+    glass: SubjectGlass?,
     modifier: Modifier = Modifier,
 ) {
+    if (glass != null) {
+        GlassHeaderTabsFrame(
+            state = rememberGlassHeaderFrameState(),
+            glass = glass.layer,
+            header = { SubjectDetailsHeaderSkeleton(topPadding = topPadding) },
+            tabs = { GlassTabsPlaceholder(glass.layer, GlassTabsHeight) },
+            modifier = modifier,
+        ) {}
+        return
+    }
     HeaderTabsFrame(
         state = rememberCollapsibleHeaderState(),
         header = { SubjectDetailsHeaderSkeleton(topPadding = topPadding) },
@@ -268,6 +306,8 @@ fun SubjectDetailsScreen(
 
     // 头部收起程度：顶栏据此填色、显示标题，切换栏收起后与顶栏同色
     val headerState = rememberCollapsibleHeaderState()
+    // 设置里的「玻璃效果」开着时顶栏、切换栏、收藏按钮换成玻璃版（SubjectDetailsGlass.kt）；关着时是 null，下面都走原来的分支
+    val glass = rememberSubjectGlass()
     // 每个选项卡自己的列表位置，切走再切回停在原处。由页面持有：从别处跳进某个 tab（「全部角色」）时能把它拉回顶部
     // 同一组列表状态时沿用同一张表：选项卡的页翻走也留在组合里，每次重组换一张新表会让每一页都跟着重组
     val sectionLists = SubjectDetailsSection.entries.associateWith { rememberLazyListState() }.let { lists -> remember(lists) { lists } }
@@ -295,22 +335,30 @@ fun SubjectDetailsScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
-                HeaderTopAppBar(
-                    title = title,
-                    frame = headerState,
-                    onBack = onBack,
-                    actions = {
-                        PageMoreMenu(
-                            PageLink(title, BgmWeb.subject(subjectId)),
-                            IndexCollect(IndexTarget(IndexCategory.SUBJECT, subjectId), loginGate),
-                        )
-                    },
-                )
+                val actions: @Composable RowScope.() -> Unit = {
+                    PageMoreMenu(
+                        PageLink(title, BgmWeb.subject(subjectId)),
+                        IndexCollect(IndexTarget(IndexCategory.SUBJECT, subjectId), loginGate),
+                    )
+                }
+                if (glass != null) {
+                    GlassHeaderBar(title = title, glass = glass.layer, frame = glass.frame, onBack = onBack, actions = actions)
+                } else {
+                    HeaderTopAppBar(title = title, frame = headerState, onBack = onBack, actions = actions)
+                }
             },
             floatingActionButton = {
                 // 进页即出：只要条目已到就渲染 FAB，收藏未到位时内嵌 loading。
                 // 点了开不开弹层由 ViewModel.openEditSheet 按 FAB 状态决定。
-                if (subject != null) {
+                if (subject != null && glass != null) {
+                    GlassCollectionButton(
+                        layer = glass.layer,
+                        state = uiState.fabState,
+                        collection = uiState.collection.valueOrNull(),
+                        subjectType = subject.type,
+                        onClick = { loginGate.run { viewModel.openEditSheet() } },
+                    )
+                } else if (subject != null) {
                     CollectionFab(
                         state = uiState.fabState,
                         collection = uiState.collection.valueOrNull(),
@@ -336,6 +384,7 @@ fun SubjectDetailsScreen(
                         SubjectDetailsPageSkeleton(
                             topPadding = statusBarHeight,
                             features = uiState.features,
+                            glass = glass,
                             modifier = Modifier.fillMaxSize(),
                         )
                     },
@@ -360,6 +409,7 @@ fun SubjectDetailsScreen(
                             onInfoClick = { infoSheetOpen = true },
                             onTagClick = onTagClick,
                             headerState = headerState,
+                            glass = glass,
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             // 每页一个选项卡；页里的局部状态（章节区段选到哪一段等）按选项卡存档，翻走再翻回还在
@@ -371,7 +421,8 @@ fun SubjectDetailsScreen(
                                 LazyColumn(
                                     state = sectionLists.getValue(section),
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = navBarHeight + FabClearance),
+                                    // 玻璃外框里内容从 tab 胶囊下面滚过，上边留出它（LocalGlassContentTop）；不在玻璃外框里时是 0
+                                    contentPadding = PaddingValues(top = LocalGlassContentTop.current, bottom = navBarHeight + FabClearance),
                                 ) {
                                     when (section) {
                                         SubjectDetailsSection.OVERVIEW -> item(key = "section-overview") {

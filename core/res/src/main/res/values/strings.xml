@@ -218,6 +218,7 @@
     <string name="settings_nsfw_locked">注册满 60 天后可开启</string>
     <string name="settings_nsfw_loading">正在读取账号设置…</string>
     <string name="settings_nsfw_load_failed">读取账号设置失败：%1$s</string>
+    <string name="settings_glass">玻璃效果</string>
     <string name="settings_experience_mode">专注模式</string>
     <string name="settings_experience_mode_details">隐藏社区、好友、讨论与通知</string>
     <string name="settings_friend_marks">显示好友标识</string>
@@ -1317,6 +1318,7 @@
     <string name="about_third_party_ktor">Ktor、OkHttp 与 Okio</string>
     <string name="about_third_party_coil">Coil</string>
     <string name="about_third_party_koin">Koin</string>
+    <string name="about_third_party_backdrop">Backdrop 与 Shapes（液态玻璃）</string>
     <string name="about_third_party_material_symbols">Material Symbols</string>
     <string name="about_third_party_material_kolor">Material Kolor</string>
     <string name="about_third_party_colormath">Colormath</string>

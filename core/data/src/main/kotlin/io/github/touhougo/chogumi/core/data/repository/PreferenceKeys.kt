@@ -19,6 +19,9 @@ object PreferenceKeys {
     /** 选中的配色方案：见 `ThemePreset`，只在配色来源是方案时起作用。 */
     val COLOR_PRESET = stringPreferencesKey("pref_color_preset")
 
+    /** 玻璃效果开关：见 `ThemePreferences.glass`，默认关。 */
+    val GLASS = booleanPreferencesKey("pref_glass")
+
     /** 体验模式（完整 / 专注）：见 `ExperienceMode`，缺省即完整模式。 */
     val EXPERIENCE_MODE = stringPreferencesKey("pref_experience_mode")
 

@@ -41,6 +41,7 @@ class PreferencesRepository(
             seedArgb = prefs[PreferenceKeys.COLOR_SEED]?.takeIf { it in 0xFF000000L..0xFFFFFFFFL }
                 ?: ThemePreferences.DEFAULT_SEED,
             preset = prefs.enumOr(PreferenceKeys.COLOR_PRESET, ThemePreset.INK),
+            glass = prefs[PreferenceKeys.GLASS] ?: false,
         )
     }
 
@@ -50,6 +51,7 @@ class PreferencesRepository(
             it[PreferenceKeys.COLOR_MODE] = value.mode.name
             it[PreferenceKeys.COLOR_SEED] = value.seedArgb
             it[PreferenceKeys.COLOR_PRESET] = value.preset.name
+            it[PreferenceKeys.GLASS] = value.glass
         }
     }
 

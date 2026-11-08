@@ -20,6 +20,7 @@ Chogumi 是 bgm.tv（Bangumi）的第三方 Android 客户端：Kotlin、Jetpack
 | 字阶、圆角 | [字阶规范](docs/design/typography.md) |
 | 任何 M3 数值、组件行为、动效曲线 | M3 规范副本 `.agent-skills/m3-expressive/SKILL.md`（仓库外，获取方式见[代码规范](docs/code-standards.md)「Material Design 3」），不凭记忆 |
 | 表情面板 | [表情分组](docs/design/smiley-picker-groups.md) |
+| 液态玻璃（设置里的「玻璃效果」，实验） | [液态玻璃](docs/design/liquid-glass.md) |
 | 随包的第三方代码与素材、关于页清单 | [第三方来源说明](docs/third-party-notices.md) |
 | 外部贡献者的 issue 与 PR | [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) |
 | 调查报告、原型、flaky 日志 | 不进仓库：`.devdoc/`（gitignore，维护者本机）。仓库只放代码与规则 |

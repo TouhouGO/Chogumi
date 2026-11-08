@@ -62,7 +62,7 @@ internal fun appearanceGroups(state: PreferenceSettingsUiState, actions: Prefere
                 { index, count -> ThemeModeRow(index, count, state.themeMode, actions::onThemeModeChange) },
             ) + themeColorRows(state.themePreferences, actions::onThemePreferencesChange) + listOf<SettingsRow>(
                 { index, count -> AppIconRow(index, count, state.appIcon, actions::onAppIconChange) },
-            ),
+            ) + glassRows(state.themePreferences, actions::onThemePreferencesChange),
         ),
         SettingsGroup(
             key = "size",

@@ -25,6 +25,7 @@
 | 从外面进来的链接（OAuth 回跳、别的应用里点开的 bgm.tv 网页） | app 的 `LinkActivity`（清单里唯一挂 VIEW 的入口；登记的域名与路径和 `inAppRoute` 由 `LinkManifestContractTest` 守）→ `AppActivity.handleLink`；应用里没有的页交给浏览器（`CustomTabUriHandler` 指名浏览器，不绕回自己） |
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
 | 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
+| 液态玻璃（设置里的「玻璃效果」，默认关） | 只在 core:glass；页面在入口按 `rememberGlassLayer()` 是不是 null 分岔，原来那一支照旧（[液态玻璃](../design/liquid-glass.md)） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
 | 一个页面 | `feature/<名字>/`：Screen + ViewModel + `di/<名字>Module.kt`，feature 之间不互相依赖 |

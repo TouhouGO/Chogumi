@@ -86,6 +86,7 @@ class DetailsSkeletonScreenshotTest {
             onInfoClick = {},
             onTagClick = {},
             headerState = rememberCollapsibleHeaderState(),
+            glass = null,
             content = {},
         )
     }
@@ -107,10 +108,11 @@ class DetailsSkeletonScreenshotTest {
                 onInfoClick = {},
                 onTagClick = {},
                 headerState = rememberCollapsibleHeaderState(),
+                glass = null,
                 content = {},
             )
         } else {
-            SubjectDetailsPageSkeleton(topPadding = 24.dp, features = features)
+            SubjectDetailsPageSkeleton(topPadding = 24.dp, features = features, glass = null)
         }
     }
 

@@ -1,5 +1,7 @@
 """状态栏门禁的自测：每条规矩各给一个违规样例，确认门禁真的拦得住（tools/ci/check.sh lint 运行）。"""
 
+from __future__ import annotations
+
 from pathlib import Path
 import tempfile
 import unittest
@@ -37,14 +39,14 @@ fun HeaderTopAppBar(title: String, fill: () -> Float, onBack: (() -> Unit)?) {
 
 class CheckStatusBarTest(unittest.TestCase):
 
-    def violations(self, files: dict[str, str]) -> list[str]:
+    def violations(self, files: dict[str, str], yielding_allowed: dict[str, str] | None = None) -> list[str]:
         root = Path(tempfile.mkdtemp())
         base = {HEADER_BAR_HOME: HEADER_BAR, SHEET_PATH: SHEET, **{home: STICKY_HOME_TEXT for home in STICKY_HOMES}}
         for rel, text in {**base, **files}.items():
             path = root / rel
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
-        return find_violations(root, ALLOWED)
+        return find_violations(root, ALLOWED, yielding_allowed or {})
 
     def test_画进状态栏且用了头部顶栏的放行(self):
         self.assertEqual([], self.violations({"feature/a/src/main/Details.kt": HEADER_PAGE}))
@@ -58,6 +60,17 @@ class CheckStatusBarTest(unittest.TestCase):
     def test_读系统栏高度却没有头部顶栏拦下(self):
         page = "fun P() { val top = WindowInsets.systemBars.asPaddingValues().calculateTopPadding() }"
         self.assertEqual(1, len(self.violations({"feature/a/src/main/P.kt": page})))
+
+    def test_登记过的收起头部不经heldBy放行(self):
+        page = "fun P() { val behavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(state = s) }"
+        rel = "core/glass/src/main/G.kt"
+        self.assertEqual(1, len(self.violations({rel: page})))
+        self.assertEqual([], self.violations({rel: page}, {rel: "只收起头部"}))
+
+    def test_匹配不到的让位登记算死配置(self):
+        found = self.violations({}, {"core/glass/src/main/G.kt": "只收起头部"})
+        self.assertEqual(1, len(found))
+        self.assertIn("YIELDING_ALLOWED", found[0])
 
     def test_永不让位的顶栏拦下(self):
         page = "fun P() { val behavior = TopAppBarDefaults.pinnedScrollBehavior() }"

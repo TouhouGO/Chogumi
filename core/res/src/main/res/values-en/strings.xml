@@ -210,6 +210,7 @@
     <string name="settings_nsfw_locked">Available 60 days after registration</string>
     <string name="settings_nsfw_loading">Reading account settings…</string>
     <string name="settings_nsfw_load_failed">Failed to read account settings: %1$s</string>
+    <string name="settings_glass">Glass effect</string>
     <string name="settings_experience_mode">Focus mode</string>
     <string name="settings_experience_mode_details">Hides community, friends, discussions and notifications</string>
     <string name="settings_friend_marks">Show friend badges</string>
@@ -1309,6 +1310,7 @@
     <string name="about_third_party_ktor">Ktor, OkHttp and Okio</string>
     <string name="about_third_party_coil">Coil</string>
     <string name="about_third_party_koin">Koin</string>
+    <string name="about_third_party_backdrop">Backdrop and Shapes (liquid glass)</string>
     <string name="about_third_party_material_symbols">Material Symbols</string>
     <string name="about_third_party_material_kolor">Material Kolor</string>
     <string name="about_third_party_colormath">Colormath</string>

@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import io.github.touhougo.chogumi.core.data.repository.AuthRepository
 import io.github.touhougo.chogumi.core.data.repository.DisplayScaleRepository
 import io.github.touhougo.chogumi.core.data.repository.SmileyAssetStore
+import io.github.touhougo.chogumi.core.glass.GlassTheme
 import io.github.touhougo.chogumi.core.model.DisplayScale
 import io.github.touhougo.chogumi.core.network.AuthConfig
 import io.github.touhougo.chogumi.core.reader.LocalSmileyFiles
@@ -92,12 +93,15 @@ class AppActivity : ComponentActivity() {
             LaunchedEffect(state.refreshRate) { requestRefreshRate(state.refreshRate) }
 
             ChogumiTheme(darkTheme = isDark, themePreferences = state.themePreferences) {
-                CompositionLocalProvider(
-                    LocalSmileyFiles provides smileyAssetStore,
-                    LocalCoverComputationDispatcher provides computationDispatcher,
-                ) {
-                    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        AppShell(viewModel, updates, windowSizeClass, progressEntryRequests)
+                // 设置里的「玻璃效果」（core:glass，默认关）：关着时各处画原来的组件
+                GlassTheme(enabled = state.themePreferences.glass) {
+                    CompositionLocalProvider(
+                        LocalSmileyFiles provides smileyAssetStore,
+                        LocalCoverComputationDispatcher provides computationDispatcher,
+                    ) {
+                        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                            AppShell(viewModel, updates, windowSizeClass, progressEntryRequests)
+                        }
                     }
                 }
             }

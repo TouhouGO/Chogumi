@@ -39,6 +39,14 @@ STATUS_BAR_ALLOWED = {
         "只取左右两侧的系统栏 inset（WindowInsetsSides.Horizontal），不碰状态栏高度",
     "feature/profile/src/main/kotlin/io/github/touhougo/chogumi/feature/profile/ProfileHeader.kt":
         "头部确实铺到状态栏下面；盖住它的 HeaderTopAppBar 在同包的 ProfileTopBar.kt，由 ProfileScreen 叠在头部上",
+    "core/glass/src/main/kotlin/io/github/touhougo/chogumi/core/glass/GlassHeader.kt":
+        "玻璃效果开着时 HeaderTopAppBar 的替身：状态栏那一截由同文件 GlassHeaderBar 的渐隐模糊顶边盖住，滚上去的内容被模糊、压淡",
+}
+
+# 用了会让位的滚动行为、却不是顶栏让位的文件（仓库路径 → 理由）：不经 heldBy 接滚动
+YIELDING_ALLOWED = {
+    "core/glass/src/main/kotlin/io/github/touhougo/chogumi/core/glass/GlassHeader.kt":
+        "exitUntilCollapsed 只用来收起头部；玻璃顶栏不让位，没有可被拉出来、和吸顶项叠成两层的顶栏",
 }
 
 STATUS_BARS = re.compile(
@@ -94,9 +102,14 @@ def line_of(text: str, index: int) -> int:
     return text.count("\n", 0, index) + 1
 
 
-def find_violations(root: Path, allowed: dict[str, str] = STATUS_BAR_ALLOWED) -> list[str]:
+def find_violations(
+    root: Path,
+    allowed: dict[str, str] = STATUS_BAR_ALLOWED,
+    yielding_allowed: dict[str, str] = YIELDING_ALLOWED,
+) -> list[str]:
     violations: list[str] = []
     used: set[str] = set()
+    used_yielding: set[str] = set()
     paths = main_sources(root)
     typealiases = kotlin_typealiases(paths)
     homes = {HEADER_BAR_HOME: HEADER_BAR_DECL, **{home: STICKY_ROW for home in STICKY_HOMES}}
@@ -132,7 +145,9 @@ def find_violations(root: Path, allowed: dict[str, str] = STATUS_BAR_ALLOWED) ->
                 "二级页用 PageScaffold，自带页头的页面用 CollapsibleHeader（页头进 collapsing、吸顶的那条进 pinned）"
             )
         yielding = YIELDING_BAR.search(code)
-        if yielding and not HELD_BY.search(code):
+        if yielding and rel in yielding_allowed:
+            used_yielding.add(rel)
+        elif yielding and not HELD_BY.search(code):
             violations.append(
                 f"{rel}:{line_of(code, yielding.start())}: 会让位的顶栏没有经 heldBy(hold) 接滚动——列表里的吸顶项吸住时往回滚会把顶栏拉出来"
                 "、和吸顶项叠成两层；二级页用 PageScaffold，自带页头的页面用 CollapsibleHeader"
@@ -150,6 +165,8 @@ def find_violations(root: Path, allowed: dict[str, str] = STATUS_BAR_ALLOWED) ->
             )
     for rel in sorted(set(allowed) - used):
         violations.append(f"白名单条目 {rel} 已匹配不到读状态栏高度的代码，删掉这条（死配置）")
+    for rel in sorted(set(yielding_allowed) - used_yielding):
+        violations.append(f"YIELDING_ALLOWED 条目 {rel} 已匹配不到会让位的滚动行为，删掉这条（死配置）")
     return violations
 
 

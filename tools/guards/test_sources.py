@@ -301,7 +301,7 @@ GUARD_CASES = (
     (check_separators, FEATURE_SOURCE, 'val label = "左·右"', "出现了分隔点", {}, {}),
     (check_login_gate, FEATURE_SOURCE, "if (!isLoggedIn) onLogin()", "手写了登录分支", {}, {}),
     (check_menus, FEATURE_SOURCE, "DropdownMenu(expanded = true, onDismissRequest = {}) {}", "直接用 DropdownMenu", {}, {}),
-    (check_status_bar, FEATURE_SOURCE, "TopAppBarDefaults.pinnedScrollBehavior()", "pinnedScrollBehavior", {"allowed": {}},
+    (check_status_bar, FEATURE_SOURCE, "TopAppBarDefaults.pinnedScrollBehavior()", "pinnedScrollBehavior", {"allowed": {}, "yielding_allowed": {}},
      {check_status_bar.HEADER_BAR_HOME: "fun HeaderTopAppBar() {}\n",
       **{home: "fun LazyListScope.rows() { stickyHeader {} }\n" for home in check_status_bar.STICKY_HOMES}}),
     (check_text_fields, FEATURE_SOURCE, 'TextField(value = "", onValueChange = {})', "直接用 TextField", {"allowed": {}}, {}),
