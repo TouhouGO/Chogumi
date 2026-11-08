@@ -57,7 +57,8 @@ val LocalGlassContentTop = staticCompositionLocalOf { 0.dp }
  *   内容区的上内边距是 [LocalGlassContentTop]（状态栏 + 顶栏 + tab 胶囊），第一行内容不被盖住；
  * - [tabs] 浮在内容上面（[GlassTabs]，高 [GlassTabsHeight]），停在顶栏下面不再上移；
  * - 顶栏不让位（玻璃圆钮不占布局，一直够得着），由读同一个 [state] 的 [GlassHeaderBar] 画；
- * - 头部与内容一起录进 [glass]：顶边、圆钮、tab 胶囊、主操作都从这里采样，[tabs] 不在里面（玻璃不采自己）。
+ * - 头部与内容一起录进 [glass]：顶边、圆钮、tab 胶囊、主操作都从这里采样，[tabs] 不在里面（玻璃不采自己）；
+ * - 顶边（[GlassTopEdge]）画在这里，垫在 [tabs] 下面，盖住状态栏、顶栏与胶囊所在的那一段，头部收起时淡入。
  *
  * 内容区高度固定（屏幕高 + 顶栏那一截），收起头部时只挪位置、不重新量列表，滚动时不重组。
  */
@@ -106,6 +107,8 @@ fun GlassHeaderTabsFrame(
                 headerPlaceable.place(0, offset)
             }
         }
+        // 顶边垫在 tab 胶囊下面、内容上面：状态栏、顶栏与胶囊四周滚上去的内容都被它模糊、压淡
+        GlassTopEdge(glass, visible = { state.edge }, height = topBar + pinned + GlassEdgeFade, fade = GlassEdgeFade)
         Box(
             Modifier
                 .offset { IntOffset(0, max(state.slot, state.pinTop)) }
@@ -137,9 +140,8 @@ fun rememberGlassHeaderFrameState(): GlassHeaderFrameState {
 
 /**
  * [GlassHeaderTabsFrame] 页面的顶栏（玻璃效果开着时替代 core:ui `HeaderTopAppBar`）：没有容器，返回与 [actions] 是玻璃圆钮
- * （[GlassIconButton]；页面的 ⋮ 菜单经 core:ui `LocalBarIconButton` 自己画成圆钮），背后是一条随 [frame] 出现的渐隐模糊顶边
- * （[GlassTopEdge]），标题跟着顶边淡入，直接写在顶边上。状态栏那一截也在顶边里：滚上去的内容被模糊、压淡，不和时间、电量叠在一起。
- * 不随滚动让位。
+ * （[GlassIconButton]；页面的 ⋮ 菜单经 core:ui `LocalBarIconButton` 自己画成圆钮）。背后的顶边由 [GlassHeaderTabsFrame] 画，
+ * 标题跟着 [frame] 的顶边一起淡入，直接写在顶边上。不随滚动让位。
  */
 @Composable
 fun GlassHeaderBar(
@@ -153,7 +155,6 @@ fun GlassHeaderBar(
     val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val barHeight = TopAppBarDefaults.TopAppBarExpandedHeight
     Box(modifier.fillMaxWidth()) {
-        GlassTopEdge(glass, visible = { frame.edge }, height = statusBar + barHeight + GlassEdgeFade)
         Row(
             Modifier
                 .padding(top = statusBar)
@@ -189,8 +190,8 @@ fun GlassHeaderBar(
 private fun glassBarIconButton(glass: GlassLayer): BarIconButton =
     { painter, contentDescription, onClick -> GlassIconButton(glass, painter, contentDescription, onClick) }
 
-/** 顶边在顶栏下沿之后继续淡出的那一段，内容进出顶边时没有硬边。 */
-private val GlassEdgeFade = 32.dp
+/** 顶边在 tab 胶囊下沿之后继续淡出的那一段，内容进出顶边时没有硬边。 */
+private val GlassEdgeFade = 24.dp
 
 /** 玻璃顶栏左右的边距（圆钮的 48dp 触控区里玻璃 44dp，合起来与 M3 顶栏的视觉边距相当）。 */
 private val GlassBarPadding = 8.dp

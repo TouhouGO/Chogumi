@@ -69,8 +69,8 @@ fun Modifier.glassSource(layer: GlassLayer?): Modifier = if (layer == null) this
 
 /**
  * 三种玻璃（规则板「三种玻璃」）。底色是叠在模糊上面的那层颜色，决定玻璃上的东西看不看得清。
- * - [Clear]：只放图标的圆钮，最透（约 30%）；
- * - [Labeled]：带字的胶囊（底栏、tab），底色不低于 35%，背后再花字也看得清；
+ * - [Clear]：只放图标的圆钮，最透（约 40%）；
+ * - [Labeled]：带字的胶囊（底栏、tab），底色约 65%，背后的字不和胶囊上的字抢；
  * - [Tinted]：一屏唯一的主操作，主色容器叠在玻璃上，字用主色容器上的颜色。
  */
 enum class GlassMaterial { Clear, Labeled, Tinted }
@@ -91,8 +91,8 @@ fun Modifier.glass(
     val colors = MaterialTheme.colorScheme
     val dark = colors.isDark()
     val surface = when (material) {
-        GlassMaterial.Clear -> colors.surface.copy(alpha = if (dark) 0.34f else 0.28f)
-        GlassMaterial.Labeled -> colors.surface.copy(alpha = if (dark) 0.46f else 0.40f)
+        GlassMaterial.Clear -> colors.surface.copy(alpha = if (dark) 0.42f else 0.38f)
+        GlassMaterial.Labeled -> colors.surface.copy(alpha = if (dark) 0.62f else 0.66f)
         GlassMaterial.Tinted -> colors.primaryContainer.copy(alpha = if (dark) 0.70f else 0.66f)
     }
     val hue = if (material == GlassMaterial.Tinted) colors.primary else Color.Unspecified
@@ -135,8 +135,8 @@ fun rememberGlassPress(interactionSource: InteractionSource): () -> Float {
 
 private val NotPressed: () -> Float = { 0f }
 
-/** 模糊半径：小，玻璃像玻璃而不是磨砂；背后的封面还认得出颜色与轮廓。 */
-private val GlassBlur = 4.dp
+/** 模糊半径：背后的字糊开读不出，封面的颜色与大块轮廓还认得出。 */
+private val GlassBlur = 10.dp
 
 /** 边缘折射的带宽与强度（Android 13 起）：边上一圈把背后的内容往里弯，中间保持平。 */
 private val GlassRefractionHeight = 12.dp
