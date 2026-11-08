@@ -1,5 +1,6 @@
 package io.github.touhougo.chogumi.feature.settings
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -163,7 +164,10 @@ private fun ThemeModeRow(index: Int, count: Int, mode: ThemeMode, onSelect: (The
     )
 }
 
-/** 体验模式开关（完整 / 专注）。 */
+/**
+ * 体验模式开关（完整 / 专注）。设置行的标题下面一般不放说明，这一行是唯一的例外：「专注模式」四个字说不出
+ * 打开后少了什么，标题下一行写明隐藏的东西（与 core:model `AppFeatures.community` 一致），两种状态都显示。
+ */
 @Composable
 private fun ExperienceModeRow(index: Int, count: Int, mode: ExperienceMode, onCheckedChange: (ExperienceMode) -> Unit) {
     SwitchRow(
@@ -172,6 +176,7 @@ private fun ExperienceModeRow(index: Int, count: Int, mode: ExperienceMode, onCh
         title = stringResource(R.string.settings_experience_mode),
         checked = mode == ExperienceMode.FOCUS,
         onCheckedChange = { onCheckedChange(if (it) ExperienceMode.FOCUS else ExperienceMode.FULL) },
+        details = { Text(stringResource(R.string.settings_experience_mode_details)) },
     )
 }
 

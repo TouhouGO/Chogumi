@@ -275,7 +275,7 @@ const val SettingsListTag = "settings_list"
  * - 二值设置用 Switch，开关即时生效、无需保存，在行尾；标签文字在开关**外侧**；
  * - Disabled 是合法状态；
  * - 整行是一个可切换节点（读屏念「标题，开关，已开」，点标题也能切），Switch 自己只负责画。
- * [details] 画在标题下面（只用于状态原因，如 NSFW 不可用）。[switchTag] 供仪器测试精确定位（页面上有多个开关）。
+ * [details] 画在标题下面：状态原因（如 NSFW 不可用），或专注模式那一行的功能说明（唯一的例外，理由在 `ExperienceModeRow`）。[switchTag] 供仪器测试精确定位（页面上有多个开关）。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
