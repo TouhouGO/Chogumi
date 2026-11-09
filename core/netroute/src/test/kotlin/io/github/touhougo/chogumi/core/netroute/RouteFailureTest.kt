@@ -113,7 +113,7 @@ class RouteFailureTest {
             }
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
         }
-        val route = NetRoute(delayed, scope, BuiltinEdgeAddresses, supported = true, core = NoCore)
+        val route = NetRoute(delayed, scope, BuiltinEdgeAddresses, supported = true, core = NoCore, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         assertEquals(CoreRoute.Undecided, route.route())
 
@@ -236,7 +236,7 @@ class RouteFailureTest {
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
         }
         val core = CountingCore()
-        val route = NetRoute(delayed, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        val route = NetRoute(delayed, scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         readStarted.await()
         assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
