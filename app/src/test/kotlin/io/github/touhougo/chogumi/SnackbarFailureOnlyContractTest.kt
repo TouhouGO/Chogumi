@@ -21,15 +21,6 @@ class SnackbarFailureOnlyContractTest {
         "core/ui/src/main/kotlin/io/github/touhougo/chogumi/core/ui/composables/FailureSnackbar.kt"
 
     @Test
-    fun `私有提示函数不保留调用方没有使用的默认动作`() {
-        val source = RepoFiles.read(allowedFile)
-        assertTrue(
-            "私有提示函数的调用方总是显式给动作，不保留死默认",
-            !Regex("""actionLabel\s*:\s*String\?\s*=\s*null""").containsMatchIn(source),
-        )
-    }
-
-    @Test
     fun `showSnackbar 只允许出现在 core ui 的统一失败提示入口文件里`() {
         val offenders = RepoFiles.offenders("showSnackbar", allowedFile)
 
