@@ -117,6 +117,8 @@ import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
  * @param flashingId 正在闪烁的楼 id（引用跳转的落点）。传读取函数而不是值：闪烁开始与结束只让落点那一层楼重组，屏上别的楼不动。
  * @param onAvatarClick 点了头像：参数是这层楼的 id。用户卡片由屏幕层持有（[UserCardState]、[CommentUserCard]），不在楼层这一行里：
  *   行滚出列表或重建后还是骨架时，行里的状态会丢。
+ * @param onReactionUsers 长按了一颗贴贴（或贴贴投票的一个选项）：参数是这层楼的 id 与表情。名单面板同样由屏幕层持有
+ *   （[ReactionUsersState]、[CommentReactionUsers]）。
  * @param onUserClick 打开某个用户的主页（参数是 username）：正文里的 `[user]` 链接走它。
  * @param asPost 画成帖子正文（话题 #1、日志）：不折叠，正文用 [ReaderTypography.article]。
  * @param surface 楼层所在的评论区：决定点楼层回复去哪、长按能贴哪些表情；null 时两个手势都不响应。
@@ -132,6 +134,7 @@ fun CommentThreadItem(
     thread: CommentThreadBo,
     floorNumber: String,
     onAvatarClick: (commentId: Int) -> Unit,
+    onReactionUsers: (commentId: Int, value: Int) -> Unit,
     modifier: Modifier = Modifier,
     onUserClick: ((String) -> Unit)? = null,
     opCreatorId: Int? = null,
@@ -164,6 +167,7 @@ fun CommentThreadItem(
         onQuoteClick = onQuoteClick,
         onUserClick = onUserClick,
         onAvatarClick = onAvatarClick,
+        onReactionUsers = onReactionUsers,
     )
 
     CommentFloor(
@@ -261,6 +265,7 @@ private class FloorContext(
     val onQuoteClick: ((Int) -> Unit)?,
     val onUserClick: ((String) -> Unit)?,
     val onAvatarClick: (Int) -> Unit,
+    val onReactionUsers: (commentId: Int, value: Int) -> Unit,
 )
 
 // 楼层几何——设计决定（not in M3）：左右 16 与列表一致；头像与昵称间距 10；头部与正文间距主楼 8、楼中楼 4。
@@ -356,9 +361,11 @@ private fun CommentFloor(
     ) {
         Column(Modifier.padding(if (isReply) ReplyPadding else FloorPadding)) {
             FloorHeader(comment, floorNumber, isReply, context)
+            // 长按贴贴、长按投票选项都打开这层楼的贴贴名单
+            val showUsers = remember(comment.id, context.onReactionUsers) { { value: Int -> context.onReactionUsers(comment.id, value) } }
             // 正文里的贴贴投票画成投票卡，票就是这楼的贴贴；这里没有贴贴（[reactionPalette] 为空）时投票块照常是列表
-            val pollPlugin = remember(context.reactionPalette, comment.reactions, vote) {
-                context.reactionPalette.takeIf { it.isNotEmpty() }?.let { ReactionPollPlugin(it, comment.reactions, vote) }
+            val pollPlugin = remember(context.reactionPalette, comment.reactions, vote, showUsers) {
+                context.reactionPalette.takeIf { it.isNotEmpty() }?.let { ReactionPollPlugin(it, comment.reactions, vote, showUsers) }
             }
             CompositionLocalProvider(LocalBBCodeBlockPlugin provides pollPlugin) {
                 FloorBody(comment, context, isReply)
@@ -371,6 +378,7 @@ private fun CommentFloor(
                     reactions = comment.reactions,
                     palette = context.reactionPalette,
                     onReact = vote,
+                    onShowUsers = showUsers,
                     onAdd = if (postReact) picker::openOn else null,
                     modifier = Modifier.padding(top = 8.dp),
                 )

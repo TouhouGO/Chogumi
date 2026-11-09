@@ -42,6 +42,7 @@ import io.github.touhougo.chogumi.core.ui.common.LocalInAppLinkHandler
 import io.github.touhougo.chogumi.core.ui.common.LocalCoverQuality
 import io.github.touhougo.chogumi.core.ui.common.LocalFriends
 import io.github.touhougo.chogumi.core.ui.common.LocalReadingTextSize
+import io.github.touhougo.chogumi.core.ui.common.LocalSignedInAccount
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageSheetRegistry
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
@@ -110,6 +111,7 @@ fun AppShell(
             LocalReadingTextSize provides state.readingTextSize,
             LocalCoverQuality provides state.coverQuality,
             LocalFriends provides friends,
+            LocalSignedInAccount provides state.account,
         ) {
             ShellLayout(
                 navigation = topLevelNavigationFor(windowSizeClass.widthSizeClass),

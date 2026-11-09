@@ -1419,6 +1419,9 @@
     <string name="collection_removing">Removing…</string>
     <string name="collection_remove_failed">Could not remove collection: %1$s</string>
     <string name="failure_rule_subject_uncollect_unavailable">The collection is still present. Please try again later.</string>
+    <string name="reaction_users_title">Reactions</string>
+    <string name="reaction_users_me">Me</string>
+    <string name="reaction_users_open">See who reacted</string>
     <string name="reaction_poll_title">Poll</string>
     <string name="reaction_poll_show_results">Results</string>
     <string name="reaction_poll_hide_results">Hide results</string>

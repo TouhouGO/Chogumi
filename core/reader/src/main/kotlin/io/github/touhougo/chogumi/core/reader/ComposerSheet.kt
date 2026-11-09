@@ -487,12 +487,12 @@ private fun ToolFaceOf(tool: Tool) {
 
 /**
  * 预览：正文按阅读器的同一套渲染（[BBCodeText]，楼层正文的字体角色）画在与正文框同形同色的底上，内容多时在里面滚。
- * 点空白处回到编辑（遮罩、链接这些自己能点的地方照常响应）。投票块画成读者看到的投票卡（还没有票，不能投），[pollPalette] 为空时照常是列表。
+ * 点空白处回到编辑（遮罩、链接这些自己能点的地方照常响应）。投票块画成读者看到的投票卡（还没有票，不能投，也没有名单可看），[pollPalette] 为空时照常是列表。
  */
 @Composable
 private fun ComposerPreview(source: String, pollPalette: List<Int>, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val ast = remember(source) { BBCodeParser.parse(source) }
-    val pollPlugin = remember(pollPalette) { pollPalette.takeIf { it.isNotEmpty() }?.let { ReactionPollPlugin(it, emptyList(), onVote = null) } }
+    val pollPlugin = remember(pollPalette) { pollPalette.takeIf { it.isNotEmpty() }?.let { ReactionPollPlugin(it, emptyList(), onVote = null, onShowUsers = {}) } }
     PressArea(onClick = onClick, shape = MaterialTheme.shapes.large, modifier = modifier) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.large)) {
             CompositionLocalProvider(LocalBBCodeBlockPlugin provides pollPlugin) {

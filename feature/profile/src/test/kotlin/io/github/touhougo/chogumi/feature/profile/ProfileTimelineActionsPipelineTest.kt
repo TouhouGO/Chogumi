@@ -24,6 +24,7 @@ import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.failureOrNull
 import io.github.touhougo.chogumi.core.foundation.testing.testAppTime
 import io.github.touhougo.chogumi.core.model.CommentReactionBo
+import io.github.touhougo.chogumi.core.model.ReactionUserBo
 import io.github.touhougo.chogumi.core.network.api.CollectionApi
 import io.github.touhougo.chogumi.core.network.api.IndexApi
 import io.github.touhougo.chogumi.core.network.api.NextApi
@@ -327,7 +328,7 @@ class ProfileTimelineActionsPipelineTest {
         vm.timelineDetail.open(vm.item(500))
 
         vm.timelineDetail.react(vm.item(500), 79)
-        val mine = listOf(CommentReactionBo(value = 79, count = 2, selected = true))
+        val mine = listOf(CommentReactionBo(79, others = listOf(ReactionUserBo(77, "other", "Other")), selected = true))
         // 缓存已贴且在途态已收起：两者都成立后不会再变（没有后续操作），是单调条件。
         awaitUntil("贴贴落定") { vm.reactions(500) == mine && vm.uiState.value.timelineDetail.pendingReaction == null }
 

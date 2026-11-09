@@ -29,6 +29,7 @@ import io.github.touhougo.chogumi.core.model.TopicParent
 import io.github.touhougo.chogumi.core.model.TopicSort
 import io.github.touhougo.chogumi.core.model.TopicSubjectBo
 import io.github.touhougo.chogumi.core.model.TopicType
+import io.github.touhougo.chogumi.core.model.reactionOf
 import io.github.touhougo.chogumi.core.model.shownUnder
 import io.github.touhougo.chogumi.core.reader.EditTarget
 import io.github.touhougo.chogumi.core.reader.ReplyTarget
@@ -221,7 +222,7 @@ class TopicViewModelTest {
         val repo = FakeTopics {
             topicOf(
                 CommentThreadBo(post(10, 7)),
-                CommentThreadBo(post(20, 1), listOf(reactable(21, 2, CommentReactionBo(0, 2, selected = true), CommentReactionBo(54, 1)))),
+                CommentThreadBo(post(20, 1), listOf(reactable(21, 2, reactionOf(0, 2, selected = true), reactionOf(54, 1)))),
             )
         }
         val vm = topicVm(TopicType.GROUP, 472971, repo)
@@ -232,7 +233,7 @@ class TopicViewModelTest {
         assertEquals(listOf(TopicType.GROUP to 472971), repo.fetched.toList())
         assertEquals(listOf(Triple(TopicType.GROUP, 21, 54)), repo.reacted.toList(), "楼中楼也按楼 id 贴")
         assertEquals(
-            listOf(CommentReactionBo(0, 1), CommentReactionBo(54, 2, selected = true)),
+            listOf(reactionOf(0, 1), reactionOf(54, 2, selected = true)),
             vm.uiState.value.reading.threads[1].replies.single().reactions,
         )
         assertNull(vm.failures.current.value)

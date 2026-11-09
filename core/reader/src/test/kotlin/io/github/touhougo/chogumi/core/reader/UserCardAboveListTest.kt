@@ -152,7 +152,7 @@ class UserCardAboveListTest {
         val userCard = rememberUserCardState()
         LazyColumn(state = listState) {
             itemsIndexed(threads, key = { _, thread -> thread.anchor.id }) { index, thread ->
-                CommentThreadItem(thread = thread, floorNumber = "#${index + 1}", onAvatarClick = userCard::open)
+                CommentThreadItem(thread = thread, floorNumber = "#${index + 1}", onAvatarClick = userCard::open, onReactionUsers = { _, _ -> })
             }
         }
         CommentUserCard(userCard, threads, onUserClick, onModerate = null)

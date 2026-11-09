@@ -33,6 +33,7 @@ import io.github.touhougo.chogumi.core.model.IndexTarget
 import io.github.touhougo.chogumi.core.model.SlimBlogBo
 import io.github.touhougo.chogumi.core.model.TopicSubjectBo
 import io.github.touhougo.chogumi.core.model.displayNameOf
+import io.github.touhougo.chogumi.core.reader.CommentReactionUsers
 import io.github.touhougo.chogumi.core.reader.CommentThreadItem
 import io.github.touhougo.chogumi.core.reader.CommentUserCard
 import io.github.touhougo.chogumi.core.reader.FloorFocusOnArrival
@@ -45,6 +46,7 @@ import io.github.touhougo.chogumi.core.reader.ThreadHead
 import io.github.touhougo.chogumi.core.reader.ThreadPageSkeleton
 import io.github.touhougo.chogumi.core.reader.floorCommentsSection
 import io.github.touhougo.chogumi.core.reader.rememberFloorJump
+import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.PagedListContent
@@ -234,6 +236,7 @@ fun BlogDetailsScreen(
     val surface = CommentSurface.Blog(blogId)
     // 正文楼与留言的用户卡片都由屏幕持有：楼滚出列表、重建后还是骨架时，卡片不丢
     val userCard = rememberUserCardState()
+    val reactionUsers = rememberReactionUsersState()
     val postThread = remember(details) { details?.openingPost() }
     val snackbar = remember { SnackbarHostState() }
     FailureNoticeEffect(viewModel.failures, snackbar)
@@ -276,6 +279,7 @@ fun BlogDetailsScreen(
                                 thread = postThread,
                                 floorNumber = "",
                                 onAvatarClick = userCard::open,
+                                onReactionUsers = reactionUsers::open,
                                 onUserClick = onUserClick,
                                 opCreatorId = details.author?.id,
                                 asPost = true,
@@ -293,6 +297,7 @@ fun BlogDetailsScreen(
                             onToggleOpOnly = viewModel::toggleCommentOpOnly,
                             onUserClick = onUserClick,
                             onAvatarClick = userCard::open,
+                            onReactionUsers = reactionUsers::open,
                             onRetry = viewModel::retryComments,
                             onReply = reply,
                             onModerate = moderate,
@@ -304,6 +309,7 @@ fun BlogDetailsScreen(
         }
     }
     CommentUserCard(userCard, listOfNotNull(postThread) + state.comments.reading.threads, onUserClick, moderate)
+    CommentReactionUsers(reactionUsers, listOfNotNull(postThread) + state.comments.reading.threads, onUserClick)
     ReplyComposerSheet(state.composer, viewModel.composer, surface, gate) { postId ->
         jump.jumpToPost(viewModel.uiState.value.comments.reading, postId)
     }

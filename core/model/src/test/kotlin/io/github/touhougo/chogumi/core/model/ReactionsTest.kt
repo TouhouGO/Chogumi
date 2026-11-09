@@ -8,24 +8,33 @@ import org.junit.Test
 /** 换掉「我」的贴贴、楼层树里改贴贴、评论区决定可贴集与回复去处。 */
 class ReactionsTest {
 
-    private val mine = CommentReactionBo(0, 2, selected = true)
-    private val other = CommentReactionBo(54, 1)
+    private val mine = reactionOf(0, 2, selected = true)
+    private val other = reactionOf(54, 1)
 
     @Test
     fun `换贴：原来那个减一、新的加一并标成我的`() {
-        assertEquals(listOf(CommentReactionBo(0, 1), CommentReactionBo(54, 2, selected = true)), listOf(mine, other).withMyReaction(54))
+        assertEquals(listOf(reactionOf(0, 1), reactionOf(54, 2, selected = true)), listOf(mine, other).withMyReaction(54))
     }
 
     @Test
     fun `新表情追加在末尾，减到零的整项去掉`() {
-        val result = listOf(CommentReactionBo(0, 1, selected = true), other).withMyReaction(79)
-        assertEquals(listOf(other, CommentReactionBo(79, 1, selected = true)), result)
+        val result = listOf(reactionOf(0, 1, selected = true), other).withMyReaction(79)
+        assertEquals(listOf(other, reactionOf(79, 1, selected = true)), result)
     }
 
     @Test
     fun `取消：只撤掉我的`() {
-        assertEquals(listOf(CommentReactionBo(0, 1), other), listOf(mine, other).withMyReaction(null))
+        assertEquals(listOf(reactionOf(0, 1), other), listOf(mine, other).withMyReaction(null))
         assertEquals("没贴过时取消不改任何项", listOf(other), listOf(other).withMyReaction(null))
+    }
+
+    @Test
+    fun `贴上、取消只翻我的，别人的名单原样留着`() {
+        val others = listOf(ReactionUserBo(2, "u2", "甲"), ReactionUserBo(3, "u3", "乙"))
+        val theirs = CommentReactionBo(54, others, selected = false)
+        val joined = listOf(theirs).withMyReaction(54)
+        assertEquals(listOf(CommentReactionBo(54, others, selected = true)), joined)
+        assertEquals(listOf(theirs), joined.withMyReaction(null))
     }
 
     @Test

@@ -104,6 +104,7 @@ class CommentFloorLayoutTest {
                         thread = sampleShortThread,
                         floorNumber = "#1",
                         onAvatarClick = {},
+                        onReactionUsers = { _, _ -> },
                         surface = CommentSurface.Mono(MonoType.CHARACTER, 1),
                     )
                 }
@@ -131,6 +132,7 @@ class CommentFloorLayoutTest {
                         thread = sampleThreadWithReplies,
                         floorNumber = "#2",
                         onAvatarClick = {},
+                        onReactionUsers = { _, _ -> },
                         surface = CommentSurface.Mono(MonoType.CHARACTER, 1),
                     )
                 }

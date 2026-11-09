@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.model.TimelineItemBo
 import io.github.touhougo.chogumi.core.model.TimelineReactionTarget
+import io.github.touhougo.chogumi.core.model.reactionOf
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate
 import org.junit.Assert.assertEquals
@@ -35,13 +36,13 @@ class TimelineReactionRowTest {
     private fun show(item: TimelineItemBo) {
         composeRule.setContent {
             val gate = rememberLoginGate(isLoggedIn = true, onLogin = {})
-            TimelineReactionRow(item = item, reactions = item.reactions, onReact = gate.guard { _: TimelineItemBo, value: Int? -> picked += value }, onReply = {})
+            TimelineReactionRow(item = item, reactions = item.reactions, onReact = gate.guard { _: TimelineItemBo, value: Int? -> picked += value }, onReply = {}, onShowUsers = {})
         }
     }
 
     @Test
     fun 已有的每种贴贴都画出来且点了贴上它() {
-        show(item(CommentReactionBo(value = 79, count = 7), CommentReactionBo(value = 104, count = 1)))
+        show(item(reactionOf(value = 79, count = 7), reactionOf(value = 104, count = 1)))
 
         composeRule.onNodeWithText("1").assertExists()
         composeRule.onNodeWithText("7").performClick()
@@ -50,7 +51,7 @@ class TimelineReactionRowTest {
 
     @Test
     fun 点自己贴着的那个是取消() {
-        show(item(CommentReactionBo(value = 79, count = 8, selected = true)))
+        show(item(reactionOf(value = 79, count = 8, selected = true)))
 
         composeRule.onNodeWithText("8").performClick()
         composeRule.runOnIdle { assertEquals(listOf<Int?>(null), picked) }
@@ -68,7 +69,7 @@ class TimelineReactionRowTest {
 
     @Test
     fun 不能贴的动态只读列出已有的贴贴() {
-        show(item(CommentReactionBo(value = 104, count = 1), target = null))
+        show(item(reactionOf(value = 104, count = 1), target = null))
 
         composeRule.onNodeWithContentDescription(addLabel).assertDoesNotExist()
         composeRule.onNodeWithText("1").performClick()

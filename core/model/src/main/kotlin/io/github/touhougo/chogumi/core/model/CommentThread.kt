@@ -14,11 +14,24 @@ enum class CommentState {
     FOLDED,
 }
 
+/** 贴了某个表情的一个人（服务端贴贴名单里的一项）。头像不在名单里，按用户名取：[bgmUserAvatarUrl]。 */
+data class ReactionUserBo(
+    val id: Int,
+    val username: String,
+    val nickname: String,
+)
+
+/**
+ * 一个表情的贴贴。名单是唯一的来源：[others] 是除我以外贴了它的人（服务端顺序），我贴没贴只看 [selected]，
+ * 人数由两者推出（[count]）。我不放进名单：贴上、取消只翻 [selected]（[withMyReaction]），不需要知道我的资料。
+ */
 data class CommentReactionBo(
     val value: Int,
-    val count: Int,
-    val selected: Boolean = false,
-)
+    val others: List<ReactionUserBo>,
+    val selected: Boolean,
+) {
+    val count: Int get() = others.size + if (selected) 1 else 0
+}
 
 /**
  * 单条评论领域模型。

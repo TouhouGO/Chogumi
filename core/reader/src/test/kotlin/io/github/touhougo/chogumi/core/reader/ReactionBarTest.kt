@@ -21,18 +21,22 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.model.COMMON_REACTIONS
 import io.github.touhougo.chogumi.core.model.CommentReactionBo
+import io.github.touhougo.chogumi.core.model.reactionOf
 import io.github.touhougo.chogumi.core.model.withMyReaction
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -62,7 +66,7 @@ class ReactionBarTest {
                 Box(Modifier.fillMaxSize().reactionPickerAnchor(picker)) {
                     Column(Modifier.fillMaxSize()) {
                         Spacer(Modifier.weight(1f))
-                        ReactionBar(reactions = emptyList(), palette = COMMON_REACTIONS, onReact = {}, onAdd = picker::openOn)
+                        ReactionBar(reactions = emptyList(), palette = COMMON_REACTIONS, onReact = {}, onShowUsers = {}, onAdd = picker::openOn)
                         Spacer(Modifier.height(16.dp))
                     }
                     ReactionPicker(picker, COMMON_REACTIONS, emptyList(), onPick = {})
@@ -87,11 +91,11 @@ class ReactionBarTest {
             ChogumiTheme {
                 val picker = rememberReactionPickerState()
                 Box(Modifier.fillMaxSize().reactionPickerAnchor(picker)) {
-                    ReactionBar(reactions = emptyList(), palette = COMMON_REACTIONS, onReact = {}, onAdd = picker::openOn)
+                    ReactionBar(reactions = emptyList(), palette = COMMON_REACTIONS, onReact = {}, onShowUsers = {}, onAdd = picker::openOn)
                     ReactionPicker(
                         picker,
                         COMMON_REACTIONS,
-                        listOf(CommentReactionBo(value = COMMON_REACTIONS.first(), count = 1, selected = true)),
+                        listOf(reactionOf(value = COMMON_REACTIONS.first(), count = 1, selected = true)),
                         onPick = {},
                     )
                 }
@@ -106,7 +110,7 @@ class ReactionBarTest {
 
     @Test
     fun 贴贴chip是可开关的_读屏读出已选中与否() {
-        showBar(listOf(CommentReactionBo(value = 79, count = 1, selected = true), CommentReactionBo(value = 54, count = 2, selected = false)))
+        showBar(listOf(reactionOf(value = 79, count = 1, selected = true), reactionOf(value = 54, count = 2, selected = false)))
 
         composeRule.onNode(isToggleable() and hasText("1")).assertIsOn()
         composeRule.onNode(isToggleable() and hasText("2")).assertIsOff()
@@ -125,7 +129,7 @@ class ReactionBarTest {
 
     @Test
     fun 给别人的贴贴加一后添加贴贴收起() {
-        showBar(listOf(CommentReactionBo(value = 79, count = 2, selected = false)))
+        showBar(listOf(reactionOf(value = 79, count = 2, selected = false)))
         composeRule.onNodeWithContentDescription(addLabel).assertExists()
 
         composeRule.onNodeWithText("2").performClick()
@@ -135,13 +139,13 @@ class ReactionBarTest {
 
     @Test
     fun 已经贴着时不出添加贴贴() {
-        showBar(listOf(CommentReactionBo(value = 79, count = 1, selected = true), CommentReactionBo(value = 54, count = 4)))
+        showBar(listOf(reactionOf(value = 79, count = 1, selected = true), reactionOf(value = 54, count = 4)))
         composeRule.onNodeWithContentDescription(addLabel).assertDoesNotExist()
     }
 
     @Test
     fun 取消贴贴后添加贴贴重新出现的途中不被裁掉() {
-        showBar(listOf(CommentReactionBo(value = 79, count = 1, selected = true)))
+        showBar(listOf(reactionOf(value = 79, count = 1, selected = true)))
         composeRule.mainClock.autoAdvance = false
         composeRule.onNodeWithText("1").performClick()
         assertAddChipNeverClipped()
@@ -149,7 +153,7 @@ class ReactionBarTest {
 
     @Test
     fun 贴贴和添加按钮的触控区不低于48dp_版面高度不变() {
-        showBar(listOf(CommentReactionBo(value = 79, count = 1, selected = false)))
+        showBar(listOf(reactionOf(value = 79, count = 1, selected = false)))
         val minPx = 48.dp.value * density()
         listOf(composeRule.onNodeWithText("1"), composeRule.onNodeWithContentDescription(addLabel)).forEach { node ->
             val semantics = node.fetchSemanticsNode()
@@ -160,8 +164,35 @@ class ReactionBarTest {
         }
     }
 
+    @Test
+    fun 长按贴贴看谁贴了_点一下仍是贴上() {
+        val shown = mutableListOf<Int>()
+        showBar(listOf(reactionOf(value = 54, count = 1), reactionOf(value = 79, count = 2)), onShowUsers = { shown += it })
+
+        composeRule.onNodeWithText("2").performTouchInput { longClick() }
+        composeRule.runOnIdle { assertEquals(listOf(79), shown) }
+        composeRule.onNodeWithText("2").assertIsOff()
+
+        composeRule.onNodeWithText("2").performClick()
+        composeRule.onNodeWithText("3").assertIsOn()
+        composeRule.runOnIdle { assertEquals("点一下不打开名单", listOf(79), shown) }
+    }
+
+    @Test
+    fun 不能贴时点一下贴贴就是看谁贴了() {
+        val shown = mutableListOf<Int>()
+        composeRule.setContent {
+            ChogumiTheme {
+                ReactionBar(reactions = listOf(reactionOf(value = 79, count = 2)), palette = COMMON_REACTIONS, onReact = null, onShowUsers = { shown += it })
+            }
+        }
+
+        composeRule.onNodeWithText("2").performClick()
+        composeRule.runOnIdle { assertEquals(listOf(79), shown) }
+    }
+
     /** 一排贴贴，可点可取消；「添加贴贴」直接贴上 79（选择器另有用例）。 */
-    private fun showBar(initial: List<CommentReactionBo>) {
+    private fun showBar(initial: List<CommentReactionBo>, onShowUsers: (Int) -> Unit = {}) {
         composeRule.setContent {
             // 使用应用当前的动效方案，逐帧检查尺寸变化是否裁掉刚出现的按钮。
             ChogumiTheme {
@@ -170,6 +201,7 @@ class ReactionBarTest {
                     reactions = reactions,
                     palette = COMMON_REACTIONS,
                     onReact = { value -> reactions = reactions.withMyReaction(value) },
+                    onShowUsers = onShowUsers,
                     onAdd = { reactions = reactions.withMyReaction(79) },
                     modifier = Modifier.testTag(BAR),
                 )

@@ -5,6 +5,8 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
@@ -13,11 +15,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.res.R
+
+/** 标签前的内容与文字的间距：与楼层贴贴 chip 里表情和数字的间距相同（设计决定，not in M3）。 */
+private val LabelLeadingGap = 4.dp
 
 /** 选中时出现的勾选图标的 testTag（仪器测试据此断言「选中带勾、未选中不带」）。 */
 const val SelectableChipCheckTag = "selectable_chip_check"
@@ -29,6 +36,7 @@ const val SelectableChipCheckTag = "selectable_chip_check"
  * [unselectedLeadingIcon] 是未选中状态下可选的前置图标资源（如条目类型图标）；选中时依然统一展示勾选图标。
  * [trailingIcon] 是排序档的方向箭头等拖尾图标（input.md:403「aligned to the end side」）。
  * [enabled] 为 false 时走 M3 FilterChip 默认的禁用态（如时间范围里跨年时的月份）。
+ * [labelLeading] 画在文字前、属于标签本身的内容（贴贴名单的表情：选中时勾出现在它前面，表情不被勾换掉）。
  *
  * **全仓可选中 chip 的唯一实现**：选中的勾、字重、动效只在这里；功能页不得直接用裸 `FilterChip`
  * （例外只有主题色那排：前置位是色块而不是图标，见 `ThemeColorSettings`）。
@@ -48,6 +56,7 @@ fun SelectableChip(
     unselectedLeadingIcon: Int? = null,
     trailingIcon: Int? = null,
     enabled: Boolean = true,
+    labelLeading: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -59,11 +68,14 @@ fun SelectableChip(
         onClick = onClick,
         enabled = enabled,
         label = {
-            Text(
-                label,
-                style = if (selected) MaterialTheme.typography.labelLargeEmphasized
-                else MaterialTheme.typography.labelLarge,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(LabelLeadingGap), verticalAlignment = Alignment.CenterVertically) {
+                labelLeading?.invoke()
+                Text(
+                    label,
+                    style = if (selected) MaterialTheme.typography.labelLargeEmphasized
+                    else MaterialTheme.typography.labelLarge,
+                )
+            }
         },
         leadingIcon = {
             // 槽位常驻：图标在槽内淡入淡出（effects），槽的尺寸变化走同一根 spatial 弹簧，不会在选中那一帧跳变。
