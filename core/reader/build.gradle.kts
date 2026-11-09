@@ -18,4 +18,7 @@ dependencies {
     // 动态骨架几何比对与截图工具、面板的测试宿主（core:ui 的测试夹具）
     testImplementation(testFixtures(projects.core.ui))
     androidTestImplementation(testFixtures(projects.core.ui))
+    // 贴贴的构造（core:model 的测试夹具）
+    testImplementation(testFixtures(projects.core.model))
+    androidTestImplementation(testFixtures(projects.core.model))
 }

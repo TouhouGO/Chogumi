@@ -26,6 +26,7 @@ import io.github.touhougo.chogumi.core.model.SlimBlogBo
 import io.github.touhougo.chogumi.core.model.SubjectCollectorBo
 import io.github.touhougo.chogumi.core.model.SubjectTopicBo
 import io.github.touhougo.chogumi.core.model.UserBo
+import io.github.touhougo.chogumi.core.model.reactionOf
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -283,7 +284,7 @@ class SubjectCommunityViewModelsTest {
 
     @Test
     fun `吐槽贴贴：请求失败退回原来的贴贴并提示`() = runBlocking {
-        val original = listOf(CommentReactionBo(0, 3))
+        val original = listOf(reactionOf(0, 3))
         val repo = FakeCommunity().apply {
             comments = { _, _ -> PagedResult(listOf(CommentThreadBo(reactable(5, 9, *original.toTypedArray()))), total = 1, nextOffset = null) }
             react = { _, _ -> error("429") }
@@ -302,7 +303,7 @@ class SubjectCommunityViewModelsTest {
         val repo = FakeCommunity().apply {
             comments = { _, offset ->
                 if (offset == 0) {
-                    PagedResult(listOf(CommentThreadBo(reactable(5, 9, CommentReactionBo(0, 3)))), total = 2, nextOffset = 1)
+                    PagedResult(listOf(CommentThreadBo(reactable(5, 9, reactionOf(0, 3)))), total = 2, nextOffset = 1)
                 } else {
                     PagedResult(listOf(CommentThreadBo(post(6, 9))), total = 2, nextOffset = null)
                 }
@@ -318,7 +319,7 @@ class SubjectCommunityViewModelsTest {
         awaitUntil("第二页接上") { vm.uiState.value.comments.items.size == 2 }
 
         assertEquals(
-            listOf(CommentReactionBo(0, 4, selected = true)),
+            listOf(reactionOf(0, 4, selected = true)),
             vm.uiState.value.comments.items.first().anchor.reactions,
             "加载下一页不得把刚贴上的贴贴退回原样",
         )

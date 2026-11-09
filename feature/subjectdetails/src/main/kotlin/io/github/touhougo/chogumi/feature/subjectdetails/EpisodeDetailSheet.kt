@@ -40,11 +40,13 @@ import io.github.touhougo.chogumi.core.model.CommentSurface
 import io.github.touhougo.chogumi.core.model.EpisodeBo
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.core.reader.CollapsibleSynopsis
+import io.github.touhougo.chogumi.core.reader.CommentReactionUsers
 import io.github.touhougo.chogumi.core.reader.FloorFocusOnArrival
 import io.github.touhougo.chogumi.core.reader.ReplyComposerSheet
 import io.github.touhougo.chogumi.core.reader.ReplyTarget
 import io.github.touhougo.chogumi.core.reader.CommentUserCard
 import io.github.touhougo.chogumi.core.reader.floorCommentsSection
+import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.reader.rememberFloorJump
 import io.github.touhougo.chogumi.core.res.R
@@ -123,6 +125,7 @@ internal fun EpisodeThread(
     val reply = loginGate.guard { target: ReplyTarget -> viewModel.composer.open(target) }
     val moderate = loginGate.guard(viewModel.moderation::perform)
     val userCard = rememberUserCardState()
+    val reactionUsers = rememberReactionUsersState()
 
     Box(modifier) {
         val sortEdge = rememberStickyHeaderEdge(listState, barColor)
@@ -154,6 +157,7 @@ internal fun EpisodeThread(
                 onToggleOpOnly = {},
                 onUserClick = onUserClick,
                 onAvatarClick = userCard::open,
+                onReactionUsers = reactionUsers::open,
                 onRetry = viewModel::retry,
                 onReact = loginGate.guard(viewModel::react),
                 onReply = reply,
@@ -164,6 +168,7 @@ internal fun EpisodeThread(
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
     CommentUserCard(userCard, comments.reading.threads, onUserClick, moderate)
+    CommentReactionUsers(reactionUsers, comments.reading.threads, onUserClick)
     FloorFocusOnArrival(jump, comments.reading, focusPostId)
     ReplyComposerSheet(state.composer, viewModel.composer, surface, loginGate) { postId ->
         jump.jumpToPost(viewModel.uiState.value.comments.reading, postId)

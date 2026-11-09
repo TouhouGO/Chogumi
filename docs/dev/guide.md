@@ -17,6 +17,7 @@
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
 | 富文本、楼层、动态卡片 | core:reader |
+| 谁贴了（长按贴贴或投票选项打开的名单面板） | core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |
 | 第一次进来的引导（压暗整页、亮出一块、旁边一张卡） | core:ui 的 `SpotlightScrim`（遮罩，`ModalScrim` 的挖洞形式）与 `SpotlightGuide`（卡与挡手的那一层），中间能夹一层要露在遮罩上面的东西；被指着的地方挂 `spotlightTarget`，卡与章节跳格确认同一张 `RichTipCard`，只有卡上的按钮收起；要演示长按环用 `PosterMarkDemo`（真的环与胶囊，不写收藏）。探索页的两步与「走完过」的记录在 feature:explore 的 `ExploreGuide` |
 | 界面大小（应用的密度） | core:model `DisplayScale`（档位与收敛）→ core:ui `displayScaleOverride`（Activity 只换 `densityDpi`，dp 处处跟着走）；不在页面里改 `LocalDensity` |
 | 刷新率 | core:model `RefreshRate`（档位从这块屏报的模式来，不写死）→ core:ui `requestRefreshRate`（窗口 `preferredDisplayModeId` 的唯一落点，AppActivity 调） |
@@ -219,6 +220,10 @@ flowchart LR
 - `/p1/persons/{id}/casts` 的 type：1 主役、2 配角、3 客串、4 次要、5 旁白；各选项的数量用各发一个 `limit=1` 的请求取。
   角色、人物的评论不分页。
 - p1 的时间戳是 Unix 秒；目录关联项的 cat 0 = 条目。
+- 贴贴（`reactions`）带完整名单：每个表情的 `users` 是贴了它的每一个人（`id`、`username`、`nickname`，一楼 78 人也全给），不分页、不截断。
+  「谁贴了」的面板就画这份名单（`CommentReactionBo.others`），不另外请求；我从名单里拿出来记成 `selected`。名单里没有头像：
+  头像走 `https://api.bgm.tv/v0/users/{username}/avatar?type=large`，自定义头像 302 到图片，默认头像 404（格子画占位）。
+  这个入口要应用的 UA：okhttp 默认 UA 与空 UA 都回 403。图片加载器对 `api.bgm.tv/v0/` 的请求补上开放接口同一个 UA（app 的 `ApiImageUserAgent`）。
 - 进度页按类别（meta_tags）筛选用本地 subjects 表，不逐作品请求。
 - bgm.tv 的用户页偶发 500 / 502：截图里的失败提示是服务端的事，重拍。
 - 放送时刻来自 bangumi-data，取 GitHub 上 master 的原始文件：`https://raw.githubusercontent.com/bangumi-data/bangumi-data/master/dist/data.json`。

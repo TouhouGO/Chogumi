@@ -8,6 +8,7 @@ import io.github.touhougo.chogumi.core.model.CoverQuality
 import io.github.touhougo.chogumi.core.model.Friends
 import io.github.touhougo.chogumi.core.model.IndexTarget
 import io.github.touhougo.chogumi.core.model.ReadingTextSize
+import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
 
 /**
@@ -40,6 +41,14 @@ val LocalAppFeatures = staticCompositionLocalOf { AppFeatures(community = true, 
  * 变了只重组读它的小牌、按钮与菜单。默认谁也没关注：预览与单元测试里不画小牌。
  */
 val LocalFriends = compositionLocalOf { Friends.NONE }
+
+/**
+ * 当前登录的账号（游客为 null）。**唯一提供点**同 [LocalAppFeatures]（app 壳 `AppShell`，值是 `ShellState.account`）。
+ * 只给要把「我」画成一个人的地方取用户名：贴贴名单里我那一格（头像按用户名取，点了去自己的主页）。
+ * 登没登录仍看页面从 `appEntries` 收到的 `isLoggedIn`，「是不是我」仍在数据层判（`isOwn`、贴贴的 `selected`），不读这里。
+ * 换号时整套页面按账号重建（`AccountPageScope`），所以用 [staticCompositionLocalOf]。
+ */
+val LocalSignedInAccount = staticCompositionLocalOf<SignedInAccount?> { null }
 
 /**
  * 当前的阅读字号档位。**唯一提供点**同 [LocalAppFeatures]（app 壳 `AppShell`，值来自偏好 DataStore）；

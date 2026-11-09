@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.touhougo.chogumi.core.reader.CommentReactionUsers
+import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.ui.composables.ConfirmDialog
 import io.github.touhougo.chogumi.core.common.draft.ComposerDraft
 import io.github.touhougo.chogumi.core.foundation.Failure
@@ -107,6 +109,7 @@ fun TopicScreen(
     val surface = CommentSurface.Topic(type, topicId)
     var deleting by rememberSaveable { mutableStateOf<Int?>(null) }
     val userCard = rememberUserCardState()
+    val reactionUsers = rememberReactionUsersState()
     FailureNoticeEffect(viewModel.failures, snackbar)
 
     val topic = state.topic.valueOrNull()
@@ -153,6 +156,7 @@ fun TopicScreen(
                                 surface = surface,
                                 onUserClick = onUserClick,
                                 onAvatarClick = userCard::open,
+                                onReactionUsers = reactionUsers::open,
                                 onReact = react,
                                 onReply = reply,
                                 onEdit = gate.guard(viewModel::edit),
@@ -174,6 +178,7 @@ fun TopicScreen(
                                 surface = surface,
                                 onUserClick = onUserClick,
                                 onAvatarClick = userCard::open,
+                                onReactionUsers = reactionUsers::open,
                                 onReact = react,
                                 onReply = reply,
                                 onEdit = gate.guard(viewModel::edit),
@@ -188,6 +193,7 @@ fun TopicScreen(
     }
 
     CommentUserCard(userCard, state.reading.threads, onUserClick, moderate)
+    CommentReactionUsers(reactionUsers, state.reading.threads, onUserClick)
 
     ReplyComposerSheet(state.composer, viewModel.composer, surface, gate) { postId -> jump.jumpToPost(viewModel.uiState.value.reading, postId) }
     ModerationHost(state.moderation, viewModel.moderation)

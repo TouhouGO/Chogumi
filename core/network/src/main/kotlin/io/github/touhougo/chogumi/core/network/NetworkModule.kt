@@ -104,8 +104,11 @@ internal class BackgroundDecoding(
         withContext(dispatcher) { inner.deserialize(charset, typeInfo, content) }
 }
 
-/** bangumi API 要求自定义 User-Agent；版本号取自 app 的版本（唯一来源 gradle.properties 的 chogumi.version）。 */
-internal fun userAgent(appVersion: String) = "Chogumi/$appVersion (Android; https://github.com/TouhouGO/Chogumi)"
+/**
+ * bangumi API 要求自定义 User-Agent；版本号取自 app 的版本（唯一来源 gradle.properties 的 chogumi.version）。
+ * 接口客户端与图片加载器（`api.bgm.tv` 的头像入口）都用它。
+ */
+fun userAgent(appVersion: String) = "Chogumi/$appVersion (Android; https://github.com/TouhouGO/Chogumi)"
 
 /**
  * 网页请求（网页登录与网页会话）的 User-Agent：bgm.tv 的登录 Cookie 和 UA 绑在一起（服务端解 Cookie 的密钥是站点密钥加请求的 UA），

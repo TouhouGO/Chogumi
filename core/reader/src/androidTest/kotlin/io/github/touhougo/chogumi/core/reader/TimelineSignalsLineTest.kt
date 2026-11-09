@@ -13,12 +13,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TimelineItemBo
 import io.github.touhougo.chogumi.core.model.TimelineTargetBo
 import io.github.touhougo.chogumi.core.model.UserBo
+import io.github.touhougo.chogumi.core.model.reactionOf
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
 import org.junit.Assert.assertEquals
@@ -58,7 +58,7 @@ class TimelineSignalsLineTest {
                 rating = 7.0,
             ),
         ),
-        reactions = listOf(CommentReactionBo(0, 17), CommentReactionBo(79, 5), CommentReactionBo(54, 1)),
+        reactions = listOf(reactionOf(0, 17), reactionOf(79, 5), reactionOf(54, 1)),
         replies = 2,
     )
 

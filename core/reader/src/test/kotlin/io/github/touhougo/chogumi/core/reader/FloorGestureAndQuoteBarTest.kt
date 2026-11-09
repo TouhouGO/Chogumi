@@ -55,6 +55,7 @@ class FloorGestureAndQuoteBarTest {
                         thread = CommentThreadBo(anchor = item(1, content), replies = emptyList()),
                         floorNumber = "#1",
                         onAvatarClick = {},
+                        onReactionUsers = { _, _ -> },
                         surface = CommentSurface.Topic(TopicType.GROUP, 7),
                         onReply = gate.guard { target: ReplyTarget -> targets += target },
                     )

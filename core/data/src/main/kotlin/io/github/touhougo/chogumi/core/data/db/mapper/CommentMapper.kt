@@ -6,6 +6,7 @@ import io.github.touhougo.chogumi.core.model.CommentItemBo
 import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.model.CommentState
 import io.github.touhougo.chogumi.core.model.CommentThreadBo
+import io.github.touhougo.chogumi.core.model.ReactionUserBo
 import io.github.touhougo.chogumi.core.model.userAvatarUrl
 import io.github.touhougo.chogumi.core.network.model.p1.CommentBaseDto
 import io.github.touhougo.chogumi.core.network.model.p1.CommentDto
@@ -48,13 +49,16 @@ private fun mapCommentContent(rawContent: String, state: CommentState, rawState:
 }
 
 /**
- * 贴贴反应映射（楼层与动态共用）：数量按去重后的用户数。
+ * 贴贴反应映射（楼层与动态共用）：名单按用户去重，我（[currentUserId]）从名单里拿出来记成 selected，人数由两者推出。
  */
-fun ReactionDto.toReactionBo(currentUserId: Int? = null) = CommentReactionBo(
-    value = value,
-    count = users.distinctBy { it.id }.size,
-    selected = currentUserId != null && users.any { it.id == currentUserId },
-)
+fun ReactionDto.toReactionBo(currentUserId: Int? = null): CommentReactionBo {
+    val people = users.distinctBy { it.id }
+    return CommentReactionBo(
+        value = value,
+        others = people.filter { it.id != currentUserId }.map { ReactionUserBo(it.id, it.username, it.nickname.unescapeHtmlEntities()) },
+        selected = currentUserId != null && people.any { it.id == currentUserId },
+    )
+}
 
 /** 一层楼的唯一组装处：发帖人、正文拦截、时间单位、贴贴、是不是我发的都在这里定（藏不藏按页面当前的绝交名单在显示时定，见 `visibleThread`）。 */
 private fun commentItem(

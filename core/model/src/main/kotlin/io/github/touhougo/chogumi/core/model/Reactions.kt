@@ -11,18 +11,18 @@ val SUBJECT_COLLECT_REACTIONS: List<Int> = listOf(0, 104, 54, 140, 122, 90, 88, 
 
 /**
  * 换掉「我」的贴贴（唯一规则）：服务端每人每楼只留一个，再贴就是替换（`lib/like.ts` `Reaction.add`）。
- * 先撤掉我原来那个（数减一，减到 0 整项去掉），[value] 非 null 时再给它加一并标成我的（原来没有就追加在末尾）。
+ * 先撤掉我原来那个（没有别人贴的整项去掉），[value] 非 null 时再标上它（原来没有就追加在末尾）。别人的名单不动。
  * [value] 为 null 表示取消。
  */
 fun List<CommentReactionBo>.withMyReaction(value: Int?): List<CommentReactionBo> {
     val withoutMine = mapNotNull { reaction ->
-        if (reaction.selected) reaction.copy(count = reaction.count - 1, selected = false).takeIf { it.count > 0 } else reaction
+        if (reaction.selected) reaction.copy(selected = false).takeIf { it.others.isNotEmpty() } else reaction
     }
     if (value == null) return withoutMine
     return if (withoutMine.any { it.value == value }) {
-        withoutMine.map { if (it.value == value) it.copy(count = it.count + 1, selected = true) else it }
+        withoutMine.map { if (it.value == value) it.copy(selected = true) else it }
     } else {
-        withoutMine + CommentReactionBo(value = value, count = 1, selected = true)
+        withoutMine + CommentReactionBo(value = value, others = emptyList(), selected = true)
     }
 }
 

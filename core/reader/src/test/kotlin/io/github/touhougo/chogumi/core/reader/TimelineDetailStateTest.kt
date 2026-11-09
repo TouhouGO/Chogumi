@@ -10,6 +10,7 @@ import io.github.touhougo.chogumi.core.model.CommentThreadBo
 import io.github.touhougo.chogumi.core.model.TimelineItemBo
 import io.github.touhougo.chogumi.core.model.TimelineReactionTarget
 import io.github.touhougo.chogumi.core.model.TopicSort
+import io.github.touhougo.chogumi.core.model.reactionOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -96,16 +97,16 @@ class TimelineDetailStateTest {
     /** 各种表情都是贴贴：面板原样画出缓存里的每一种，不只认某一个值（卡片上有 7 个、面板上却是「贴贴 0」）。 */
     @Test
     fun `没有在途时画缓存里的每一种贴贴`() {
-        val reactions = listOf(CommentReactionBo(value = 79, count = 7), CommentReactionBo(value = 104, count = 1))
+        val reactions = listOf(reactionOf(value = 79, count = 7), reactionOf(value = 104, count = 1))
         val item = item(reactions = reactions)
         assertEquals(reactions, TimelineDetailState().opened(item).shownReactions(item))
     }
 
     @Test
     fun `在途贴上别人贴过的表情时乐观加一并标成我的`() {
-        val item = item(reactions = listOf(CommentReactionBo(value = 79, count = 7)))
+        val item = item(reactions = listOf(reactionOf(value = 79, count = 7)))
         assertEquals(
-            listOf(CommentReactionBo(value = 79, count = 8, selected = true)),
+            listOf(reactionOf(value = 79, count = 8, selected = true)),
             TimelineDetailState().opened(item).reacting(79).shownReactions(item),
         )
     }
@@ -113,18 +114,18 @@ class TimelineDetailStateTest {
     /** 每人每条只留一个：换成别的表情时，原来那个减一（减到 0 整项去掉），新的追加在末尾。 */
     @Test
     fun `在途换表情时撤掉我原来那个`() {
-        val item = item(reactions = listOf(CommentReactionBo(value = 0, count = 1, selected = true), CommentReactionBo(value = 79, count = 2)))
+        val item = item(reactions = listOf(reactionOf(value = 0, count = 1, selected = true), reactionOf(value = 79, count = 2)))
         assertEquals(
-            listOf(CommentReactionBo(value = 79, count = 3, selected = true)),
+            listOf(reactionOf(value = 79, count = 3, selected = true)),
             TimelineDetailState().opened(item).reacting(79).shownReactions(item),
         )
     }
 
     @Test
     fun `在途取消时撤掉我的那个`() {
-        val item = item(reactions = listOf(CommentReactionBo(value = 79, count = 3, selected = true)))
+        val item = item(reactions = listOf(reactionOf(value = 79, count = 3, selected = true)))
         assertEquals(
-            listOf(CommentReactionBo(value = 79, count = 2)),
+            listOf(reactionOf(value = 79, count = 2)),
             TimelineDetailState().opened(item).reacting(null).shownReactions(item),
         )
     }
@@ -132,9 +133,9 @@ class TimelineDetailStateTest {
     /** 仓库已回写缓存、在途还没收起的那一刻：再换一次结果不变，不会多算一次。 */
     @Test
     fun `缓存已回写而在途未收起时不重复加减`() {
-        val written = item(reactions = listOf(CommentReactionBo(value = 79, count = 8, selected = true)))
+        val written = item(reactions = listOf(reactionOf(value = 79, count = 8, selected = true)))
         assertEquals(written.reactions, TimelineDetailState().opened(written).reacting(79).shownReactions(written))
-        val cancelled = item(reactions = listOf(CommentReactionBo(value = 79, count = 7)))
+        val cancelled = item(reactions = listOf(reactionOf(value = 79, count = 7)))
         assertEquals(cancelled.reactions, TimelineDetailState().opened(cancelled).reacting(null).shownReactions(cancelled))
     }
 

@@ -56,7 +56,7 @@ class CommentThreadFoldMeasureTest {
             ChogumiTheme {
                 // 360dp 固定视口只是测试设计决定（not in M3）。
                 Box(Modifier.width(360.dp).onSizeChanged { sizes.set(sizes.get() + it) }) {
-                    CommentThreadItem(thread = thread, floorNumber = "#13", onAvatarClick = {})
+                    CommentThreadItem(thread = thread, floorNumber = "#13", onAvatarClick = {}, onReactionUsers = { _, _ -> })
                 }
             }
         }

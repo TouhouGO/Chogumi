@@ -22,6 +22,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.model.COMMON_REACTIONS
 import io.github.touhougo.chogumi.core.model.CommentItemBo
+import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.model.CommentState
 import io.github.touhougo.chogumi.core.model.CommentSurface
 import io.github.touhougo.chogumi.core.model.CommentThreadBo
@@ -29,6 +30,7 @@ import io.github.touhougo.chogumi.core.model.Friends
 import io.github.touhougo.chogumi.core.model.ReportTarget
 import io.github.touhougo.chogumi.core.model.ReportType
 import io.github.touhougo.chogumi.core.model.TopicType
+import io.github.touhougo.chogumi.core.model.reactionOf
 import io.github.touhougo.chogumi.core.model.reactionsOf
 import io.github.touhougo.chogumi.core.ui.common.LocalFriends
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate
@@ -54,6 +56,7 @@ class FloorMenuTest {
 
     private val topic = CommentSurface.Topic(TopicType.GROUP, 7)
     private val actions = mutableListOf<ModerationAction>()
+    private val reactionUsers = mutableListOf<Pair<Int, Int>>()
 
     @Test
     fun 别人的楼_内容一组加对人一组_报告的是这层楼() {
@@ -134,6 +137,15 @@ class FloorMenuTest {
         }
     }
 
+    @Test
+    fun 长按楼里的贴贴看谁贴了_不弹楼层菜单() {
+        showFloor(topic, item(isOwn = false, reactions = listOf(reactionOf(value = 79, count = 2))))
+        composeRule.onNodeWithText("2").performTouchInput { longClick(center) }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle { assertEquals(listOf(100 to 79), reactionUsers) }
+        composeRule.onNodeWithText("复制").assertDoesNotExist()
+    }
+
     /** [friends] 是当前账号的好友名单（默认谁也没关注）：菜单里加为好友 / 解除好友按它二选一。 */
     private fun showFloor(surface: CommentSurface, comment: CommentItemBo, friends: Friends = Friends.NONE) {
         composeRule.setContent {
@@ -145,6 +157,7 @@ class FloorMenuTest {
                             thread = CommentThreadBo(anchor = comment, replies = emptyList()),
                             floorNumber = "#2",
                             onAvatarClick = {},
+                            onReactionUsers = { id, value -> reactionUsers += id to value },
                             surface = surface,
                             onReact = gate.guard { _: Int, _: Int? -> },
                             onEdit = gate.guard { _: EditTarget -> },
@@ -164,7 +177,7 @@ class FloorMenuTest {
 
     private fun menuBounds(label: String) = composeRule.onNode(hasText(label) and hasClickAction()).fetchSemanticsNode().boundsInRoot
 
-    private fun item(isOwn: Boolean, content: String = "正文") = CommentItemBo(
+    private fun item(isOwn: Boolean, content: String = "正文", reactions: List<CommentReactionBo> = emptyList()) = CommentItemBo(
         id = 100,
         mainId = 7,
         relatedId = 0,
@@ -176,5 +189,6 @@ class FloorMenuTest {
         createdAt = 0L,
         state = CommentState.NORMAL,
         isOwn = isOwn,
+        reactions = reactions,
     )
 }

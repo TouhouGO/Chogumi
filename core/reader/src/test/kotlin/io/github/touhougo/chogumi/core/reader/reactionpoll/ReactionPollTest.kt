@@ -3,8 +3,8 @@ package io.github.touhougo.chogumi.core.reader.reactionpoll
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeNode
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeParser
 import io.github.touhougo.chogumi.core.model.COMMON_REACTIONS
-import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.model.SUBJECT_COLLECT_REACTIONS
+import io.github.touhougo.chogumi.core.model.reactionOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -87,7 +87,7 @@ class ReactionPollTest {
         // bgm63（79）不在作品吐槽可贴的表情里
         val poll = pollOf("[*](bgm63) : 甲\n", palette = SUBJECT_COLLECT_REACTIONS)!!
         assertEquals(ReactionPoll.Option(79, "bgm63", "甲", votable = false), poll.options.single())
-        assertEquals(listOf(3), poll.tallyOf(listOf(CommentReactionBo(value = 79, count = 3))).counts)
+        assertEquals(listOf(3), poll.tallyOf(listOf(reactionOf(value = 79, count = 3))).counts)
     }
 
     @Test
@@ -108,20 +108,20 @@ class ReactionPollTest {
         val poll = pollOf("[*](bgm38) : 甲\n[*](bgm124) : 乙\n[*](bgm67) : 丙\n")!!
         val tally = poll.tallyOf(
             listOf(
-                CommentReactionBo(value = 140, count = 33, selected = true),
-                CommentReactionBo(value = 54, count = 6),
-                CommentReactionBo(value = 104, count = 1),
+                reactionOf(value = 140, count = 33, selected = true),
+                reactionOf(value = 54, count = 6),
+                reactionOf(value = 104, count = 1),
             ),
         )
         assertEquals(ReactionPollTally(counts = listOf(6, 33, 0), mine = 140), tally)
         assertEquals(39, tally.total)
-        assertNull(poll.tallyOf(listOf(CommentReactionBo(value = 104, count = 1, selected = true))).mine, "贴的不是选项里的表情")
+        assertNull(poll.tallyOf(listOf(reactionOf(value = 104, count = 1, selected = true))).mine, "贴的不是选项里的表情")
     }
 
     @Test
     fun `没有计票贴贴的项一直零票，也不会因为我没投而算成我投的`() {
         val poll = pollOf("[*](bgm38) : 甲\n[*] : 乙\n")!!
-        val tally = poll.tallyOf(listOf(CommentReactionBo(value = 54, count = 2)))
+        val tally = poll.tallyOf(listOf(reactionOf(value = 54, count = 2)))
         assertEquals(listOf(2, 0), tally.counts)
         assertEquals(listOf(false, false), poll.options.map(tally::isMine))
     }

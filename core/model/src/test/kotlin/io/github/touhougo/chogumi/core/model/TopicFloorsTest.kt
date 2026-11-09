@@ -22,7 +22,7 @@ class TopicFloorsTest {
         content = "c$id",
         createdAt = id.toLong(),
         state = state,
-        reactions = if (reactions > 0) listOf(CommentReactionBo(value = 0, count = reactions)) else emptyList(),
+        reactions = if (reactions > 0) listOf(reactionOf(value = 0, count = reactions)) else emptyList(),
     )
 
     private fun thread(anchor: CommentItemBo, vararg replies: CommentItemBo) = CommentThreadBo(anchor, replies.toList())

@@ -15,6 +15,7 @@ import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +29,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -65,6 +65,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.constrainHeight
@@ -155,6 +158,7 @@ internal fun Modifier.reactionPickerAnchor(state: ReactionPickerState): Modifier
 /**
  * 已有的贴贴：一排 chip（[CommentReactionsFlow]），整排高度变化有过渡（[animateRowHeight]）。
  * [onReact] 非 null 时 chip 可点：自己贴过的取消，别的换成它，不在 [palette] 里的只读。
+ * 长按一颗 chip 看谁贴了（[onShowUsers]，参数是表情，名单面板见 [ReactionUsersSheet]）；chip 不能贴时点一下也是看名单。
  *
  * [onAdd] 非 null 时末尾一个「添加贴贴」，只在自己还没贴的时候出：贴上了（选择器里挑的，或点别人那颗 +1）它就收起，
  * 要换点别的 chip、要取消点自己那颗；取消之后它再出现。
@@ -165,6 +169,7 @@ internal fun ReactionBar(
     reactions: List<CommentReactionBo>,
     palette: List<Int>,
     onReact: ((Int?) -> Unit)?,
+    onShowUsers: (value: Int) -> Unit,
     modifier: Modifier = Modifier,
     onAdd: ((chip: LayoutCoordinates) -> Unit)? = null,
 ) {
@@ -187,6 +192,7 @@ internal fun ReactionBar(
                     }
                 }
             },
+            onShowUsers = onShowUsers,
         )
         if (onAdd != null) {
             // 收起是一下子的：贴上的那颗 chip 正好缩放淡入在它原来的位置
@@ -370,20 +376,24 @@ internal fun ReactionGrid(palette: List<Int>, selected: Int?, taken: Set<Int> = 
  * 时长与弹簧取 `MaterialTheme.motionScheme`（M3 standard）。
  */
 @Composable
-private fun CommentReactionsFlow(reactions: List<CommentReactionBo>, onToggle: ((CommentReactionBo) -> Unit)?) {
+private fun CommentReactionsFlow(
+    reactions: List<CommentReactionBo>,
+    onToggle: ((CommentReactionBo) -> Unit)?,
+    onShowUsers: (value: Int) -> Unit,
+) {
     val initialValues = remember { reactions.map { it.value }.toSet() }
     reactions.forEach { reaction ->
         key(reaction.value) {
             val visible = remember { MutableTransitionState(reaction.value in initialValues).apply { targetState = true } }
             AnimatedVisibility(visibleState = visible, enter = reactionEnter()) {
-                ReactionChip(reaction, onToggle)
+                ReactionChip(reaction, onToggle, onShowUsers)
             }
         }
     }
 }
 
 @Composable
-private fun ReactionChip(reaction: CommentReactionBo, onToggle: ((CommentReactionBo) -> Unit)?) {
+private fun ReactionChip(reaction: CommentReactionBo, onToggle: ((CommentReactionBo) -> Unit)?, onShowUsers: (value: Int) -> Unit) {
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
     val container by animateColorAsState(
         if (reaction.selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
@@ -419,15 +429,16 @@ private fun ReactionChip(reaction: CommentReactionBo, onToggle: ((CommentReactio
     ) {
         Row(
             modifier = Modifier
-                .then(
-                    if (onToggle != null) {
-                        Modifier.toggleable(value = reaction.selected, role = Role.Checkbox) {
+                .reactionChipGestures(
+                    selected = reaction.selected,
+                    onToggle = onToggle?.let { toggle ->
+                        {
                             if (!reaction.selected) popOnSelect()
-                            onToggle(reaction)
+                            toggle(reaction)
                         }
-                    } else {
-                        Modifier
                     },
+                    onShowUsers = { onShowUsers(reaction.value) },
+                    usersLabel = stringResource(R.string.reaction_users_open),
                 )
                 .heightIn(min = ReactionChipHeight)
                 .padding(horizontal = 10.dp)
@@ -441,6 +452,23 @@ private fun ReactionChip(reaction: CommentReactionBo, onToggle: ((CommentReactio
         }
     }
 }
+
+/**
+ * 一颗 chip 的手势：点 = 贴上或取消（开关语义，读屏读出选中与否），长按 = 看谁贴了。不能贴时（[onToggle] 为 null）点与长按都是看名单。
+ * 长按由 chip 自己吃掉，不会再弹出楼层的长按菜单。
+ */
+private fun Modifier.reactionChipGestures(
+    selected: Boolean,
+    onToggle: (() -> Unit)?,
+    onShowUsers: () -> Unit,
+    usersLabel: String,
+): Modifier =
+    if (onToggle != null) {
+        semantics { toggleableState = ToggleableState(selected) }
+            .combinedClickable(role = Role.Checkbox, onLongClickLabel = usersLabel, onLongClick = onShowUsers, onClick = onToggle)
+    } else {
+        combinedClickable(onClickLabel = usersLabel, onLongClickLabel = usersLabel, onLongClick = onShowUsers, onClick = onShowUsers)
+    }
 
 /** 一个贴贴表情：内置 / 远程表情画图，未知值画数字。楼层的 chip、选择器与动态卡片共用。 */
 @Composable

@@ -1426,6 +1426,9 @@
     <string name="collection_removing">正在移除…</string>
     <string name="collection_remove_failed">收藏移除失败：%1$s</string>
     <string name="failure_rule_subject_uncollect_unavailable">收藏仍然存在，请稍后重试</string>
+    <string name="reaction_users_title">贴贴</string>
+    <string name="reaction_users_me">我</string>
+    <string name="reaction_users_open">看谁贴了</string>
     <string name="reaction_poll_title">投票</string>
     <string name="reaction_poll_show_results">看结果</string>
     <string name="reaction_poll_hide_results">收起结果</string>
