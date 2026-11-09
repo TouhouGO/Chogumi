@@ -105,7 +105,7 @@ class SearchRepository(
      */
     fun maintainRecentSearches(scope: CoroutineScope) {
         scope.launch {
-            tokenStore.sessionFlow.collect { session -> clearForeignHistory(session) }
+            outcomeOf { tokenStore.sessionFlow.collect { session -> clearForeignHistory(session) } }
         }
     }
 
