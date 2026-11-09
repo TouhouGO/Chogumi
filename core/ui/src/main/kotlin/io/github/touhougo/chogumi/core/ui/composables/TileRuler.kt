@@ -175,7 +175,7 @@ private fun RulerTile(label: String, kind: EpisodeCellKind, join: TileJoin, size
     val container by animateColorAsState(colors.tileContainer(kind), effects, label = "rulerTileContainer")
     val content by animateColorAsState(colors.tileContent(kind), effects, label = "rulerTileContent")
     val stroke by animateColorAsState(
-        if (kind.outlined) colors.outlineVariant else colors.outlineVariant.copy(alpha = 0f),
+        colors.tileBorder(kind, preview = null, target = false).color,
         effects,
         label = "rulerTileStroke",
     )
@@ -188,7 +188,7 @@ private fun RulerTile(label: String, kind: EpisodeCellKind, join: TileJoin, size
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        TileLabel(number = { TileNumber(text = label, emphasized = kind == EpisodeCellKind.CURRENT, color = content) })
+        TileLabel(number = { TileNumber(text = label, emphasized = kind.numberEmphasized, color = content) })
     }
 }
 

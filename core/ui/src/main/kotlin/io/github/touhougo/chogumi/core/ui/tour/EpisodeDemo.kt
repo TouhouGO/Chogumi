@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +28,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.dp
+import io.github.touhougo.chogumi.core.model.EpisodeBo
 import io.github.touhougo.chogumi.core.model.EpisodeCellKind
+import io.github.touhougo.chogumi.core.model.EpisodeStatus
+import io.github.touhougo.chogumi.core.model.EpisodeType
 import io.github.touhougo.chogumi.core.model.EpisodeTracking
 import io.github.touhougo.chogumi.core.ui.composables.EpisodeHeadFrame
 import io.github.touhougo.chogumi.core.ui.composables.EpisodeTileRows
@@ -42,13 +44,16 @@ import io.github.touhougo.chogumi.core.ui.composables.TileLabel
 import io.github.touhougo.chogumi.core.ui.composables.TileNumber
 import io.github.touhougo.chogumi.core.ui.composables.gridColumnCount
 import io.github.touhougo.chogumi.core.ui.composables.joinsOf
+import io.github.touhougo.chogumi.core.ui.composables.LocalNow
 import io.github.touhougo.chogumi.core.ui.composables.rememberMorphingShape
 import io.github.touhougo.chogumi.core.ui.composables.tileBounds
 import io.github.touhougo.chogumi.core.ui.composables.tileContent
 import io.github.touhougo.chogumi.core.ui.composables.tileFace
-import io.github.touhougo.chogumi.core.ui.composables.tileShape
+import io.github.touhougo.chogumi.core.ui.composables.episodeTileShape
+import io.github.touhougo.chogumi.core.ui.composables.numberEmphasized
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 import kotlin.math.roundToInt
+import io.github.touhougo.chogumi.core.foundation.businessDateOf
 import kotlinx.coroutines.delay
 
 /** 方格上面留的空：演示台顶上不贴着格子（设计决定，not in M3）。 */
@@ -95,11 +100,20 @@ internal fun EpisodeDemo(playing: Boolean, modifier: Modifier = Modifier) {
         val gridWidth = area.width.roundToInt() - side * 2
         val columns = gridColumnCount(gridWidth, with(density) { GridCell.EpisodeTile.minWidth.roundToPx() }, gap)
         val count = columns * GridRows
-        val kinds = demoKinds(count, watched, aired = columns + AiredBeyondFirstRow)
-        val joins = (0 until GridRows).flatMap { row ->
-            val rowKinds = kinds.subList(row * columns, (row + 1) * columns)
-            joinsOf(rowKinds.size, EpisodeTracking.bandsOf(rowKinds))
+        val today = businessDateOf(LocalNow.current.value)
+        val aired = columns + AiredBeyondFirstRow
+        val episodes = remember(count, aired, today) {
+            (1..count).map { number ->
+                EpisodeBo(
+                    id = number, subjectId = 0, type = EpisodeType.NORMAL, name = "", nameCn = "", sort = number.toDouble(),
+                    airdate = (if (number <= aired) today else today.plusDays(1)).toString(),
+                )
+            }
         }
+        val watches = (1..watched).associateWith { EpisodeStatus.DONE }
+        val rows = EpisodeTracking.episodeGrid(episodes, watches, today, selectedRange = 0, columns = columns).rows
+        val kinds = rows.flatMap { row -> row.cells.map { it.kind } }
+        val joins = rows.flatMap { row -> joinsOf(row.cells.size, row.bands) }
         fun centerOf(index: Int): Offset = tileBounds(index, columns, gridWidth, gap).center.let { Offset(it.x + side.toFloat(), it.y + top.toFloat()) }
 
         LaunchedEffect(playing) {
@@ -149,34 +163,19 @@ internal fun EpisodeDemo(playing: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
-/** 看过 [watched] 集、播到第 [aired] 集时每一格的种类（与网格行同一套：看过的连成一段，「看到这里」，下一集，已播，未播）。 */
-private fun demoKinds(count: Int, watched: Int, aired: Int): List<EpisodeCellKind> = (1..count).map { episode ->
-    when {
-        episode < watched -> EpisodeCellKind.WATCHED
-        episode == watched -> EpisodeCellKind.CURRENT
-        episode == watched + 1 -> EpisodeCellKind.NEXT
-        episode <= aired -> EpisodeCellKind.AIRED
-        else -> EpisodeCellKind.UNAIRED
-    }
-}
-
 /** 一格：静止时的面来自 [tileFace]，种类变了淡过去；按住时收成 small 圆角，与方格里的格子同一段变形。 */
 @Composable
 private fun DemoTile(number: Int, kind: EpisodeCellKind, join: TileJoin, pressed: Boolean) {
     val shapes = MaterialTheme.shapes
     val motion = MaterialTheme.motionScheme
-    val target = when {
-        pressed -> shapes.small
-        kind == EpisodeCellKind.NEXT -> CircleShape
-        else -> shapes.tileShape(join)
-    }
+    val target = shapes.episodeTileShape(kind, join, pressed)
     val shape = rememberMorphingShape(target, motion.fastSpatialSpec())
     Crossfade(kind, animationSpec = motion.defaultEffectsSpec(), label = "tour_tile") { shown ->
         Box(Modifier.fillMaxSize().tileFace(shown, shape), contentAlignment = Alignment.Center) {
             TileLabel(number = {
                 TileNumber(
                     text = number.toString(),
-                    emphasized = shown == EpisodeCellKind.CURRENT || shown == EpisodeCellKind.NEXT,
+                    emphasized = shown.numberEmphasized,
                     color = MaterialTheme.colorScheme.tileContent(shown),
                 )
             })

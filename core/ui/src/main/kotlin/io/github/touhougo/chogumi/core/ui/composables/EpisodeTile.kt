@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
@@ -204,23 +203,12 @@ internal fun EpisodeTile(
     }
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val targetShape: CornerBasedShape = when {
-        pressed -> shapes.small
-        kind == EpisodeCellKind.NEXT -> CircleShape
-        else -> shapes.tileShape(join)
-    }
+    val targetShape = shapes.episodeTileShape(kind, join, pressed)
     val shape = rememberMorphingShape(targetShape, MaterialTheme.motionScheme.fastSpatialSpec())
 
     val container = if (preview == WatchChange.FILL) colors.primaryContainer.copy(alpha = PREVIEW_FILL_ALPHA) else colors.tileContainer(kind)
     val content = colors.tileContent(kind)
-    val (strokeWidth, strokeColor) = when {
-        // 点的那一格是「看到这里」（实心 primary）时描边换成 onPrimary，否则看不出来
-        target -> TargetStroke to if (kind == EpisodeCellKind.CURRENT) colors.onPrimary else colors.primary
-        kind == EpisodeCellKind.NEXT -> NextStroke to colors.primary
-        preview == WatchChange.FILL -> TileStroke to colors.primary.copy(alpha = PREVIEW_FILL_STROKE_ALPHA)
-        kind.outlined -> TileStroke to colors.outlineVariant
-        else -> TileStroke to colors.outlineVariant.copy(alpha = 0f)
-    }
+    val (strokeWidth, strokeColor) = colors.tileBorder(kind, preview, target)
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
     val animatedContainer by animateColorAsState(container, effects, label = "episodeTileContainer")
     val animatedContent by animateColorAsState(content, effects, label = "episodeTileContent")
@@ -304,7 +292,7 @@ internal fun EpisodeTile(
             number = {
                 TileNumber(
                     text = formatEpisodeSort(cell.episode.sort),
-                    emphasized = kind == EpisodeCellKind.CURRENT || kind == EpisodeCellKind.NEXT,
+                    emphasized = kind.numberEmphasized,
                     color = animatedContent,
                 )
             },
@@ -380,13 +368,8 @@ private val RING_STROKE = 2.5.dp
 private val RING_INSET = 3.dp
 private const val RING_ALPHA = 0.75f
 
-/** 格子描边：下一集 2dp，等确认时点的那一格 3dp（设计稿，not in M3；已播未看、抛弃的 1dp 见 [TileStroke]）。 */
-internal val NextStroke = 2.dp
-private val TargetStroke = 3.dp
-
 /** 等确认时的预览：会标上的格子填 55% 的看过色、描 35% 的 primary 边，会取消的格子整体 40%（设计稿，not in M3）。 */
 private const val PREVIEW_FILL_ALPHA = 0.55f
-private const val PREVIEW_FILL_STROKE_ALPHA = 0.35f
 private const val PREVIEW_CLEAR_ALPHA = 0.4f
 
 /** 今天播出的小点：直径 6dp、离右上角 8dp（设计稿，not in M3）。 */

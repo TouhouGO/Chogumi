@@ -2,6 +2,7 @@ package io.github.touhougo.chogumi.core.ui.composables
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.ColorScheme
@@ -19,10 +20,12 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import io.github.touhougo.chogumi.core.model.EpisodeCellKind
+import io.github.touhougo.chogumi.core.model.WatchChange
 
 /*
  * 「格子」这套样子（章节方格与收藏面板的进度尺共用）：看过连成一段 primary container，看到这里 primary 实色，
@@ -41,6 +44,29 @@ internal fun Shapes.tileShape(join: TileJoin): CornerBasedShape = medium.copy(
     topEnd = if (join.end) extraSmall.topEnd else medium.topEnd,
     bottomEnd = if (join.end) extraSmall.bottomEnd else medium.bottomEnd,
 )
+
+/** 格子的形状：按住收成 small，下一集为圆，其余按连段取角。 */
+internal fun Shapes.episodeTileShape(kind: EpisodeCellKind, join: TileJoin, pressed: Boolean): CornerBasedShape = when {
+    pressed -> small
+    kind == EpisodeCellKind.NEXT -> CircleShape
+    else -> tileShape(join)
+}
+
+/** 看到这里与下一集的集号强调；真实格子、演示与进度尺共用。 */
+internal val EpisodeCellKind.numberEmphasized: Boolean
+    get() = this == EpisodeCellKind.CURRENT || this == EpisodeCellKind.NEXT
+
+/** 一格的描边宽度与颜色。 */
+internal data class TileBorder(val width: Dp, val color: Color)
+
+/** 静止描边与待提交预览只在这里定；点中的看到这里用 onPrimary，与实心底区分。 */
+internal fun ColorScheme.tileBorder(kind: EpisodeCellKind, preview: WatchChange?, target: Boolean): TileBorder = when {
+    target -> TileBorder(TargetStroke, if (kind == EpisodeCellKind.CURRENT) onPrimary else primary)
+    kind == EpisodeCellKind.NEXT -> TileBorder(NextStroke, primary)
+    preview == WatchChange.FILL -> TileBorder(TileStroke, primary.copy(alpha = PREVIEW_FILL_STROKE_ALPHA))
+    kind.outlined -> TileBorder(TileStroke, outlineVariant)
+    else -> TileBorder(TileStroke, outlineVariant.copy(alpha = 0f))
+}
 
 /**
  * 格子的底色。「不填色」是看过色的透明版：从空位填成看过时颜色从无到有，不经过深灰（透明黑插值会发灰）。
@@ -134,20 +160,15 @@ internal fun DrawScope.drawDroppedSlash(color: Color) {
 }
 
 /**
- * 一种格子静止时的面（底色、描边、抛弃的斜线；下一集是 [NextStroke] 的 primary 描边）：图例的色块与手势引导的演示格子照它画，
+ * 一种格子静止时的面（底色、描边、抛弃的斜线；下一集是 2dp 的 primary 描边）：图例的色块与手势引导的演示格子照它画，
  * 与方格里的格子是同一份样子。方格里的格子颜色要过渡，各项分开取（[tileContainer] / [tileContent] / [outlined] / [drawDroppedSlash]）。
  */
 @Composable
 internal fun Modifier.tileFace(kind: EpisodeCellKind, shape: Shape): Modifier {
     val colors = MaterialTheme.colorScheme
+    val border = colors.tileBorder(kind, preview = null, target = false)
     return background(colors.tileContainer(kind), shape)
-        .then(
-            when {
-                kind == EpisodeCellKind.NEXT -> Modifier.border(NextStroke, colors.primary, shape)
-                kind.outlined -> Modifier.border(TileStroke, colors.outlineVariant, shape)
-                else -> Modifier
-            },
-        )
+        .border(border.width, border.color, shape)
         .then(if (kind == EpisodeCellKind.DROPPED) Modifier.drawBehind { drawDroppedSlash(colors.outlineVariant) } else Modifier)
 }
 
@@ -163,3 +184,10 @@ private val TileLabelInset = 4.dp
 
 /** OpenType 等宽数字。 */
 private const val TABULAR_FIGURES = "tnum"
+
+/** 格子描边：下一集 2dp，等确认时点的那一格 3dp（设计决定，not in M3）。 */
+private val NextStroke = 2.dp
+private val TargetStroke = 3.dp
+
+/** 待标上的格子描 35% 的 primary 边（设计决定，not in M3）。 */
+private const val PREVIEW_FILL_STROKE_ALPHA = 0.35f
