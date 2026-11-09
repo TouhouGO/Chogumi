@@ -103,16 +103,7 @@ func Start(o Options) (*Server, error) {
 		logf:        logf,
 	}
 	up.ech.Store(&cfg)
-	up.transport = &http.Transport{
-		DialTLSContext:    up.dialTLS,
-		ForceAttemptHTTP2: true,
-		MaxConnsPerHost:   1, // 每个主机一条连接，h2 上并发（edges.go 的规则）
-		// 那一条连接悄悄不通了要尽快发现（edges.go 的规则）：edgeTimeout 没收到任何帧就发 ping，再过 edgeTimeout/2 没回就断开
-		HTTP2:                 &http.HTTP2Config{SendPingTimeout: edgeTimeout, PingTimeout: edgeTimeout / 2},
-		IdleConnTimeout:       90 * time.Second,
-		ExpectContinueTimeout: time.Second,
-		DisableCompression:    true, // Accept-Encoding 原样转发，解压留给 OkHttp
-	}
+	up.pool.Store(up.newPool())
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -140,12 +131,12 @@ func Start(o Options) (*Server, error) {
 
 func (s *Server) Port() int     { return s.ln.Addr().(*net.TCPAddr).Port }
 func (s *Server) Token() string { return string(s.token) }
-func (s *Server) Close() error  { s.up.transport.CloseIdleConnections(); return s.srv.Close() }
+func (s *Server) Close() error  { s.up.pool.Load().CloseIdleConnections(); return s.srv.Close() }
 
-// ResetNetwork 在设备换了网络时调：健康表清空（换了网络，哪个地址好坏要重新看），空闲连接关掉（属于旧网络）。
+// ResetNetwork 在设备换了网络时调：健康表清空（换了网络，哪个地址好坏要重新看），连接池退役（连接属于旧网络）。
 func (s *Server) ResetNetwork() {
 	s.up.health.reset()
-	s.up.transport.CloseIdleConnections()
+	s.up.retire(s.up.pool.Load())
 }
 
 // AllowedHost 是核心肯转发的主机：bgm.tv 与它的子域名。
@@ -218,7 +209,7 @@ func withPort(addrs []string) []string {
 	return out
 }
 
-// RoundTrip 转给连接池；Cloudflare 回「error code: 1034」（这个边缘地址不服务这个站）时降级该地址，
+// RoundTrip 转给连接池；Cloudflare 回「error code: 1034」（这个边缘地址不服务这个站）时降级该地址、让那个池退役，
 // 请求能重放（没有请求体）就换下一个地址再发。
 func (u *upstream) RoundTrip(req *http.Request) (*http.Response, error) {
 	replayable := req.Body == nil || req.Body == http.NoBody
@@ -227,12 +218,13 @@ func (u *upstream) RoundTrip(req *http.Request) (*http.Response, error) {
 		trace := &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
 			addr = info.Conn.RemoteAddr().String()
 		}}
-		resp, err := u.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), trace)))
+		pool := u.pool.Load()
+		resp, err := pool.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), trace)))
 		if err != nil || !edgeRestricted(resp) {
 			return resp, err
 		}
 		u.logf("edge-restricted host=%s edge=%s", req.URL.Host, addr)
-		u.restricted(addr)
+		u.restricted(addr, pool)
 		if !replayable || attempt+1 >= len(u.addrs) {
 			return resp, nil
 		}
