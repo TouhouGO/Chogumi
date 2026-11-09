@@ -87,7 +87,12 @@ interface ReorderableItemScope {
 
 /** 拖动排序时行的底色（全仓唯一）：拖着的那一行升一级 surface container，其余是分段列表的默认底色。 */
 val ReorderableItemScope.containerColor: Color
-    @Composable get() = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer
+    @Composable get() = reorderRowColor(isDragging)
+
+/** [containerColor] 的规则本身：手势引导里整理列表的示意按同一条画拖着的那一行。 */
+@Composable
+internal fun reorderRowColor(dragging: Boolean): Color =
+    if (dragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer
 
 /**
  * 一列可拖动排序的行（[rememberReorderState] 得到，交给同一个列表里的 [reorderableItems]）：显示的顺序、这一次拖动。
@@ -304,7 +309,7 @@ private fun SwipeRevealRow(enabled: Boolean, onRemove: () -> Unit, content: @Com
 private val DeleteActionWidth = 64.dp
 
 /** 拖着的行抬起的阴影：M3 elevation level 3（tokens.md Elevation）。 */
-private val DraggedElevation = 6.dp
+internal val DraggedElevation = 6.dp
 
 /** 一次拖动：拖的是哪一行、手指走了多远。只有一个手指在拖（同一时刻只有一行）。 */
 internal class DragState(private val list: LazyListState) {

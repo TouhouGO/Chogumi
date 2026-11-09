@@ -123,7 +123,7 @@ class AuthRepositoryTest {
         val scope = resources.own(CoroutineScope(Dispatchers.IO + SupervisorJob()))
         val tokenStore = newTokenStore(scope)
         return Pair(
-            testAuthRepository(resources, client, tokenStore, config, scope, webClient, createTokenHttpClient("test", engine), cipher),
+            testAuthRepository(resources, client, tokenStore, config, scope, webClient, createTokenHttpClient("test", engine, customizers = emptyList()), cipher),
             tokenStore,
         )
     }

@@ -93,7 +93,7 @@ class CollectionPagingCursorTest {
         }
         val client = createHttpClient(store, object : TokenRefresher {
             override suspend fun refresh(rejectedAccessToken: String?) = false
-        }, engine = engine, appVersion = "test").also { resources.own(it) }
+        }, engine = engine, appVersion = "test", customizers = emptyList()).also { resources.own(it) }
         val dao = FakeUserCollectionDao()
         val subjects = FakeSubjectDao()
         return Fixture(

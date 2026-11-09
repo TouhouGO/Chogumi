@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 直连时请求以明文发给本机的直连核心（127.0.0.1），由核心加密转发；只放行这一个地址。 -->
+    <application android:networkSecurityConfig="@xml/netroute_network_security_config" />
+</manifest>

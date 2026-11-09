@@ -19,6 +19,7 @@ fun testApiClient(engine: HttpClientEngine): HttpClient = createHttpClient(
     tokenRefresher = NoTokenRefresh,
     appVersion = "test",
     engine = engine,
+    customizers = emptyList(),
 )
 
 fun testApiClient(handler: MockRequestHandler): HttpClient = testApiClient(MockEngine(handler))

@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -79,12 +78,13 @@ import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.Gated
 import io.github.touhougo.chogumi.core.ui.common.LocalAppFeatures
 import io.github.touhougo.chogumi.core.ui.common.LocalFriends
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.composables.CircleAvatar
 import io.github.touhougo.chogumi.core.ui.composables.CollectionTypeBadge
+import io.github.touhougo.chogumi.core.ui.composables.CommentFloorSkeleton
+import io.github.touhougo.chogumi.core.ui.composables.FloorGeometry
 import io.github.touhougo.chogumi.core.ui.composables.FriendMark
 import io.github.touhougo.chogumi.core.ui.composables.RATING_STAR_COUNT
-import io.github.touhougo.chogumi.core.ui.composables.SkeletonBox
-import io.github.touhougo.chogumi.core.ui.composables.SkeletonText
 import io.github.touhougo.chogumi.core.ui.composables.TextPill
 import io.github.touhougo.chogumi.core.ui.composables.othersRatingStars
 import io.github.touhougo.chogumi.core.ui.composables.relativeTimeText
@@ -207,29 +207,6 @@ fun CommentFloorDivider(modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * 一层楼的占位（骨架用）：与 [CommentFloor] 同一组几何（楼层留白、32 头像、头像与昵称间距、正文上间距）与同一字阶，
- * 头部画昵称、时间两行，正文画几行。[asPost] 时是帖子正文：正文字阶 article、行数多些。行数是设计决定（not in M3）。
- */
-@Composable
-fun CommentFloorSkeleton(modifier: Modifier = Modifier, asPost: Boolean = false) {
-    Column(modifier.fillMaxWidth().padding(FloorPadding)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SkeletonBox(Modifier.size(AvatarSize), shape = CircleShape)
-            Spacer(Modifier.width(AvatarGap))
-            Column(Modifier.weight(1f)) {
-                SkeletonText(ReaderTypography.author, widthFraction = 0.3f)
-                SkeletonText(ReaderTypography.meta, widthFraction = 0.2f)
-            }
-        }
-        SkeletonText(
-            style = if (asPost) ReaderTypography.article else ReaderTypography.comment,
-            modifier = Modifier.padding(top = BodyTopGap),
-            lines = if (asPost) POST_SKELETON_LINES else FLOOR_SKELETON_LINES,
-        )
-    }
-}
-
 /** 几层楼的占位（楼间同样画分割线）：评论区还没到时画它，帖子页整页骨架的楼层部分也是它。 */
 @Composable
 fun CommentFloorsSkeleton(modifier: Modifier = Modifier) {
@@ -241,8 +218,6 @@ fun CommentFloorsSkeleton(modifier: Modifier = Modifier) {
     }
 }
 
-private const val POST_SKELETON_LINES = 6
-private const val FLOOR_SKELETON_LINES = 2
 private const val FLOORS_SKELETON_COUNT = 3
 
 /** 一串楼共享的上下文：同一串里主楼与楼中楼的判定口径一致。 */
@@ -268,24 +243,9 @@ private class FloorContext(
     val onReactionUsers: (commentId: Int, value: Int) -> Unit,
 )
 
-// 楼层几何——设计决定（not in M3）：左右 16 与列表一致；头像与昵称间距 10；头部与正文间距主楼 8、楼中楼 4。
-private val FloorPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-private val ReplyPadding = PaddingValues(vertical = 8.dp)
-/**
- * 楼层主楼作者头像边长（圆形 32×32；设计决定 not in M3）。头像并进头部一行、正文通栏，
- * 原型的 40 是「头像独占一列」版式的值，挤在昵称行里偏大。
- */
-private val AvatarSize = 32.dp
-
-/** 楼中楼二级回复作者头像边长（圆形 24×24，与时间并进同一行；设计决定 not in M3） */
-private val ReplyAvatarSize = 24.dp
-
 /** 楼中楼树枝连接线宽度（2dp 实体线） */
 private val ReplyTreeLineWidth = 2.dp
-private val AvatarGap = 10.dp
 private val HeaderGap = 6.dp
-private val BodyTopGap = 8.dp
-private val ReplyBodyTopGap = 4.dp
 private val ThreadTopGap = 4.dp
 private val ThreadStartPadding = 12.dp
 private val ThreadLineInset = 4.dp
@@ -325,7 +285,7 @@ private fun CommentFloor(
         .background(flashColor)
 
     if (comment.state == CommentState.DELETED) {
-        Column(floorModifier.padding(if (isReply) ReplyPadding else FloorPadding)) {
+        Column(floorModifier.padding(if (isReply) FloorGeometry.ReplyPadding else FloorGeometry.Padding)) {
             DeletedFloorRow(floorNumber)
             below()
         }
@@ -359,7 +319,7 @@ private fun CommentFloor(
                 longPressLabel = stringResource(R.string.floor_menu),
             ),
     ) {
-        Column(Modifier.padding(if (isReply) ReplyPadding else FloorPadding)) {
+        Column(Modifier.padding(if (isReply) FloorGeometry.ReplyPadding else FloorGeometry.Padding)) {
             FloorHeader(comment, floorNumber, isReply, context)
             // 长按贴贴、长按投票选项都打开这层楼的贴贴名单
             val showUsers = remember(comment.id, context.onReactionUsers) { { value: Int -> context.onReactionUsers(comment.id, value) } }
@@ -448,10 +408,10 @@ private fun floorMenuActions(
 @Composable
 private fun FloorHeader(comment: CommentItemBo, floorNumber: String, isReply: Boolean, context: FloorContext) {
     val timeText = relativeTimeText(comment.createdAt)
-    val avatarSize = if (isReply) ReplyAvatarSize else AvatarSize
+    val avatarSize = if (isReply) FloorGeometry.ReplyAvatarSize else FloorGeometry.AvatarSize
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircleAvatar(comment.creatorAvatar, userDisplayNameOf(comment.creatorUsername, comment.creatorNickname, comment.creatorId), avatarSize, onClick = { context.onAvatarClick(comment.id) })
-        Spacer(Modifier.width(AvatarGap))
+        Spacer(Modifier.width(FloorGeometry.AvatarGap))
         Column(Modifier.weight(1f)) {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(HeaderGap),
@@ -527,7 +487,7 @@ private fun CollectionStars(collection: CommentCollectionBo) {
 @Composable
 private fun FloorBody(comment: CommentItemBo, context: FloorContext, isReply: Boolean) {
     val split = remember(comment.content) { splitLeadingQuote(comment.content) }
-    val topGap = if (isReply) ReplyBodyTopGap else BodyTopGap
+    val topGap = if (isReply) FloorGeometry.ReplyBodyTopGap else FloorGeometry.BodyTopGap
     split.quote?.let { quote ->
         val target = context.quoteTargets[comment.id]
         QuoteBar(

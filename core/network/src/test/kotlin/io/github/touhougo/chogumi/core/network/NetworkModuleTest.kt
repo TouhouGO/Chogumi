@@ -45,7 +45,7 @@ class NetworkModuleTest {
                 headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
             )
         }
-        val client = createHttpClient(provider, FakeTokenRefresher(), engine = engine, appVersion = "test")
+        val client = createHttpClient(provider, FakeTokenRefresher(), engine = engine, appVersion = "test", customizers = emptyList())
         client.get("https://api.bgm.tv/v0/me")
         val request = engine.requestHistory.single()
         assertNull(request.headers["Authorization"], "插件不得自动注入 token，以免覆盖显式身份")
@@ -69,7 +69,7 @@ class NetworkModuleTest {
             }
         }
         provider.token = "new_token"
-        val client = createHttpClient(provider, refresher, engine = engine, appVersion = "test")
+        val client = createHttpClient(provider, refresher, engine = engine, appVersion = "test", customizers = emptyList())
         val response = client.get("https://api.bgm.tv/v0/me")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(2, callCount.get())
@@ -83,7 +83,7 @@ class NetworkModuleTest {
         val engine = MockEngine {
             respond(content = "denied", status = HttpStatusCode.Unauthorized)
         }
-        val client = createHttpClient(provider, refresher, engine = engine, appVersion = "test")
+        val client = createHttpClient(provider, refresher, engine = engine, appVersion = "test", customizers = emptyList())
         // expectSuccess = true：最终 401 以 ClientRequestException 抛出（上层 toFailure 映射）
         assertFailsWith<io.ktor.client.plugins.ClientRequestException> {
             client.get("https://api.bgm.tv/v0/me")
@@ -95,7 +95,7 @@ class NetworkModuleTest {
     fun `刷新拿到的是挨了 401 的那个请求带的令牌`() = runTest {
         val refresher = FakeTokenRefresher(result = false)
         val engine = MockEngine { respond(content = "expired", status = HttpStatusCode.Unauthorized) }
-        val client = createHttpClient(FakeTokenProvider(), refresher, engine = engine, appVersion = "test")
+        val client = createHttpClient(FakeTokenProvider(), refresher, engine = engine, appVersion = "test", customizers = emptyList())
 
         assertFailsWith<io.ktor.client.plugins.ClientRequestException> {
             client.get("https://api.bgm.tv/v0/me") { pinSessionToken("pinned_token") }
@@ -108,7 +108,7 @@ class NetworkModuleTest {
     fun `p1 的 401 不触发刷新`() = runTest {
         val refresher = FakeTokenRefresher(result = true)
         val engine = MockEngine { respond(content = "need login", status = HttpStatusCode.Unauthorized) }
-        val client = createHttpClient(FakeTokenProvider(), refresher, engine = engine, appVersion = "test")
+        val client = createHttpClient(FakeTokenProvider(), refresher, engine = engine, appVersion = "test", customizers = emptyList())
 
         assertFailsWith<io.ktor.client.plugins.ClientRequestException> {
             client.get("https://next.bgm.tv/p1/me") { pinSessionToken("pinned_token") }

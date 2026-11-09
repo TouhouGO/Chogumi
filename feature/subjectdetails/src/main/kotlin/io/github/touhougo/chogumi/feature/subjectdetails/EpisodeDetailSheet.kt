@@ -1,25 +1,14 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -32,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,13 +39,13 @@ import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.reader.rememberFloorJump
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LoginGate
+import io.github.touhougo.chogumi.core.ui.composables.EpisodeHeadFrame
 import io.github.touhougo.chogumi.core.ui.composables.FabClearance
 import io.github.touhougo.chogumi.core.ui.composables.FailureNoticeEffect
 import io.github.touhougo.chogumi.core.ui.composables.episodeNumberLabel
 import io.github.touhougo.chogumi.core.ui.composables.rememberStickyHeaderEdge
 import io.github.touhougo.chogumi.core.ui.composables.stickyHeaderFade
 import io.github.touhougo.chogumi.core.ui.moderation.ModerationHost
-import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -182,44 +170,18 @@ internal fun EpisodeThread(
  */
 @Composable
 private fun EpisodeHead(episode: EpisodeBo, onReply: (() -> Unit)?) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = ChogumiDimens.ScreenPadding).padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        EpisodeHeadText(episode, Modifier.weight(1f))
-        if (onReply != null) {
-            FilledTonalButton(onClick = onReply) {
-                Icon(painterResource(R.drawable.reply_24), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text(stringResource(R.string.reply))
-            }
-        }
-    }
-}
-
-@Composable
-private fun EpisodeHeadText(episode: EpisodeBo, modifier: Modifier) {
     val title = displayNameOf(episode)
-    Column(modifier) {
-        Text(
-            text = episodeNumberLabel(episode),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(text = title, style = MaterialTheme.typography.headlineSmall)
-        if (episode.name.isNotBlank() && episode.name != title) {
-            Text(text = episode.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text(
-            // 播出日缺失 / 不合法 → 「播出日未知」，不说「尚未播出」：网格对未知播出日是按已播出显示的
-            text = if (episode.airdate.isBlank()) {
-                stringResource(R.string.episode_detail_airdate_unknown)
-            } else {
-                stringResource(R.string.episode_detail_airdate, episode.airdate)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+    // 播出日缺失 / 不合法 → 「播出日未知」，不说「尚未播出」：网格对未知播出日是按已播出显示的
+    val airdate = if (episode.airdate.isBlank()) {
+        stringResource(R.string.episode_detail_airdate_unknown)
+    } else {
+        stringResource(R.string.episode_detail_airdate, episode.airdate)
     }
+    EpisodeHeadFrame(
+        number = { Text(episodeNumberLabel(episode), style = it) },
+        title = { Text(title, style = it) },
+        name = episode.name.takeIf { it.isNotBlank() && it != title }?.let { name -> { Text(name, style = it) } },
+        airdate = { Text(airdate, style = it) },
+        onReply = onReply,
+    )
 }

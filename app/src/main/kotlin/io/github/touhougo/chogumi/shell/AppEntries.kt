@@ -30,6 +30,7 @@ import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.model.TopicType
 import io.github.touhougo.chogumi.core.model.indexCategoryOf
 import io.github.touhougo.chogumi.core.model.monoTypeSpec
+import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LocalIndexPicker
 import io.github.touhougo.chogumi.core.ui.common.LocalUserCareerCard
@@ -38,6 +39,8 @@ import io.github.touhougo.chogumi.core.ui.common.navigation.AppNavigator
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageSheetRegistry
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
+import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
+import io.github.touhougo.chogumi.core.ui.tour.GestureTour
 import io.github.touhougo.chogumi.feature.calendar.CalendarScreen
 import io.github.touhougo.chogumi.feature.community.AllGroupsScreen
 import io.github.touhougo.chogumi.feature.community.BlockedUsersScreen
@@ -254,7 +257,11 @@ internal fun appEntries(
 
         // ---- 独立页 ----
         entry<Route.Login> {
-            LoginScreen(onBack = goBack, onSettingsClick = toSettings)
+            LoginScreen(
+                onBack = goBack,
+                onNetworkClick = if (directRouteSupported) ({ navigate(Route.SettingsPage(SettingsSection.NETWORK)) }) else null,
+                onSettingsClick = toSettings,
+            )
         }
         entry<Route.Feed> {
             TimelineScreen(
@@ -276,6 +283,7 @@ internal fun appEntries(
                 isLoggedIn = isLoggedIn,
                 onProfile = { navigate(Route.ProfileSettings) },
                 onSection = { navigate(Route.SettingsPage(it)) },
+                onGestureTour = { navigate(Route.GestureTour) },
                 onAbout = { navigate(Route.About) },
             )
         }
@@ -290,6 +298,7 @@ internal fun appEntries(
         }
         entry<Route.ProfileSettings> { ProfileSettingsScreen(onBack = goBack) }
         entry<Route.About> { AboutScreen(onBack = goBack) }
+        entry<Route.GestureTour> { GestureTour(onDone = goBack) }
         entry<Route.Search> {
             SearchScreen(
                 criteria = it.criteria,

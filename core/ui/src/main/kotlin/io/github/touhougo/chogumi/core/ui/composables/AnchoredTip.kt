@@ -131,7 +131,7 @@ internal fun RichTip(text: String) {
 
 /**
  * 富提示卡（feedback.md / component-tokens.md RichTooltip：surfaceContainer 底、Medium 圆角、Level2 海拔；内边距上 12、下 8、左右 16），
- * 里面是小标题、说明与可选的文字按钮，由调用方排。章节方格的大跳确认与第一次进来的引导都是它；最宽 [maxWidth]。出现时读屏念一遍。
+ * 里面是小标题、说明与可选的文字按钮，由调用方排。章节方格的大跳确认用它；最宽 [maxWidth]。出现时读屏念一遍。
  */
 @Composable
 internal fun RichTipCard(maxWidth: Dp, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -234,7 +234,7 @@ private val RichTooltipElevation = 3.dp
 private val RichTooltipPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 8.dp)
 
 /** 提示从多大缩放进出：同官方提示（0.8）。 */
-internal const val TIP_FROM_SCALE = 0.8f
+private const val TIP_FROM_SCALE = 0.8f
 
 /** 提示与锚点的距离：有可见边界时 4dp（feedback.md 普通提示的放置；富提示沿用同一距离）。 */
 internal val TipSpacing = 4.dp

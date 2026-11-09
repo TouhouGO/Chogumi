@@ -159,6 +159,7 @@ class UserRepositoryTest {
             },
             engine = engine,
             appVersion = "test",
+            customizers = emptyList(),
         ).also { resources.own(it) }
         val tokenStore = newStore()
         tokenStore.loginAs()

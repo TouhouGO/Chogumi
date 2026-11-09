@@ -13,6 +13,7 @@ internal enum class LicenseKind(val label: String, val asset: String?) {
     MIT("MIT", "MIT.txt"),
     GPL_2_CLASSPATH("GPL-2.0 with Classpath Exception", "GPL-2.0-Classpath-Exception.txt"),
     CC_BY_4("CC-BY-4.0", "CC-BY-4.0.txt"),
+    BSD_3("BSD-3-Clause", "BSD-3-Clause.txt"),
 }
 
 /** 一项随包第三方内容的许可展示：开源许可走 SPDX，只有版权声明的素材不能用开源许可冒充。 */
@@ -44,6 +45,7 @@ internal val BundledThirdPartyNotices: List<ThirdPartyNotice> = listOf(
     ThirdPartyNotice("colormath", R.string.about_third_party_colormath, ThirdPartyLicense.Spdx(LicenseKind.MIT), "https://github.com/ajalt/colormath"),
     ThirdPartyNotice("jsoup", R.string.about_third_party_jsoup, ThirdPartyLicense.Spdx(LicenseKind.MIT), "https://jsoup.org"),
     ThirdPartyNotice("slf4j", R.string.about_third_party_slf4j, ThirdPartyLicense.Spdx(LicenseKind.MIT), "https://www.slf4j.org"),
+    ThirdPartyNotice("go-gomobile", R.string.about_third_party_go, ThirdPartyLicense.Spdx(LicenseKind.BSD_3), "https://go.dev"),
     ThirdPartyNotice("desugar-jdk-libs", R.string.about_third_party_desugar, ThirdPartyLicense.Spdx(LicenseKind.GPL_2_CLASSPATH), "https://github.com/google/desugar_jdk_libs"),
     ThirdPartyNotice("bangumi-smileys", R.string.about_third_party_bangumi_smileys, ThirdPartyLicense.Notice(R.string.about_bangumi_smileys_license), "https://lain.bgm.tv/img/smiles/"),
     ThirdPartyNotice("platform-logos", R.string.about_third_party_platform_logos, ThirdPartyLicense.Notice(R.string.about_platform_logos_license), "https://simpleicons.org"),

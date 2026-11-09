@@ -92,7 +92,7 @@ class LoginViewModelAttemptTest {
 
     @Test
     fun `登上后丢掉这次登录与填过的字_登出后备好新的一次`() = runBlocking {
-        viewModel = withContext(main.dispatcher) { LoginViewModel(repository) }
+        viewModel = withContext(main.dispatcher) { LoginViewModel(repository, NoDirectRoute) }
         awaitUntil("第一张验证码到了") { viewModel.uiState.value.captcha is Load.Ready }
         withContext(main.dispatcher) { viewModel.onFormChange(PasswordForm(email = "a@b.c", password = "pw", captcha = "abcd")) }
 
@@ -107,7 +107,7 @@ class LoginViewModelAttemptTest {
 
     @Test
     fun `令牌登录在途时再点提交_不发第二次`() = runBlocking {
-        viewModel = withContext(main.dispatcher) { LoginViewModel(repository) }
+        viewModel = withContext(main.dispatcher) { LoginViewModel(repository, NoDirectRoute) }
         val gate = CompletableDeferred<Unit>().also { meGate = it }
         val viewModelJob = viewModel.viewModelScope.coroutineContext[Job]!!
         withContext(main.dispatcher) {
@@ -134,7 +134,7 @@ class LoginViewModelAttemptTest {
 
     @Test
     fun `令牌提交时立即取走并清空输入_成功前也不保留`() = runBlocking {
-        viewModel = withContext(main.dispatcher) { LoginViewModel(repository) }
+        viewModel = withContext(main.dispatcher) { LoginViewModel(repository, NoDirectRoute) }
         val gate = CompletableDeferred<Unit>().also { meGate = it }
         withContext(main.dispatcher) {
             viewModel.onManualTokenChange(SYNTHETIC_TOKEN)
@@ -150,7 +150,7 @@ class LoginViewModelAttemptTest {
     @Test
     fun `令牌登录失败后输入仍为空`() = runBlocking {
         meStatus = HttpStatusCode.Unauthorized
-        viewModel = withContext(main.dispatcher) { LoginViewModel(repository) }
+        viewModel = withContext(main.dispatcher) { LoginViewModel(repository, NoDirectRoute) }
         withContext(main.dispatcher) {
             viewModel.onManualTokenChange(SYNTHETIC_TOKEN)
             viewModel.onManualTokenSubmit()
@@ -163,7 +163,7 @@ class LoginViewModelAttemptTest {
 
     @Test
     fun `空白令牌仍按现有契约提示且不发请求`() = runBlocking {
-        viewModel = withContext(main.dispatcher) { LoginViewModel(repository) }
+        viewModel = withContext(main.dispatcher) { LoginViewModel(repository, NoDirectRoute) }
 
         listOf("", "   ").forEach { raw ->
             withContext(main.dispatcher) {

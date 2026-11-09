@@ -91,7 +91,7 @@ class ExploreSkeletonGeometryTest {
         setContent(fontScale) {
             Box(Modifier.width(400.dp)) {
                 if (showReal) {
-                    TrendingHeroCarousel(items = (1..8).map { subject(it) }, onSubjectClick = {}, guide = null, coverDemo = false)
+                    TrendingHeroCarousel(items = (1..8).map { subject(it) }, onSubjectClick = {})
                 } else {
                     TrendingHeroSkeleton()
                 }
@@ -137,7 +137,6 @@ class ExploreSkeletonGeometryTest {
                     onOpenSearch = { _, _, _ -> },
                     onOpenCalendar = {},
                     arrangeActions = NoArrangeActions,
-                    guide = null,
                 )
             }
         }
@@ -180,7 +179,6 @@ class ExploreSkeletonGeometryTest {
                     onOpenSearch = { _, _, _ -> },
                     onOpenCalendar = {},
                     arrangeActions = NoArrangeActions,
-                    guide = null,
                 )
             }
         }

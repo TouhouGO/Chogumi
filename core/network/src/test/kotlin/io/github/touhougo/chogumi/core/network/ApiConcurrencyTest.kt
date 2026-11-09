@@ -47,7 +47,7 @@ class ApiConcurrencyTest {
             }
             start()
         }
-        val client = createHttpClient(NoToken, NoRefresh, appVersion = "test")
+        val client = createHttpClient(NoToken, NoRefresh, appVersion = "test", customizers = emptyList())
         try {
             coroutineScope {
                 repeat(wanted) { index ->

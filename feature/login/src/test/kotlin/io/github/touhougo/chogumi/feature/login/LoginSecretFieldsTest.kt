@@ -126,9 +126,9 @@ class LoginSecretFieldsTest {
     @Test
     fun `普通密码框显隐保留焦点和光标并继续输入`() {
         compose.setContent {
-            val login = remember { LoginViewModel(repository).also { viewModel = it } }
+            val login = remember { LoginViewModel(repository, NoDirectRoute).also { viewModel = it } }
             ChogumiTheme {
-                LoginScreen(login, onBack = {}, onSettingsClick = {}, modifier = Modifier)
+                LoginScreen(login, onBack = {}, onNetworkClick = null, onSettingsClick = {}, modifier = Modifier)
             }
         }
 
@@ -156,9 +156,9 @@ class LoginSecretFieldsTest {
     @Test
     fun `真实登录页取消后清空并恢复默认遮蔽`() {
         compose.setContent {
-            val login = remember { LoginViewModel(repository).also { viewModel = it } }
+            val login = remember { LoginViewModel(repository, NoDirectRoute).also { viewModel = it } }
             ChogumiTheme {
-                LoginScreen(login, onBack = {}, onSettingsClick = {}, modifier = Modifier)
+                LoginScreen(login, onBack = {}, onNetworkClick = null, onSettingsClick = {}, modifier = Modifier)
             }
         }
 

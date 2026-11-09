@@ -189,6 +189,7 @@ dependencies {
     implementation(projects.core.data)
     implementation(projects.core.model)
     implementation(projects.core.ui)
+    implementation(projects.core.netroute)
     implementation(projects.core.reader)
     implementation(projects.feature.home)
     implementation(projects.feature.progress)

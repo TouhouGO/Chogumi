@@ -11,6 +11,7 @@ import io.github.touhougo.chogumi.core.data.db.user.UserDao
 import io.github.touhougo.chogumi.core.data.db.user.UserEntity
 import io.github.touhougo.chogumi.core.data.mark.StillCollectionEditing
 import io.github.touhougo.chogumi.core.data.mark.StillCollectionMarker
+import io.github.touhougo.chogumi.core.data.repository.BlockedUsersSource
 import io.github.touhougo.chogumi.core.data.repository.BlocklistRepository
 import io.github.touhougo.chogumi.core.data.repository.ConcurrentRequestRecorder
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeWatchStateDao
@@ -31,11 +32,13 @@ import io.github.touhougo.chogumi.core.data.repository.testDraftRepository
 import io.github.touhougo.chogumi.core.data.repository.testOtherUserCollectionsCache
 import io.github.touhougo.chogumi.core.data.repository.testWebClient
 import io.github.touhougo.chogumi.core.data.repository.testWebSessionRepository
+import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.testing.testAppTime
+import io.github.touhougo.chogumi.core.model.BlockedUsers
 import io.github.touhougo.chogumi.core.network.api.CollectionApi
 import io.github.touhougo.chogumi.core.network.api.IndexApi
 import io.github.touhougo.chogumi.core.network.api.NextApi
@@ -52,6 +55,7 @@ import io.ktor.http.headersOf
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -69,6 +73,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -122,18 +127,51 @@ class ProfileRelationsTest {
         var readFinished = CompletableDeferred<Unit>()
         /** 拦在这之后开始的读取：每一拍读到值之后等它放行；之前已经在读的（主页跟着名单走的那条）不受影响。 */
         var readGate: CompletableDeferred<Unit>? = null
+        /** 拦住已经在读的那些读取的后续拍（名单写入带来的那一拍）：放行之前它们停在旧值上；新开始的读取的第一拍不受影响。 */
+        var updateGate: CompletableDeferred<Unit>? = null
+        /** 放过 [readGate] 的拍数。 */
+        val delivered = AtomicInteger(0)
         override val data: Flow<Preferences> = flow {
             val gate = readGate
+            var first = true
             emitAll(
                 delegate.data.map {
                     readFinished.complete(Unit)
                     gate?.await()
+                    if (!first) updateGate?.await()
+                    first = false
                     if (failed.get()) throw IOException("绝交名单缓存不可读")
+                    delivered.incrementAndGet()
                     it
                 },
             )
         }
         override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences = delegate.updateData(transform)
+    }
+
+    /** 包住本机名单，分开拦主页跟随的那条流（[changes]）与只读一次的读取（[of]）。 */
+    private class HeldBlocklist(private val delegate: BlockedUsersSource) : BlockedUsersSource by delegate {
+        /** 设上之后开始的跟随读到失败时先停在这里：跟随已经读失败、失败还没传到的那一段。 */
+        @Volatile var followFailureHold: CompletableDeferred<Unit>? = null
+        /** 只读一次的读取等它放行再读。 */
+        @Volatile var checkGate: CompletableDeferred<Unit>? = null
+        val heldFollowFailures = AtomicInteger(0)
+
+        override suspend fun of(session: AccountSession): BlockedUsers {
+            checkGate?.await()
+            return delegate.of(session)
+        }
+
+        override fun changes(session: AccountSession): Flow<BlockedUsers> {
+            val hold = followFailureHold
+            return delegate.changes(session).catch { e ->
+                if (hold != null && e is IOException) {
+                    heldFollowFailures.incrementAndGet()
+                    hold.await()
+                }
+                throw e
+            }
+        }
     }
 
     private class Harness(
@@ -142,11 +180,12 @@ class ProfileRelationsTest {
         val requests: ConcurrentRequestRecorder,
         val blocklist: BlocklistRepository,
         val friends: FriendsRepository,
-        val session: io.github.touhougo.chogumi.core.data.token.AccountSession,
+        val session: AccountSession,
         val friend: AtomicBoolean,
         val reportGate: CompletableDeferred<Unit>,
         val reportEntered: CompletableDeferred<Unit>,
         val reportFailed: AtomicBoolean,
+        val source: HeldBlocklist,
     )
 
     /** [staleProfileFriend]：对方 p1 资料上的 `isFriend` 恒为 true（服务端一小时的好友缓存，取消关注后不清），与好友名单无关。 */
@@ -155,6 +194,10 @@ class ProfileRelationsTest {
         staleProfileFriend: Boolean = false,
         friendWriteGate: CompletableDeferred<Unit>? = null,
         username: String? = "bob",
+        followFailureHold: CompletableDeferred<Unit>? = null,
+        checkGate: CompletableDeferred<Unit>? = null,
+        blockWriteGate: CompletableDeferred<Unit>? = null,
+        relationReadGate: CompletableDeferred<Unit>? = null,
     ): Harness {
         val dir = File(System.getProperty("java.io.tmpdir"), "profile-relations-${System.nanoTime()}").apply { mkdirs(); directories += this }
         fun dataStore(name: String) = PreferenceDataStoreFactory.create(scope = scope) { File(dir, "$name.preferences_pb") }
@@ -192,7 +235,10 @@ class ProfileRelationsTest {
                 } else {
                     """{"data":[],"total":0}"""
                 }
-                request.url.encodedPath == "/p1/blocklist/bob" && request.method == HttpMethod.Put -> """{"blocklist":[99]}"""
+                request.url.encodedPath == "/p1/blocklist/bob" && request.method == HttpMethod.Put -> {
+                    blockWriteGate?.await()
+                    """{"blocklist":[99]}"""
+                }
                 request.url.encodedPath == "/p1/blocklist/bob" && request.method == HttpMethod.Delete -> """{"blocklist":[]}"""
                 else -> error("未预期的请求 ${request.method} ${request.url.encodedPath}")
             }
@@ -206,12 +252,14 @@ class ProfileRelationsTest {
         val blocked = BlocklistRepository(fault, UserApi(client), store, webSessions, clock, scope)
         blocked.record(session, emptyList())
         fault.failed.set(failRead)
+        fault.readGate = relationReadGate
         val friends = FriendsRepository(dataStore("friends"), UserApi(client), store, clock, scope)
+        val source = HeldBlocklist(blocked).also { it.followFailureHold = followFailureHold; it.checkGate = checkGate }
         val users = UserRepository(UserApi(client), store, object : UserDao {
             override suspend fun get(id: Int): UserEntity? = null
             override suspend fun getByUsername(username: String): UserEntity? = null
             override suspend fun upsert(user: UserEntity) = Unit
-        }, clock, webSessions, friends, blocked, AccountMe(UserApi(client), store))
+        }, clock, webSessions, friends, source, AccountMe(UserApi(client), store))
         val collections = testCollections(resources, CollectionApi(client), FakeSubjectDao(), FakeUserCollectionDao(), store, FakeEpisodeWatchStateDao(), webClient = web)
         val vm = withContext(Dispatchers.Main) {
             ProfileViewModel(
@@ -221,7 +269,7 @@ class ProfileRelationsTest {
                 testDraftRepository(scope, tokens = store), clock, NoBlockedUsers(), IndexRepository(IndexApi(client), UserApi(client), store),
             ).also { viewModels += it }
         }
-        return Harness(vm, fault, requests, blocked, friends, session, friend, reportGate, reportEntered, reportFailed)
+        return Harness(vm, fault, requests, blocked, friends, session, friend, reportGate, reportEntered, reportFailed, source)
     }
 
     private fun p1User(friend: Boolean) = """{"id":99,"username":"bob","nickname":"Bob","avatar":{"large":"l","medium":"m","small":"s"},"group":10,"joinedAt":0,"sign":"","site":"","location":"","bio":"","networkServices":[],"homepage":{"left":[],"right":[]},"stats":{"subject":{},"mono":{"character":0,"person":0},"blog":0,"friend":0,"group":0,"index":{"create":0,"collect":0}},"isFriend":$friend}"""
@@ -341,6 +389,33 @@ class ProfileRelationsTest {
         h.friends.confirmWrite(h.session)
         awaitUntil("取消好友后我关注的去掉 bob") { h.viewModel.uiState.value.social.following.items.isEmpty() }
         awaitUntil("取消好友后好友数跟上") { (h.viewModel.uiState.value.userLoad as? Load.Ready)?.value?.friendCount == 0 }
+    }
+
+    /**
+     * 写在途时主页跟随读到的是写入之前的名单；写记下的新名单那一拍晚于写的结束才到。写完的那一刻主页仍是写成的关系，
+     * 不被在途时读到的旧名单盖回去。
+     */
+    @Test
+    fun `写在途时读到写入之前的名单_写完不盖掉写成的关系`() = runBlocking {
+        val reads = CompletableDeferred<Unit>()
+        val put = CompletableDeferred<Unit>()
+        val h = harness(blockWriteGate = put, relationReadGate = reads)
+        h.viewModel.awaitProfile()
+        withTimeout(WAIT_BUDGET_MS) { h.faultStore.readFinished.await() }
+        h.faultStore.readGate = null
+        val updates = CompletableDeferred<Unit>()
+        h.faultStore.updateGate = updates
+        val write = h.viewModel.actionJob { h.viewModel.blockUser() }
+        reads.complete(Unit)
+        awaitUntil("写入之前的名单交到主页跟随") { h.faultStore.delivered.get() > 0 }
+        repeat(2) { withContext(Dispatchers.Main) { } }
+        put.complete(Unit)
+        withTimeout(WAIT_BUDGET_MS) { write.join() }
+        assertTrue(h.viewModel.uiState.value.socialOps.isBlocked, "写完时主页是写成的已绝交，不是在途时读到的旧名单")
+        updates.complete(Unit)
+        awaitUntil("名单带来写成的那一拍之后仍是已绝交") { h.faultStore.delivered.get() > 1 }
+        withContext(Dispatchers.Main) { }
+        assertTrue(h.viewModel.uiState.value.socialOps.isBlocked)
     }
 
     @Test
@@ -472,6 +547,25 @@ class ProfileRelationsTest {
         h.faultStore.failed.set(false)
         h.viewModel.actionJob(assertNotNull(notice.retry)).let { withTimeout(WAIT_BUDGET_MS) { it.join() } }
         // 别处绝交了对方：主页不刷新也要跟上，跟随不能停在首读失败的那一轮
+        h.blocklist.record(h.session, listOf(99))
+        awaitUntil("重试之后名单记下对方，主页显示已绝交") { h.viewModel.uiState.value.socialOps.isBlocked }
+    }
+
+    /**
+     * 首读失败时主页跟随那一轮也读到了失败，但失败还没传到、它还在跑；这时重试读出了名单。重试之后主页要换一轮新的跟随：
+     * 还在跑的那一轮马上就会结束，不再出拍。
+     */
+    @Test
+    fun `跟随读到失败还没结束时重试成功_之后仍跟着名单走`() = runBlocking {
+        val followFailure = CompletableDeferred<Unit>()
+        val check = CompletableDeferred<Unit>()
+        val h = harness(failRead = true, followFailureHold = followFailure, checkGate = check)
+        awaitUntil("跟随读到失败，停在失败传到之前") { h.source.heldFollowFailures.get() == 1 }
+        check.complete(Unit)
+        val notice = h.viewModel.awaitFailure()
+        h.faultStore.failed.set(false)
+        h.viewModel.actionJob(assertNotNull(notice.retry)).let { withTimeout(WAIT_BUDGET_MS) { it.join() } }
+        followFailure.complete(Unit)
         h.blocklist.record(h.session, listOf(99))
         awaitUntil("重试之后名单记下对方，主页显示已绝交") { h.viewModel.uiState.value.socialOps.isBlocked }
     }

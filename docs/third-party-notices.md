@@ -1,6 +1,6 @@
 # 第三方来源说明
 
-Chogumi 以 GPL-3.0 发布。下表列出随 APK 分发的第三方代码与素材，与 App 的「设置 › 关于」页的清单对应；代码库版本以 Gradle 依赖目录（`gradle/libs.versions.toml`）为准，各自保留原许可证。App 随包附 GPL-3.0、Apache-2.0、MIT（含各库的版权行）、GPL-2.0 加 Classpath Exception、CC BY 4.0 的许可原文（`feature/settings/src/main/assets/licenses/`）。
+Chogumi 以 GPL-3.0 发布。下表列出随 APK 分发的第三方代码与素材，与 App 的「设置 › 关于」页的清单对应；代码库版本以 Gradle 依赖目录（`gradle/libs.versions.toml`）为准，各自保留原许可证。App 随包附 GPL-3.0、Apache-2.0、MIT（含各库的版权行）、GPL-2.0 加 Classpath Exception、CC BY 4.0、BSD-3-Clause 的许可原文（`feature/settings/src/main/assets/licenses/`）。
 
 ## 随 APK 分发的第三方清单
 
@@ -16,6 +16,7 @@ Chogumi 以 GPL-3.0 发布。下表列出随 APK 分发的第三方代码与素�
 | colormath | Colormath | MIT | https://github.com/ajalt/colormath |
 | jsoup | jsoup | MIT | https://jsoup.org |
 | slf4j | SLF4J | MIT | https://www.slf4j.org |
+| go-gomobile | Go 与 gomobile（直连核心） | BSD-3-Clause | https://go.dev |
 | desugar-jdk-libs | desugar_jdk_libs | GPL-2.0 with Classpath Exception | https://github.com/google/desugar_jdk_libs |
 | bangumi-smileys | Bangumi 表情 | 版权归 Bangumi 番组计划，未声明开源许可 | https://lain.bgm.tv/img/smiles/ |
 | platform-logos | 平台标志（Nintendo Switch、PS5、Windows、Xbox） | 图形 CC0 1.0（Simple Icons），商标归各自所有者 | https://simpleicons.org |
@@ -33,6 +34,14 @@ Chogumi 以 GPL-3.0 发布。下表列出随 APK 分发的第三方代码与素�
 - 取法：GitHub 仓库 master 上的 `dist/data.json`（原始文件地址），带 ETag、6 小时最多取一次（`AiringTimeRepository`）；数据不落入 APK，
   只在本机数据库里存条目 id 与首播时刻
 - 许可：CC BY 4.0（原文随包，`CC-BY-4.0.txt`）；App 没有改动数据本身，只按条目取其中的首播时刻
+
+## 直连核心（Go 与 gomobile）
+
+- 内容：`core/netroute/libs/echcore.aar`（只含 arm64-v8a 的 `libgojni.so` 与 gomobile 生成的 Java 胶水类），由本仓库的 Go 源码
+  `core/netroute/go/` 经 `tools/echcore/build.sh` 生成；链进去的是 Go 标准库与运行时，以及 `golang.org/x/mobile` 的绑定运行时
+  （`go.Seq` 等类），版本钉在 `core/netroute/go/go.mod`
+- 许可：Go 与 golang.org/x/mobile 都是 BSD-3-Clause（Copyright 2009 The Go Authors，原文随包，`BSD-3-Clause.txt`）；
+  `core/netroute/go/` 里的代码是本项目的，随项目 GPL-3.0
 
 ## Material Symbols 图标
 

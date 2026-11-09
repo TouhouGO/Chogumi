@@ -35,15 +35,12 @@ import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.core.res.R
 import androidx.compose.ui.res.stringResource
-import io.github.touhougo.chogumi.core.ui.collection.PosterMarkDemo
 import io.github.touhougo.chogumi.core.ui.collection.posterCoverShape
 import io.github.touhougo.chogumi.core.ui.collection.posterMarkGesture
 import io.github.touhougo.chogumi.core.ui.collection.rememberPosterMark
 import io.github.touhougo.chogumi.core.ui.composables.CarouselSlot
 import io.github.touhougo.chogumi.core.ui.composables.PressArea
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightGuideState
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPoster
-import io.github.touhougo.chogumi.core.ui.composables.spotlightTarget
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 import io.github.touhougo.chogumi.core.ui.theme.isDarkThemeActive
 
@@ -95,27 +92,21 @@ internal fun heroLargeItemWidth(maxWidth: Dp): Dp {
  * 规范里它就是「一次浏览多张图」的形态（`references/components/containment.md:112`），
  * 宽屏上大项更多（同上 :198）。遮罩裁切、形状变形、吸附都由官方 [HorizontalMultiBrowseCarousel] 给；
  * 一次可滑过多项（同上 :207），用 [CarouselDefaults.multiBrowseFlingBehavior]。
- *
- * 第一项是探索页引导第一步指着的那张封面：报给 [guide]（[GuideCoverTarget]），[coverDemo] 时在它上面放长按环的演示。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TrendingHeroCarousel(
     items: List<SubjectBo>,
     onSubjectClick: (Int) -> Unit,
-    guide: SpotlightGuideState?,
-    coverDemo: Boolean,
     modifier: Modifier = Modifier,
 ) {
     TrendingHeroFrame(items.size, modifier) { index, textAlpha, itemModifier ->
-        val first = index == 0
         HeroCard(
             rank = index + 1,
             subject = items[index],
             textAlpha = textAlpha,
             onClick = { onSubjectClick(items[index].id) },
-            demo = first && coverDemo,
-            modifier = if (first) itemModifier.spotlightTarget(guide, GuideCoverTarget) else itemModifier,
+            modifier = itemModifier,
         )
     }
 }
@@ -164,8 +155,6 @@ private fun HeroCard(
     subject: SubjectBo,
     textAlpha: () -> Float,
     onClick: () -> Unit,
-    /** 在这张封面上放引导里长按环的演示。 */
-    demo: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // 压在图上的遮罩要够暗才托得住白字，深色主题下再深一档：底色取 M3 的 scrim 色，
@@ -176,7 +165,6 @@ private fun HeroCard(
     val mark = rememberPosterMark(subject.id, subject.type)
     val interaction = remember { MutableInteractionSource() }
     val coverShape = posterCoverShape(mark, interaction, HeroCorner)
-    PosterMarkDemo(mark, playing = demo)
 
     PressArea(onClick = onClick, shape = coverShape, interactionSource = interaction, modifier = modifier.posterMarkGesture(mark)) {
         SubjectPoster(

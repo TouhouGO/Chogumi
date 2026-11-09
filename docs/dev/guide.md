@@ -16,11 +16,11 @@
 | 仓库、缓存、DTO 映射 | core:data 的 `repository/`、`db/mapper/`（写入时刻显式传入） |
 | 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 清理失败时读取仍先认持久归属，下一次会话变化或记录搜索再清；会话本身读不出时维护结束、不崩，之后只靠记录搜索再清 |
 | 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
-| 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
+| 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/`；章节格子的形状、集号强调、静止与预览描边只在 `TileStyle`，真实网格、演示与进度尺共用，演示的格子种类也由 core:model `EpisodeTracking.episodeGrid` 推导 |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
-| 富文本、楼层、动态卡片 | core:reader |
+| 富文本、楼层、动态卡片 | core:reader；阅读字阶 `ReaderTypography`、楼层几何 `FloorGeometry` 与楼层骨架 `CommentFloorSkeleton` 在 core:ui（手势引导也画它们） |
 | 名单面板（作品「谁在看」、楼层「谁贴了」） | 框架只有 core:ui `PeopleListSheet`（标题 + 筛选 chip 行 + 人物区）；谁贴了在 core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |
-| 第一次进来的引导（压暗整页、亮出一块、旁边一张卡） | core:ui 的 `SpotlightScrim`（遮罩，`ModalScrim` 的挖洞形式）与 `SpotlightGuide`（卡与挡手的那一层），中间能夹一层要露在遮罩上面的东西；被指着的地方挂 `spotlightTarget`，卡与章节跳格确认同一张 `RichTipCard`，只有卡上的按钮收起；要演示长按环用 `PosterMarkDemo`（真的环与胶囊，不写收藏）。探索页的两步与「走完过」的记录在 feature:explore 的 `ExploreGuide` |
+| 手势引导（只靠长按才找得到的几处，各一页会动的演示） | core:ui 的 `tour` 包：`GestureTour` 是整套页（翻页用 `TabPager`），每页一个演示（`MarkDemo` 封面长按环、`EpisodeDemo` 按住一集、`FloorDemo` 楼层长按、`ArrangeDemo` 整理探索页），都画在 `TourStage` 里（按真实 dp 排、整块缩小，字与色块是 `SkeletonSketch` 的示意图画法）。演示不另编数字：长按环就是真环的 `RingLayers`（给它一个 `RingLook`）与 `MarkBadges`，格子是 `tileFace` 与 `EpisodeTileRows`，单集面板头部是 `EpisodeHeadFrame`，楼层是 `CommentFloorSkeleton`，长按菜单是 `MenuGroups` + `AppMenuItem`、表情格子读 `ReactionGridGeometry`，整理是 `ArrangeBar`、`SegmentedItem` 打头 `CoverStack`、拖着的行按 `reorderRowColor`。这些都在 core:ui，真页面（core:reader、作品页、探索页）也从这里读：演示要的东西缺了，就把它从原处搬进 core:ui，不在演示里照写一份。改了长按环、格子、楼层菜单、整理列表的样子，演示跟着看一遍。第一次打开与升级后由外壳（`AppShell`，`ShellState.gestureTour`，偏好 `gestureTourShown`）盖在页面上放一次，设置的「使用技巧」（`Route.GestureTour`）重看 |
 | 界面大小（应用的密度） | core:model `DisplayScale`（档位与收敛）→ core:ui `displayScaleOverride`（Activity 只换 `densityDpi`，dp 处处跟着走）；不在页面里改 `LocalDensity` |
 | 刷新率 | core:model `RefreshRate`（档位从这块屏报的模式来，不写死）→ core:ui `requestRefreshRate`（窗口 `preferredDisplayModeId` 的唯一落点，AppActivity 调） |
 | 配色与明暗 | 来源（种子色、配色方案、系统取色）只经 core:ui `themeColorSource` → `appColorScheme`，App、小组件、对比度测试同一条路；十套方案的角色色是 `PresetSchemes.kt` 的静态表（对比度由 `PresetColorSchemeTest` 守）；主题模式 → 明暗只经 `ThemeMode.fixedDark` / `darkThemeOf` |
@@ -28,6 +28,7 @@
 | 从外面进来的链接（OAuth 回跳、别的应用里点开的 bgm.tv 网页） | app 的 `LinkActivity`（清单里唯一挂 VIEW 的入口；登记的域名与路径和 `inAppRoute` 由 `LinkManifestContractTest` 守）→ `AppActivity.handleLink`；应用里没有的页交给浏览器（`CustomTabUriHandler` 指名浏览器，不绕回自己） |
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
 | 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
+| 连 bgm.tv 走哪条线路（系统网络 / 直连） | core:netroute：线路设置与核心起停 `NetRoute`、给网络层的调整 `DirectRouting`、边缘地址来源 `EdgeAddresses`、设备支不支持 `directRouteSupported`；网络层只认 core:network 的 `OkHttpCustomizer`（三个接口客户端与图片加载都套上）。直连核心的 Go 源码在 `core/netroute/go/`，改了跑 `tools/echcore/build.sh` 重新生成 `core/netroute/libs/echcore.aar`；别处不引用核心（`python3 tools/guards/check_netroute.py`）。设置页「网络」与登录页的地球、「试试直连」都读同一份设置（§1.10） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
 | 一个页面 | `feature/<名字>/`：Screen + ViewModel + `di/<名字>Module.kt`，feature 之间不互相依赖 |
@@ -251,6 +252,43 @@ flowchart LR
   如周二 02:00 JST 开播的每集都是周一），与放送表的星期同一套归法；所以首页追更时间表按 `airdate` 的星期查放送时刻（`airingMinuteOf`）。
   bgm.tv 放送表不收全部在播作品（国产动画、部分新番不在表里），在追作品哪天播只看下一集的 `airdate`（`followedAiringDateOf`），
   首页与每日放送的「我在追」同一个判定；本机还没有这部的章节时才退回放送表的星期。
+
+### 1.10 直连（ECH）的事实（2026-11-09 线上实测）
+
+- bgm.tv、api.bgm.tv、next.bgm.tv、lain.bgm.tv 都在 Cloudflare 上，解析到 104.26.8.23、104.26.9.23、172.67.73.67；bgm.tv 自己的
+  DNS 没有发布 ECH 配置。Cloudflare 的共用配置（public_name `cloudflare-ech.com`，71 字节，chii.in 的 HTTPS 记录里有同一份）对这四个
+  域名都被接受（`ECHAccepted`），证书是 bgm.tv 的。
+- 配置不对（公钥随意的一份）时 Cloudflare 拒绝并随拒绝给出当前配置，用它重连就成功；所以核心内置一份随意的配置即可自举，
+  拿到的那份存进 core:netroute 的 DataStore，冷启动直接用。
+  核心起动时自己复制一份配置（gomobile 从 Java 传进 Go 的字节只在那一次调用里有效，留着用会被改掉）；存下的那份结构上不是
+  ECHConfigList 时当外部输入降级：用内置的那份起步、再自举。验收直连要冷启动两次：第一次走内置配置、自举并存下，第二次读存下的那份。
+- 不是每个 Cloudflare 地址都服务 bgm.tv：104.16.132.229 握手成功但回 403「error code: 1034」（边缘地址受限），核心见到就换下一个地址。
+- 核心连边缘地址的规则只写在 `core/netroute/go/proxy/edges.go` 的注释里：ALPN 先 h2，每个主机一条连接、请求在上面并发
+  （取消一个请求只重置它那条流；这条连接悄悄不通了，一份预算收不到帧就发 ping、再半份没回就断开）；按健康顺序错开并行起拨、先握手成功的胜出，间隔是排第一的地址实测握手耗时的 1.5 倍、夹在
+  250 毫秒到半份预算之间；每个地址的拨号加握手预算是客户端一次请求的超时分成「地址数 + 1」份（core:netroute `edgeBudgetMillis`，
+  最坏耗时 `coreWorstCaseMillis` 短于请求超时）；没在冷却的地址按实测握手耗时（EWMA）从快到慢排，一次失败不改顺序；
+  同一地址连续失败两次进冷却，冷却逐次加长（30 秒、2 分钟、10 分钟封顶），成功一次清零，1034 直接冷却 10 分钟；
+  每个主机同时最多 3 个拨号加握手；设备换了网络（默认网络回调）就清空健康表。
+  换地址（1034）与换网络都让连接池退役：新请求与重放走新池、重新拨号，旧池里在途的流跑完（h2 连接还有流在跑就不算空闲，只关空闲连接挡不住复用）。
+- 2026-11-09 大陆真机（调试日志，约 2 分钟、175 次握手）：没有一次被重置或 ECH 被拒，失败全是某个地址整段超时；成功握手中位 541 毫秒、
+  九成在 1.5 秒内；三个地址差别很大（那台网络上 104.26.8.23 一次没成功，172.67.73.67 几乎全成功）。同一批头像被反复取消重发，是列表上下滑动时 Coil 取消滚出屏幕的行（取消顺序随滑动方向正反交替），不是缺陷；直连下每张图要单独握手才显得慢。
+- 2026-11-09 MuMu（arm64，网络经宿主代理：只说明连接复用，不说明能过封锁），同一条只读路线（首页、作品页、社区吐槽上下滑一分钟、讨论版、
+  一个 73 楼的帖子）：h2 下握手 7 次、0 超时、没有被取消的请求；每个主机多条 h1 连接时 28 次，3 次在同一地址超时，6 个接口请求挂满
+  15 秒被客户端超时取消。关开一次 Wi‑Fi（默认网络换了）之后核心丢掉旧连接、重新握手，页面照常。
+- 所有 OkHttp 客户端（三个接口客户端的引擎、图片加载）的读写超时都是一次请求的超时（core:network `requestTimeouts`），
+  不再是 OkHttp 默认的 10 秒；图片对只读请求的网络瞬断重发一次（同接口客户端的读重试判定；调用方取消了——图片滚出屏幕——不算，不再发）。
+  图片的跳转在线路之上跟随（外站图片跳到 bgm.tv 的图床时那一跳也走直连），不交给 OkHttp：OkHttp 自己跟随的后几跳不经过应用拦截器。
+- 调试包里核心每次握手记一行到 logcat：`adb logcat -s ChogumiDirect`，
+  `handshake host=… edge=… ms=… result=ok proto=h2|h1` 或 `result=reset|timeout|ech-rejected|refused|error|canceled`（canceled 是别的地址先胜出，不算失败），
+  另有 `ech-retry`（换上服务端给的配置）、`ech-config-invalid`（存下的配置坏了，改用内置的）与 `edge-restricted`（1034）。
+- 线路设置的观察拍只负责触发同步：`NetRoute.transition` 在起停核心的同一把锁内经 `mode` 重读当前设置，
+  启动或排队期间取到的旧拍不能停掉用户刚开好的核心；读失败仍按 `mode` 的系统网络与退避恢复规则处理。
+- 大陆线路（Mac 有线、出口 CN）上：普通 SNI 连 bgm.tv 各地址约 40ms 被重置（线路中注入，早于服务器的回包）；ECH 外层 SNI 是
+  `cloudflare-ech.com`，不被重置，10 分钟 120 次请求全部成功。对同一地址连发几次普通 SNI 之后，几十秒内连 ECH 也被重置
+  （推断：两次观察，没量出时长）：直连失败时绝不退回普通 SNI。
+- 同一线路上国内 DNS（运营商、223.5.5.5、119.29.29.29、114、doh.pub、阿里 DoH）给 bgm.tv 与 chii.in 都回假地址；dns.google、
+  cloudflare-dns.com 的 DoH 连不上。所以边缘地址内置，不靠 DNS。
+- 直连只管 OkHttp 的请求（接口客户端与图片加载）。应用里的 WebView（回帖的人机验证页）与浏览器（浏览器授权、打开网页）不经过它。
 
 ## 2. 排版框架级的坑
 

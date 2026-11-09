@@ -63,6 +63,7 @@ import io.github.touhougo.chogumi.core.common.bbcode.SmileyCatalog
 import io.github.touhougo.chogumi.core.common.bbcode.plainText
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LocalInAppLinkHandler
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
 import io.github.touhougo.chogumi.core.ui.common.navigation.inAppRoute
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonTextSample

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
 import io.github.touhougo.chogumi.core.ui.composables.ConfirmDialog
 import io.github.touhougo.chogumi.core.ui.composables.ConnectedChoiceGroup
@@ -50,7 +51,8 @@ import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * 设置的一级菜单：自己的资料（登录了才有，点了由 [onProfile] 去个人资料页），各分类（[SettingsSection]，点了由 [onSection] 去那一页），图片缓存，关于（[onAbout]），
+ * 设置的一级菜单：自己的资料（登录了才有，点了由 [onProfile] 去个人资料页），各分类（[SettingsSection]，点了由 [onSection] 去那一页），图片缓存，
+ * 使用技巧（[onGestureTour]，重看手势引导），关于（[onAbout]），
  * 调试区（可调试构建），退出登录（登录了才有）。
  */
 @Composable
@@ -59,6 +61,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onSection: (SettingsSection) -> Unit,
+    onGestureTour: () -> Unit,
     onAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -76,9 +79,11 @@ fun SettingsScreen(
         onBack = onBack,
         onProfile = onProfile,
         onSection = onSection,
+        onGestureTour = onGestureTour,
         onAbout = onAbout,
         isLoggedIn = isLoggedIn,
         showDebugTools = debuggable,
+        networkSection = directRouteSupported,
     )
 }
 
@@ -91,10 +96,13 @@ fun SettingsContent(
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onSection: (SettingsSection) -> Unit,
+    onGestureTour: () -> Unit,
     onAbout: () -> Unit,
     isLoggedIn: Boolean,
     /** 调试区（按链接跳转、上次崩溃），只在可调试构建里显示。 */
     showDebugTools: Boolean,
+    /** 「网络」分类：设备支持直连时才有（core:netroute `directRouteSupported`）。 */
+    networkSection: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // 退出登录先确认：点错一下就要重新走一遍登录（验证码、浏览器授权）。
@@ -121,7 +129,7 @@ fun SettingsContent(
                 SettingsGroup(
                     key = "sections",
                     title = null,
-                    rows = SettingsSection.entries.map<SettingsSection, SettingsRow> { section ->
+                    rows = SettingsSection.entries.filter { it != SettingsSection.NETWORK || networkSection }.map<SettingsSection, SettingsRow> { section ->
                         { index, count ->
                             LinkRow(index, count, stringResource(section.title), section.icon) { onSection(section) }
                         }
@@ -132,6 +140,7 @@ fun SettingsContent(
                     title = null,
                     rows = listOf<SettingsRow>(
                         { index, count -> ImageCacheRow(index, count, state.imageCacheBytes) { confirmingClearCache = true } },
+                        { index, count -> LinkRow(index, count, stringResource(R.string.settings_gesture_tour), R.drawable.touch_app_24, onGestureTour) },
                         { index, count -> LinkRow(index, count, stringResource(R.string.about), R.drawable.info_24, onAbout) },
                     ),
                 ),
@@ -209,6 +218,7 @@ fun SettingsPageScreen(
         SettingsSection.CONTENT_FILTER ->
             ContentSettingsScreen(isLoggedIn, onBack, onMutedGroups, onBlockedUsers, modifier)
         SettingsSection.UPDATES -> UpdateSettingsScreen(onBack, modifier)
+        SettingsSection.NETWORK -> NetworkSettingsScreen(onBack, modifier)
     }
 }
 
@@ -275,7 +285,7 @@ const val SettingsListTag = "settings_list"
  * - 二值设置用 Switch，开关即时生效、无需保存，在行尾；标签文字在开关**外侧**；
  * - Disabled 是合法状态；
  * - 整行是一个可切换节点（读屏念「标题，开关，已开」，点标题也能切），Switch 自己只负责画。
- * [details] 画在标题下面：状态原因（如 NSFW 不可用），或专注模式那一行的功能说明（唯一的例外，理由在 `ExperienceModeRow`）。[switchTag] 供仪器测试精确定位（页面上有多个开关）。
+ * [details] 画在标题下面：状态原因（如 NSFW 不可用），或功能说明（只有专注模式与直连两行，理由在 `ExperienceModeRow` 与「网络」页）。[switchTag] 供仪器测试精确定位（页面上有多个开关）。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

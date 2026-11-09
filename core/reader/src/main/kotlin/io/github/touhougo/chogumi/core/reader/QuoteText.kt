@@ -10,6 +10,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 
 /**
  * 引用条：左侧 3dp 竖线 + 8dp 留白（原型 `.quote{border-left:3px;padding-left:8px}`）。

@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
+import io.github.touhougo.chogumi.core.common.notice.NoticeAction
 import io.github.touhougo.chogumi.core.common.notice.NoticeText
 import io.github.touhougo.chogumi.core.res.R
 
@@ -45,7 +46,7 @@ private suspend fun SnackbarHostState.showFailure(
  * 底部提示条（Snackbar）的**唯一入口**：把 ViewModel 的 [FailureNotices] 显示成提示条，
  * 页面不各自手写「LaunchedEffect(错误) { 显示; 清掉 }」。显示完才确认消费（先清掉会取消这次显示）；
  * 带重试的提示点了「重试」就调它；只能在网页上做成的（[io.github.touhougo.chogumi.core.common.notice.FailureNotice.webUrl]）
- * 点了「去网页」用当前的 [LocalUriHandler] 打开。
+ * 点了「去网页」用当前的 [LocalUriHandler] 打开；带界面动作的（[NoticeAction]，如「试试直连」）点了交给 [onAction]，由页面认出是哪个再做。
  *
  * 规则（产品决定，单一真源）：提示条只在「操作没办成」时出现——请求失败 / 超时 / 无响应、
  * 操作被拒（例如需要登录）。操作成功、纯告知（「已保存」「已固定」「已全部标为已读」）**一律不弹**，
@@ -53,23 +54,31 @@ private suspend fun SnackbarHostState.showFailure(
  * `SnackbarFailureOnlyContractTest` 扫描全部 `src/main` 源集，任何模块直接调用 `showSnackbar` 都会让它变红。
  */
 @Composable
-fun FailureNoticeEffect(notices: FailureNotices, snackbar: SnackbarHostState) {
+fun FailureNoticeEffect(notices: FailureNotices, snackbar: SnackbarHostState, onAction: (NoticeAction) -> Unit = {}) {
     val notice by notices.current.collectAsStateWithLifecycle()
     val text = notice?.text?.resolve()
     val retryLabel = stringResource(R.string.retry)
     val webLabel = stringResource(R.string.failure_action_open_web)
+    val actionLabel = notice?.action?.let { stringResource(it.label) }
     val browser by rememberUpdatedState(LocalUriHandler.current)
+    val runAction by rememberUpdatedState(onAction)
     LaunchedEffect(notice) {
         val shown = notice ?: return@LaunchedEffect
         val webUrl = shown.webUrl
-        val action = when {
+        val action = shown.action
+        val label = when {
             webUrl != null -> webLabel
+            action != null -> actionLabel
             shown.retry != null -> retryLabel
             else -> null
         }
-        val result = snackbar.showFailure(text.orEmpty(), action)
+        val result = snackbar.showFailure(text.orEmpty(), label)
         if (result == SnackbarResult.ActionPerformed) {
-            if (webUrl != null) browser.openUri(webUrl) else shown.retry?.invoke()
+            when {
+                webUrl != null -> browser.openUri(webUrl)
+                action != null -> runAction(action)
+                else -> shown.retry?.invoke()
+            }
         }
         notices.consume(shown)
     }

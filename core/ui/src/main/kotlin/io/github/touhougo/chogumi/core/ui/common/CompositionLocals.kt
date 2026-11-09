@@ -52,7 +52,7 @@ val LocalSignedInAccount = staticCompositionLocalOf<SignedInAccount?> { null }
 
 /**
  * 当前的阅读字号档位。**唯一提供点**同 [LocalAppFeatures]（app 壳 `AppShell`，值来自偏好 DataStore）；
- * 只有 core:reader 的 `ReaderTypography` 读它，档位 → 字阶的映射在那里。
+ * 只有同包的 [ReaderTypography] 读它，档位 → 字阶的映射在那里。
  */
 val LocalReadingTextSize = staticCompositionLocalOf { ReadingTextSize.DEFAULT }
 

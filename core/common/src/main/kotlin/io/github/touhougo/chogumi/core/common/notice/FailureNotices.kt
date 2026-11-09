@@ -17,13 +17,25 @@ sealed interface NoticeText {
 }
 
 /**
+ * 提示条上一个由界面来做的动作（如「试试直连」去设置页）：ViewModel 只说是哪一个，点了做什么由界面在
+ * `FailureNoticeEffect(onAction = …)` 里按身份认出来再做（ViewModel 不持有导航）。[label] 是按钮上的字。
+ */
+class NoticeAction(@StringRes val label: Int)
+
+/**
  * 一条失败提示。**按身份区分**（不是 data class）：同一句话连着失败两次，提示也出现两次。
- * 提示条最多一个动作：[webUrl] 非空时是「去网页」，否则 [retry] 非空时是「重试」。
+ * 提示条最多一个动作：[webUrl] 非空时是「去网页」，否则 [action] 非空时是它，否则 [retry] 非空时是「重试」。
  *
  * @property retry 非空时提示条带「重试」，点了就调它。
  * @property webUrl 这件事只能在网页上做成：提示条带「去网页」，点了由界面打开这个网页（ViewModel 不持有界面对象）。
+ * @property action 非空时提示条带这个动作，点了交给界面。
  */
-class FailureNotice internal constructor(val text: NoticeText, val retry: (() -> Unit)?, val webUrl: String? = null)
+class FailureNotice internal constructor(
+    val text: NoticeText,
+    val retry: (() -> Unit)?,
+    val webUrl: String? = null,
+    val action: NoticeAction? = null,
+)
 
 /**
  * ViewModel → 界面的失败提示通道——**全仓唯一**。ViewModel [post]，界面用 core:ui 的 `FailureNoticeEffect`
@@ -48,6 +60,11 @@ class FailureNotices {
 
     fun post(@StringRes text: Int, vararg args: Any, retry: (() -> Unit)? = null) {
         pending.value = FailureNotice(NoticeText.Resource(text, args.toList()), retry)
+    }
+
+    /** 带一个由界面来做的动作（[NoticeAction]）的提示。 */
+    fun post(@StringRes text: Int, action: NoticeAction) {
+        pending.value = FailureNotice(NoticeText.Resource(text), retry = null, action = action)
     }
 
     /** 这一条已经显示过；期间又来了新的就保留新的。 */

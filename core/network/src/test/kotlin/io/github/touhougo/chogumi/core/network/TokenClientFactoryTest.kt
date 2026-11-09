@@ -19,7 +19,7 @@ class TokenClientFactoryTest {
         val engine = MockEngine {
             respond("credential-${calls.incrementAndGet()}", headers = headersOf(HttpHeaders.CacheControl, "public, max-age=3600"))
         }
-        createTokenHttpClient("test", engine).use {
+        createTokenHttpClient("test", engine, customizers = emptyList()).use {
             assertEquals("credential-1", it.get("https://bgm.tv/oauth/access_token").bodyAsText())
             assertEquals("credential-2", it.get("https://bgm.tv/oauth/access_token").bodyAsText())
         }

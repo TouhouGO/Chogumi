@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.ui.composables.CircleAvatar
+import io.github.touhougo.chogumi.core.ui.composables.CommentFloorSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.GroupIcon
 import io.github.touhougo.chogumi.core.ui.composables.ListSortBarSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonText

@@ -44,6 +44,7 @@
 | 改共享原语先数清调用方。（转正 2026-10-25） | `cachedNetworkCall`、`Load.advance`、`collectSection`、`Pager`、常用测试夹具的签名：PR 正文列每个调用方为什么仍然成立，每一类消费方有一个测试（`combine` 几条流算一类）；改的是排版组件时，截图覆盖每一类调用方。夹具签名的改动自己一个 PR，其余分支之后合 main。 |
 | 规则放在所有入口都经过的那一点。（转正 2026-10-27） | OAuth 状态只在 `AuthRepository.login` 清一次，不在每个登录函数里各清一次；同一条命令不写三遍。 |
 | 列表上的决定在事件处对整张表做一次。（转正 2026-10-27） | 见红线 1：`EpisodeTap.changes`、`EpisodeTracking.progressIndexOf`。每格各算一遍是 O(n²)，只在可见的一页里找是越界。 |
+| 先找已有的实现，再动手写。（转正 2026-11-09） | 动手前在 core:ui、core:data 与 core:ui 的 testFixtures、`tools/guards/sources.py` 里找同一种能力，兄弟 PR 刚合入的也算：演示与真组件读同一个判定（格子种类 `EpisodeTracking.episodeGrid`，形状、强调、描边 `TileStyle`），页面级的切换只经 `chogumiTransition`，测试的等待与收尾只经 `awaitUntil` / `cancelAndAwait`，门禁读 Kotlin 只经 `sources.py`。 |
 | 修 bug 不新添死代码。（转正 2026-10-27） | 不起作用的代次检查、守着不可达分支的标志、只为不可达分支留着的辅助函数、只有测试在用的新参数、只给测试留的默认参数：删。 |
 | 修好特例，也测普通的邻居。（转正 2026-10-27） | 修复旁边放一个普通情况的测试：遮罩外的 `[size]` 表情还是原大，输入「0」仍清空进度。 |
 | 不悄悄丢掉，也不悄悄报零。（转正 2026-10-27） | 忙时被拒的请求记下来，忙完就做（`Pager.reloading`）；一个目录都没读到的计数工具报错，不报 0。 |
@@ -64,6 +65,7 @@
 | 测试与设计不一致时，按设计断言。 | 不把 `<` 放成 `<=`、不加容差、不为一个调用方加开关、不删断言换绿；错的测试改回意图，并在坏掉的实现上看它红。 |
 | 新回归测试先红一次。 | 在它要抓的代码上（改动之前的实现，或临时弄坏的生产分支）跑一次看它红，再恢复。一开始就绿的测试没证明它测到了什么。PR 正文引用那一行失败原文。 |
 | 红就是缺陷报告。 | 不静默重跑。不是本次改动引起、单跑又不复现的红，先记进 flaky 日志 `.devdoc/flaky-tests.md`（测试、失败原文、条件、单跑结果、怀疑的原因）再重跑；没有 `.devdoc/` 的会话（云端）把同样的条目写进 PR 正文。flaky 以后一个一个、限时修，不在别的工作中途无限期追。 |
+| 同一条偶发红再出现就是缺陷。（转正 2026-11-09） | 记过一次 flaky 的红再出现，不再记 flaky、不重跑了事：查到根因、让它必红，再修该修的那一边（测试或生产）。单跑不复现只说明窗口小，不说明没有缺陷。失败原文从 JUnit XML 取（CI 的测试报告产物）：控制台的简写只给测试函数那一行。 |
 | 偶发红先查测试自己。（转正 2026-11-07） | 偶发红常出在测试：等的条件不单调、读的是两拍之间的中间态、测试推进的调度器没盖住页面的全部协程、假故障只坏「下一次」、按真实时间算的截止在被测内容就绪之前就开始走。先找测试与生产不一样的地方（调度器、时序、夹具）并让它必红，再决定改哪边；生产没错时不改生产。按真实时间断言的测试，截止在被测内容画出来之后起算，按那一步前后两次读钟的区间断言，不按固定区间：宿主卡多久区间就宽多少（`EpButtonDrainTest`）。 |
 | 必要的测试，不多不少。 | 一个行为一个测试；契约测试只守跨文件的不变量（路由都有页面、字符串两种语言都有、feature 之间不互相依赖……）；不为配置项、文案写测试。截图与逐帧录屏是给人看的，标 `@VisualCapture`、只经 `saveScreenshot` 落盘，不算测试（`python3 tools/guards/check_test_assertions.py`）。 |
 | 与生产同构。 | 网络、鉴权、序列化的测试用 core:network 夹具 `testApiClient(engine)`（`python3 tools/guards/check_test_clients.py`），细则在[开发须知](dev/guide.md) §3。 |
@@ -242,7 +244,8 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
   最后一次写钉同一个会话。按账号的界面状态（`AppShell` 导航与保存的页面状态）以账号身份为键，不以直接切号时仍为 `true` 的 `isLoggedIn` 为键。
 - 结果不落到比它新的状态上。`await` 之后要落的东西先查开始以来发生了什么：账号（`expectedSession`）、这期间的写入（写推进版本，之前开始的读丢弃）、
   它属于的面板（`ComposerActions` 的代次：旧请求可以结束，但不改后来打开的面板）。别的页面能改的状态（屏蔽名单、关注状态）按流观察，
-  不在页面加载时读一次。不拿界面显示标志（`PagedList.isRefreshing`）或合法的领域数字（`sort = 0.0`）当内部在途门闩或「空」哨兵：
+  不在页面加载时读一次。写在途时跟随收到的那一拍不留到写完再落：它可能是写入之前的值，写记下的新值那一拍不保证在写结束之前到；
+  写结束时重新接上跟随，新的一轮先读一次写之后的值（个人页 `refollowRelations`）。不拿界面显示标志（`PagedList.isRefreshing`）或合法的领域数字（`sort = 0.0`）当内部在途门闩或「空」哨兵：
   空与在途用显式的代数类型（`sealed interface`）或专用的内部字段。
 - 自己加载的页面分区（作品、角色、关联、评论……）在页面状态里是一个 `Load<T>` 字段，不是 `items` + `isXLoading` + `xError` 三件套。
   只由 `StateViewModel.launchSection(key, …)` 填（流原样；一次性调用经 `loadOnce { }`；它取消同一个 key 的上一轮、把藏在已显示内容后面的失败
@@ -391,3 +394,10 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
   （Koin 编译器插件，经 `chogumi.koin` 应用）。
 - 注册只用经典 DSL；没有 Koin 注解（`@InjectedParam`、`@Named`……），没有 `koin-annotations` 依赖。插件自己的 DSL（`viewModel<T>()`）不是选项：
   1.2.1 的全应用检查看不见 feature 模块的 `@InjectedParam` 和默认值，把每个导航参数都报成缺依赖。
+
+## 网络线路：一种实现
+
+连 bgm.tv 走哪条线路（系统网络、直连，以后的代理）只在 core:netroute：设置、核心起停、对请求的改写都在那里。网络层只认 core:network 的
+`OkHttpCustomizer`，三个接口客户端与图片加载套上 Koin 里登记的全部 customizer；页面只认 `NetRoute` / `DirectRouteHint` /
+`directRouteSupported`。直连核心（Go，`echcore.aar`）只有 core:netroute 引用，失败时只报失败、绝不退回普通 SNI（服务端事实在
+[开发须知](dev/guide.md) §1.10）。门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_netroute.py`。

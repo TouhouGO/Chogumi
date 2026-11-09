@@ -30,7 +30,7 @@ class TrendingHeroScrollTest {
         val items = (1..8).map { SubjectBo(id = it, type = SubjectType.ANIME, name = "作品$it", nameCn = "作品$it") }
         compose.setContent {
             CountingCompositions(work) {
-                ChogumiTheme { TrendingHeroCarousel(items = items, onSubjectClick = {}, guide = null, coverDemo = false) }
+                ChogumiTheme { TrendingHeroCarousel(items = items, onSubjectClick = {}) }
             }
         }
         val first = compose.onNodeWithTag(HeroItemTagPrefix + 0)

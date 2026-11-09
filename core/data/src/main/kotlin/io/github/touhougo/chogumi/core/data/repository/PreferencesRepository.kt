@@ -158,13 +158,13 @@ class PreferencesRepository(
         prefs.edit { it[PreferenceKeys.REFRESH_RATE] = value }
     }
 
-    /** 探索页第一次进来的聚焦引导走完过没有（两步都走完才算）：只出一次，走完就不再出。 */
-    val exploreGuideShown: Flow<Boolean> = select { prefs ->
-        prefs[PreferenceKeys.EXPLORE_GUIDE_SHOWN] ?: false
+    /** 手势引导放过没有（看完或跳过都算）：启动时只自动放一次，之后只从设置的「使用技巧」重看。 */
+    val gestureTourShown: Flow<Boolean> = select { prefs ->
+        prefs[PreferenceKeys.GESTURE_TOUR_SHOWN] ?: false
     }
 
-    suspend fun setExploreGuideShown() {
-        prefs.edit { it[PreferenceKeys.EXPLORE_GUIDE_SHOWN] = true }
+    suspend fun setGestureTourShown() {
+        prefs.edit { it[PreferenceKeys.GESTURE_TOUR_SHOWN] = true }
     }
 
     /** 自动检查更新开没开：默认开。 */

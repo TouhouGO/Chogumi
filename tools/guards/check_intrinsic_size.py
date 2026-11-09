@@ -26,6 +26,8 @@ INTRINSIC_ALLOWED = {
         "追更时间表的一天：列宽取日期行与封面行中较宽者，里面只有日期与封面",
     ("feature/explore/src/main/kotlin/io/github/touhougo/chogumi/feature/explore/ExploreScreen.kt", "ExploreEntriesRow"):
         "探索页固定入口行：各格等高取最高者，里面只有图标与标签文字",
+    ("core/ui/src/main/kotlin/io/github/touhougo/chogumi/core/ui/tour/FloorDemo.kt", "DemoFloorMenu"):
+        "手势引导里长按菜单的示意：与弹出菜单一样按最宽的一组定宽，里面只有表情色块与菜单项",
 }
 
 INTRINSIC = re.compile(r"\bIntrinsicSize\s*\.")

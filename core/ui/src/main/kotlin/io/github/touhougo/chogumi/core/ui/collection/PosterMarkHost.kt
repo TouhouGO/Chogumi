@@ -34,12 +34,10 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.unit.toSize
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
-import io.github.touhougo.chogumi.core.model.COLLECTION_MARK_WINDOW_NANOS
 import io.github.touhougo.chogumi.core.model.CollectionMarks
 import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.PendingMark
 import io.github.touhougo.chogumi.core.model.SubjectType
-import io.github.touhougo.chogumi.core.model.commitClockNanos
 import io.github.touhougo.chogumi.core.ui.common.LoginGate
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate
 
@@ -60,8 +58,6 @@ internal val LocalPosterMarkLayer = staticCompositionLocalOf<PosterMarkLayer?> {
  * 浮层（遮罩、浮起的封面、环、预演胶囊）画在本层里、页面内容之上：随页面进出，遮罩只盖页面，不盖底栏 / 导航轨。
  * 状态与动作来自页面 ViewModel 的 [PosterMarkController]；环上每一格都是写操作，未登录时长按经 [LoginGate] 去登录，不弹环。
  * 「管理」打开与列表行长按同一个收藏面板（[CollectionSheetHost]）；[snackbar] 是页面的提示条，面板开着时画在面板上。
- * [underlay] 画在页面内容之上、环的浮层之下，[overlay] 画在环的浮层之上，都与页面内容同大：探索页第一次进来的引导，
- * 遮罩在下（演示里的环露在它上面），卡与挡手的那一层在上。
  */
 @Composable
 fun PosterMarkHost(
@@ -71,8 +67,6 @@ fun PosterMarkHost(
     onLogin: () -> Unit,
     snackbar: SnackbarHostState,
     modifier: Modifier = Modifier,
-    underlay: @Composable BoxScope.() -> Unit = {},
-    overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable BoxScope.() -> Unit,
 ) {
     val gate = rememberLoginGate(isLoggedIn, onLogin)
@@ -91,10 +85,7 @@ fun PosterMarkHost(
         Box(modifier.onGloballyPositioned { layer.coordinates = it }, propagateMinConstraints = true) {
             // 环开着时下面的页面对读屏隐藏（模态）
             Box(if (session?.open == true) Modifier.clearAndSetSemantics {} else Modifier, content = content)
-            underlay()
             if (session != null) key(session) { RingOverlay(session, layer, Modifier.matchParentSize()) }
-            DemoFinger(layer, Modifier.matchParentSize())
-            overlay()
         }
     }
     val today = state.today ?: return
@@ -118,23 +109,18 @@ fun PosterMarkHost(
 @Stable
 internal class RingSession(
     val mark: PosterMark,
-    val press: Offset,
-    val center: Offset,
+    override val press: Offset,
+    override val center: Offset,
     val cover: Rect,
     val coverContent: Offset,
-    val current: CollectionType?,
-    val subjectType: SubjectType,
-    /** 引导里的演示（[playRingDemo]）：选了也不写收藏，只在这一层画出标记的样子。 */
-    val demo: Boolean = false,
-) {
-    /** false = 正在收起（动画走完才撤掉浮层）。 */
-    var open by mutableStateOf(true)
+    override val current: CollectionType?,
+    override val subjectType: SubjectType,
+) : RingLook {
+    override var open by mutableStateOf(true)
 
-    /** 手指此刻指着的那一格。 */
-    var hot by mutableStateOf<RingSlot?>(null)
+    override var hot by mutableStateOf<RingSlot?>(null)
 
-    /** 选中的那一格：收起时它原地缩掉，其余收回中心。 */
-    var chosen by mutableStateOf<RingSlot?>(null)
+    override var chosen by mutableStateOf<RingSlot?>(null)
 
     /** 这一笔手势出过死区：滑出去又回到中心再松手是取消，一直没出过是把环留着点选。 */
     var leftDeadZone = false
@@ -155,9 +141,6 @@ internal class PosterMarkLayer(private val stateRef: State<PosterMarkState>) {
     var session by mutableStateOf<RingSession?>(null)
         private set
 
-    /** 演示里那根手指按在本层的哪里（[playRingDemo]）；不在演示、手指抬起时为 null。 */
-    var demoFinger by mutableStateOf<Offset?>(null)
-
     val marks: CollectionMarks get() = stateRef.value.marks
 
     /**
@@ -168,24 +151,12 @@ internal class PosterMarkLayer(private val stateRef: State<PosterMarkState>) {
 
     fun markOf(subjectId: Int): State<SubjectMark> = subjectMarks.getOrPut(subjectId) {
         // 取初值不算海报读了整份页面状态，否则页面状态一变它又跟着重组
-        mutableStateOf(Snapshot.withoutReadObservation { shownMarkOf(marks, subjectId) })
+        mutableStateOf(Snapshot.withoutReadObservation { SubjectMark.of(marks, subjectId) })
     }
 
     /** 每次组合之后跟上页面的标记：等值的写入不算变化，读它的海报不失效。 */
     fun publish(marks: CollectionMarks) {
-        subjectMarks.forEach { (subjectId, mark) -> mark.value = shownMarkOf(marks, subjectId) }
-    }
-
-    /** 演示画在一部作品上的标记（[playRingDemo]）：盖过它真实的那一份，不进页面状态、不写收藏；null = 没有演示。 */
-    private var demoMark: Pair<Int, SubjectMark>? = null
-
-    private fun shownMarkOf(marks: CollectionMarks, subjectId: Int): SubjectMark =
-        demoMark?.takeIf { it.first == subjectId }?.second ?: SubjectMark.of(marks, subjectId)
-
-    /** 换掉（[mark] 为 null 时撤掉）演示画在 [subjectId] 上的标记，海报马上跟着变。 */
-    fun showDemoMark(subjectId: Int, mark: SubjectMark?) {
-        demoMark = mark?.let { subjectId to it }
-        publish(marks)
+        subjectMarks.forEach { (subjectId, mark) -> mark.value = SubjectMark.of(marks, subjectId) }
     }
 
     /**
@@ -196,7 +167,7 @@ internal class PosterMarkLayer(private val stateRef: State<PosterMarkState>) {
         if (session != null) return false
         var opened = false
         gate.run {
-            if (open(mark, pressInBlock, demo = false) == null) return@run
+            if (open(mark, pressInBlock) == null) return@run
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             opened = true
         }
@@ -204,10 +175,10 @@ internal class PosterMarkLayer(private val stateRef: State<PosterMarkState>) {
     }
 
     /**
-     * 打开 [mark] 的环（[begin] 与演示共用）：按下点 [pressInBlock] 在整块里，null 时以封面看得见的那一块的中心为心。
+     * 打开 [mark] 的环：按下点 [pressInBlock] 在整块里，null 时以封面看得见的那一块的中心为心。
      * 已有一个环、封面还没放置时打不开，返回 null。
      */
-    fun open(mark: PosterMark, pressInBlock: Offset?, demo: Boolean): RingSession? {
+    private fun open(mark: PosterMark, pressInBlock: Offset?): RingSession? {
         if (session != null) return null
         val host = coordinates?.takeIf { it.isAttached } ?: return null
         val (coverRect, liftRect) = coverRectsOf(mark) ?: return null
@@ -224,7 +195,6 @@ internal class PosterMarkLayer(private val stateRef: State<PosterMarkState>) {
             coverContent = coverRect.topLeft - liftRect.topLeft,
             current = marks.pendingOf(id)?.type ?: marks.types[id],
             subjectType = mark.subjectType,
-            demo = demo,
         ).also { session = it }
     }
 
@@ -265,18 +235,12 @@ internal class PosterMarkLayer(private val stateRef: State<PosterMarkState>) {
         }
     }
 
-    /** 选 [slot]：管理打开收藏面板；选当前状态什么也不改；别的状态进待提交窗口。演示的环只画出待提交的样子。 */
+    /** 选 [slot]：管理打开收藏面板；选当前状态什么也不改；别的状态进待提交窗口。 */
     fun choose(slot: RingSlot) {
         val ring = session?.takeIf { it.open } ?: return
         ring.chosen = slot
         ring.open = false
         val id = ring.mark.subjectId
-        if (ring.demo) {
-            slot.type?.takeIf { it != ring.current }?.let { type ->
-                showDemoMark(id, SubjectMark.of(marks, id).copy(pending = PendingMark(id, type, commitClockNanos() + COLLECTION_MARK_WINDOW_NANOS)))
-            }
-            return
-        }
         when (val type = slot.type) {
             null -> controller.manage(id)
             ring.current -> Unit

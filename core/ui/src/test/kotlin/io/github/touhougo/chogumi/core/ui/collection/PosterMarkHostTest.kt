@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -278,39 +277,6 @@ class PosterMarkHostTest {
         assertEquals(shown.right, ring.cover.right, 0.5f)
         assertEquals(shown.top, ring.cover.top, 0.5f)
         assertEquals(shown.bottom, ring.cover.bottom, 0.5f)
-    }
-
-    /**
-     * 引导里的演示：在真的那一层放一遍长按环，封面上先是待提交的胶囊、再是提交后的角标，但什么也不交给数据端；
-     * 停下就收起环、撤掉画上去的标记。
-     */
-    @Test
-    fun `引导里的演示_封面上画出胶囊再换成角标_不写收藏_停下就撤掉`() {
-        var playing by mutableStateOf(true)
-        composeRule.mainClock.autoAdvance = false
-        show {
-            layer = LocalPosterMarkLayer.current
-            val mark = rememberPosterMark(SUBJECT, SubjectType.ANIME)
-            PosterMarkDemo(mark, playing)
-            Box(Modifier.width(108.dp).testTag(CARD).posterMarkGesture(mark)) {
-                SubjectPoster(url = null, modifier = Modifier.fillMaxWidth(), mark = mark)
-            }
-        }
-        // 按下、等长按、环展开、手指滑到看过、停一会儿松手：约 3.5 秒；松手后 4 秒窗口里是胶囊
-        composeRule.mainClock.advanceTimeBy(5_000)
-        assertTrue("演示不交给数据端", marker.marked.isEmpty())
-        composeRule.onNodeWithContentDescription("撤销标为看过").assertIsDisplayed()
-
-        // 窗口过了：胶囊换成提交后的角标
-        composeRule.mainClock.advanceTimeBy(3_000)
-        composeRule.onNodeWithContentDescription("撤销标为看过").assertDoesNotExist()
-        composeRule.onNodeWithContentDescription("看过").assertIsDisplayed()
-
-        playing = false
-        composeRule.mainClock.advanceTimeBy(1_000)
-        composeRule.onNodeWithContentDescription("看过").assertDoesNotExist()
-        assertEquals("环收起了", null, layer?.session)
-        assertTrue("演示不交给数据端", marker.marked.isEmpty())
     }
 
     private companion object {

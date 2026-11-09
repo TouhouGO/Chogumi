@@ -136,11 +136,19 @@ fun posterCoverShape(mark: PosterMark?, interactionSource: InteractionSource, re
     if (mark == null) return remember(restCorner) { RoundedCornerShape(restCorner) }
     val pressed by interactionSource.collectIsPressedAsState()
     val ring = mark.ring
-    val charged = pressed || ring?.open == true
-    val spec = if (ring != null && !ring.open) MaterialTheme.motionScheme.defaultSpatialSpec<Dp>() else MaterialTheme.motionScheme.fastSpatialSpec()
-    val corner = animateDpAsState(if (charged) maxOf(restCorner, PosterChargedCorner) else restCorner, spec, label = "poster_corner")
+    val corner = animatePosterCorner(charged = pressed || ring?.open == true, landing = ring != null && !ring.open, restCorner = restCorner)
     mark.corner = corner
     return RoundedCornerShape(corner.value)
+}
+
+/**
+ * 可长按封面的圆角（[posterCoverShape] 的那段动画，手势引导的演示封面也用它）：[charged]（按着、环开着）时收到 [PosterChargedCorner]，
+ * 否则是 [restCorner]；[landing]（环正在收起、封面落回）时走 standard default spatial，其余走 fast spatial。
+ */
+@Composable
+internal fun animatePosterCorner(charged: Boolean, landing: Boolean, restCorner: Dp): State<Dp> {
+    val spec = if (landing) MaterialTheme.motionScheme.defaultSpatialSpec<Dp>() else MaterialTheme.motionScheme.fastSpatialSpec()
+    return animateDpAsState(if (charged) maxOf(restCorner, PosterChargedCorner) else restCorner, spec, label = "poster_corner")
 }
 
 /**
@@ -214,8 +222,12 @@ internal fun Modifier.posterMarkCover(mark: PosterMark?): Modifier = if (mark ==
 @Composable
 internal fun BoxScope.PosterMarkBadges(mark: PosterMark?) {
     if (mark == null) return
-    val pending = mark.pending
-    val type = mark.type
+    MarkBadges(mark.type, mark.pending, mark.subjectType, onUndo = { mark.layer.undo(it.subjectId) })
+}
+
+/** [PosterMarkBadges] 的画法本身（手势引导的演示封面也画它）：[type] 是右上角的状态，[pending] 是窗口里的待提交胶囊。 */
+@Composable
+internal fun BoxScope.MarkBadges(type: CollectionType?, pending: PendingMark?, subjectType: SubjectType, onUndo: (PendingMark) -> Unit) {
     val motion = MaterialTheme.motionScheme
     // 退场动画期间值已为 null：沿用最后一次的，免得退场时内容先变没
     var shownType by remember { mutableStateOf(type) }
@@ -230,7 +242,7 @@ internal fun BoxScope.PosterMarkBadges(mark: PosterMark?) {
                 fadeIn(motion.fastEffectsSpec()),
             exit = fadeOut(motion.fastEffectsSpec()),
         ) {
-            shownType?.let { CollectionTypeBadge(it, mark.subjectType, tinted = true, labeled = false) }
+            shownType?.let { CollectionTypeBadge(it, subjectType, tinted = true, labeled = false) }
         }
         AnimatedVisibility(
             visible = pending != null,
@@ -240,7 +252,7 @@ internal fun BoxScope.PosterMarkBadges(mark: PosterMark?) {
             exit = scaleOut(motion.defaultEffectsSpec(), targetScale = 0.85f, transformOrigin = TransformOrigin(0.5f, 1f)) +
                 fadeOut(motion.defaultEffectsSpec()),
         ) {
-            shownPending?.let { PendingMarkChip(it, mark.subjectType, onUndo = { mark.layer.undo(it.subjectId) }) }
+            shownPending?.let { PendingMarkChip(it, subjectType, onUndo = { onUndo(it) }) }
         }
     }
 }

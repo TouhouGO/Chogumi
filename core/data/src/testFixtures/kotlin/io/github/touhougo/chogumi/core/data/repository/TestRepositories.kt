@@ -102,7 +102,7 @@ object PlainCookieCipher : CookieCipher {
 }
 
 /** 网页客户端，配置同生产（networkModule）：不跟随跳转、非 2xx 不抛。请求由 [handler] 应答。 */
-fun testWebClient(handler: MockRequestHandler): HttpClient = createWebHttpClient(MockEngine(handler))
+fun testWebClient(handler: MockRequestHandler): HttpClient = createWebHttpClient(MockEngine(handler), customizers = emptyList())
 
 /** 不该打开网页的测试用的网页客户端：一有请求就失败。 */
 fun noWebClient(): HttpClient = testWebClient { request -> error("不该打开网页：${request.url}") }
@@ -119,7 +119,7 @@ fun testAuthRepository(
     authConfig: AuthConfig,
     scope: CoroutineScope,
     webClient: HttpClient = resources.own(noWebClient()),
-    tokenClient: HttpClient = resources.own(createTokenHttpClient(appVersion = "test", engine = client.engine)),
+    tokenClient: HttpClient = resources.own(createTokenHttpClient(appVersion = "test", engine = client.engine, customizers = emptyList())),
     cipher: CookieCipher = PlainCookieCipher,
 ): AuthRepository =
     AuthRepository(

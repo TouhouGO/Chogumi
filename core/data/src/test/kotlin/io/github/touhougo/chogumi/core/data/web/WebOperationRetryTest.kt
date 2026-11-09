@@ -28,7 +28,7 @@ class WebOperationRetryTest {
             requests.record(request)
             handler(request)
         }
-        private val client = createWebHttpClient(engine)
+        private val client = createWebHttpClient(engine, customizers = emptyList())
         val api = WebSessionApi(client)
 
         override fun close() {

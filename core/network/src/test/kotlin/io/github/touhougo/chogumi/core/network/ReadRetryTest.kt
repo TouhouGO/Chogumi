@@ -77,6 +77,7 @@ class ReadRetryTest {
             },
             engine = engine,
             appVersion = "test",
+            customizers = emptyList(),
         )
         return Harness(client, attempts)
     }

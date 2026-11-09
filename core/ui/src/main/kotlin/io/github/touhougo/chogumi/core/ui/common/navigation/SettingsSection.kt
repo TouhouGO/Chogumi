@@ -23,4 +23,7 @@ enum class SettingsSection(@StringRes val title: Int, @DrawableRes val icon: Int
 
     /** 当前版本、立即检查；自动检查更新、检查间隔。 */
     UPDATES(R.string.settings_updates, R.drawable.update_24),
+
+    /** 连 bgm.tv 的线路（直连）。设备不支持直连时一级菜单里没有这一项（core:netroute `directRouteSupported`）。 */
+    NETWORK(R.string.settings_network, R.drawable.language_24),
 }

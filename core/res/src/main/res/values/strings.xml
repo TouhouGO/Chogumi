@@ -183,6 +183,15 @@
     <string name="settings_ratings_community">评分与社区</string>
     <string name="settings_content_filter">内容过滤</string>
     <string name="settings_updates">更新</string>
+    <string name="settings_network">网络</string>
+    <string name="network_direct">直连</string>
+    <string name="network_direct_details">用加密握手（ECH）藏起要访问的网站名，不会被识别拦截。</string>
+    <string name="network_direct_confirm_title">打开直连？</string>
+    <string name="network_direct_confirm_text">直连是实验性功能，可能不稳定。</string>
+    <string name="network_direct_confirm">打开</string>
+    <string name="network_direct_failed">直连没有启动</string>
+    <string name="login_unreachable">连不上 bgm.tv</string>
+    <string name="login_try_direct">试试直连</string>
     <string name="settings_update_current_version">当前版本</string>
     <string name="settings_update_check_now">立即检查</string>
     <string name="settings_update_checking">正在检查</string>
@@ -878,13 +887,18 @@
     <string name="explore_tile_all_of">全部%1$s</string>
 
     <!-- 探索页第一次进来的聚焦引导：长按封面标记、长按标题整理 -->
-    <string name="explore_guide_mark_title">长按封面，直接标记</string>
-    <string name="explore_guide_mark_text">按住任一作品的封面，朝一个方向滑过去再松手，就能标成看过、想看或在看。</string>
-    <string name="explore_guide_next">下一步</string>
-    <string name="explore_guide_arrange_title">整理探索页</string>
-    <string name="explore_guide_arrange_text">长按任一模块的标题，可以调整顺序、隐藏或添加模块。</string>
-    <string name="explore_guide_done">知道了</string>
-    <string name="explore_guide_arrange">去整理</string>
+    <string name="gesture_tour_skip">跳过</string>
+    <string name="gesture_tour_next">下一步</string>
+    <string name="gesture_tour_start">开始使用</string>
+    <string name="gesture_tour_mark_title">按住封面，滑一下就标好</string>
+    <string name="gesture_tour_mark_text">朝看过、想看或在看的方向滑过去再松手，哪个页面的封面都可以。</string>
+    <string name="gesture_tour_episode_title">每一集都有讨论</string>
+    <string name="gesture_tour_episode_text">点格子标到这一集；按住一集，看这一集的简介和评论。</string>
+    <string name="gesture_tour_floor_title">楼层里还有更多</string>
+    <string name="gesture_tour_floor_text">点一层就回复；按住可以贴贴、复制、举报，自己的楼层还能编辑和删除。</string>
+    <string name="gesture_tour_arrange_title">探索页按你的口味排</string>
+    <string name="gesture_tour_arrange_text">按住任一模块的标题，调整顺序、隐藏或添加模块。</string>
+    <string name="settings_gesture_tour">使用技巧</string>
     <!-- 探索页整理模块：整理列表、编辑面板、添加模块 -->
     <string name="explore_arrange_title">整理模块</string>
     <string name="explore_arrange_enter">整理模块</string>
@@ -1323,6 +1337,7 @@
     <string name="about_third_party_colormath">Colormath</string>
     <string name="about_third_party_jsoup">jsoup</string>
     <string name="about_third_party_slf4j">SLF4J</string>
+    <string name="about_third_party_go">Go 与 gomobile（直连核心）</string>
     <string name="about_third_party_desugar">desugar_jdk_libs</string>
     <string name="about_third_party_bangumi_smileys">Bangumi 表情</string>
     <string name="about_bangumi_smileys_license">版权归 Bangumi 番组计划，未声明开源许可</string>
