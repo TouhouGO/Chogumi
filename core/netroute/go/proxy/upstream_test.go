@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -219,6 +220,58 @@ func stallingEdge(t *testing.T) (string, *atomic.Int32) {
 	return ln.Addr().String(), &accepted
 }
 
+// front 是挡在一个正常上游前面的 TCP 转发：第 n 条连接（从 1 数）在 fail(n) 为真时一接上就断开（握手被重置），其余原样转发。
+// 返回它的地址与它接受过几条连接。
+func front(t *testing.T, target string, fail func(n int32) bool) (string, *atomic.Int32) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var accepted atomic.Int32
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			n := accepted.Add(1)
+			if fail(n) {
+				c.(*net.TCPConn).SetLinger(0)
+				c.Close()
+				continue
+			}
+			go func() {
+				up, err := net.Dial("tcp", target)
+				if err != nil {
+					c.Close()
+					return
+				}
+				go func() { io.Copy(up, c); up.Close() }()
+				io.Copy(c, up)
+				c.Close()
+			}()
+		}
+	}()
+	t.Cleanup(func() { ln.Close() })
+	return ln.Addr().String(), &accepted
+}
+
+func never(int32) bool  { return false }
+func always(int32) bool { return true }
+
+// dial 直接拨一次（不经连接池），成功就关掉连接，返回错误。
+func dial(t *testing.T, s *Server, limit time.Duration) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	defer cancel()
+	c, err := s.up.dialTLS(ctx, "tcp", "api.bgm.tv:443")
+	if c != nil {
+		c.Close()
+	}
+	return err
+}
+
 // getWithin 发一个请求，客户端最多等 [limit]（模拟 App 一次请求的超时）。
 func getWithin(t *testing.T, s *Server, limit time.Duration) (int, error) {
 	t.Helper()
@@ -245,22 +298,6 @@ func TestStalledEdgeHandsOverToTheNextWithinBudget(t *testing.T) {
 	}
 }
 
-func TestAStalledPreferredEdgeYieldsEvenWhenTheCallerGivesUpFirst(t *testing.T) {
-	stalled, _ := stallingEdge(t)
-	good, cfg, roots := echUpstream(t)
-	s := start(t, Options{Addrs: []string{stalled, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 300 * time.Millisecond})
-
-	// 调用方在卡住的首选用完预算之前就放弃了：这一次没轮到第二个地址
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	if _, err := s.up.dialTLS(ctx, "tcp", "api.bgm.tv:443"); err == nil {
-		t.Fatal("dial should fail on the stalled edge")
-	}
-	if got := s.up.addrs[s.up.pick()]; got != good {
-		t.Fatalf("next dial starts at %s, want the other edge %s", got, good)
-	}
-}
-
 func TestHealthyPreferredEdgeIsTheOnlyOneContacted(t *testing.T) {
 	stalled, accepted := stallingEdge(t)
 	good, cfg, roots := echUpstream(t)
@@ -271,5 +308,167 @@ func TestHealthyPreferredEdgeIsTheOnlyOneContacted(t *testing.T) {
 	}
 	if got := accepted.Load(); got != 0 {
 		t.Fatalf("contacted the second edge %d times while the first was healthy", got)
+	}
+}
+
+func TestStalledFirstEdgeOnlyCostsOneStagger(t *testing.T) {
+	stalled, _ := stallingEdge(t)
+	good, cfg, roots := echUpstream(t)
+	s := start(t, Options{Addrs: []string{stalled, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
+
+	began := time.Now()
+	if err := dial(t, s, 5*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	// 第二个地址在 EdgeTimeout/4（500ms）后就起拨，不必等第一个用完 2 秒的预算
+	if took := time.Since(began); took > 1500*time.Millisecond {
+		t.Fatalf("took %v, want about one stagger (500ms) when the first edge stalls", took)
+	}
+}
+
+func TestOneFailureDoesNotMoveThePreferredEdge(t *testing.T) {
+	up1, cfg, roots := echUpstream(t)
+	up2, _, _ := echUpstream(t)
+	// 两个上游用同一份 ECH 配置不行，这里让第二个地址也指向第一个上游，只经不同的转发
+	_ = up2
+	flaky, _ := front(t, up1, func(n int32) bool { return n == 2 }) // 第二条连接被重置
+	other, otherAccepted := front(t, up1, never)
+	s := start(t, Options{Addrs: []string{flaky, other}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
+
+	if err := dial(t, s, 3*time.Second); err != nil { // 首选定为第一个地址
+		t.Fatal(err)
+	}
+	if err := dial(t, s, 3*time.Second); err != nil { // 第一个地址断了一次，第二个接上
+		t.Fatal(err)
+	}
+	if got := s.up.health.preferredIndex(); got != 0 {
+		t.Fatalf("preferred is %d after one failure, want it to stay 0", got)
+	}
+	before := otherAccepted.Load()
+	if err := dial(t, s, 3*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if got := otherAccepted.Load() - before; got != 0 {
+		t.Fatalf("third dial went to the other edge %d times; the preferred one is healthy again", got)
+	}
+}
+
+func TestAnEdgeThatKeepsFailingCoolsDown(t *testing.T) {
+	up, cfg, roots := echUpstream(t)
+	// 先是首选，之后一直断开
+	broken, brokenAccepted := front(t, up, func(n int32) bool { return n >= 2 })
+	good, _ := front(t, up, never)
+	s := start(t, Options{Addrs: []string{broken, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
+
+	for i := 0; i < 1+failThreshold; i++ { // 一次成功（成为首选），再连续失败 failThreshold 次
+		if err := dial(t, s, 3*time.Second); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := brokenAccepted.Load()
+	if err := dial(t, s, 3*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if got := brokenAccepted.Load() - before; got != 0 {
+		t.Fatalf("cooling edge was tried first again (%d connections)", got)
+	}
+	if order := s.up.health.order(); order[0] != 1 {
+		t.Fatalf("order %v, want the good edge first while the broken one cools", order)
+	}
+}
+
+func TestResetNetworkForgetsEdgeHealth(t *testing.T) {
+	up, cfg, roots := echUpstream(t)
+	broken, _ := front(t, up, always)
+	good, _ := front(t, up, never)
+	s := start(t, Options{Addrs: []string{broken, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
+	for i := 0; i < failThreshold; i++ {
+		if err := dial(t, s, 3*time.Second); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	s.ResetNetwork()
+
+	if order := s.up.health.order(); order[0] != 0 || s.up.health.preferredIndex() != -1 {
+		t.Fatalf("order %v preferred %d after a network change, want a clean table", order, s.up.health.preferredIndex())
+	}
+}
+
+func TestHandshakesPerHostAreLimited(t *testing.T) {
+	stalled, accepted := stallingEdge(t)
+	_, cfg, roots := echUpstream(t)
+	s := start(t, Options{Addrs: []string{stalled}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			dial(t, s, time.Second)
+		}()
+	}
+	// 十次拨号同时开始，卡住的地址在预算（2 秒）之内一个也不放：这期间只该有 maxHandshakesPerHost 条连接
+	time.Sleep(300 * time.Millisecond)
+	got := accepted.Load()
+	wg.Wait()
+
+	if got > maxHandshakesPerHost {
+		t.Fatalf("%d handshakes to one host at once, want at most %d", got, maxHandshakesPerHost)
+	}
+}
+
+func TestHandshakesAreLogged(t *testing.T) {
+	up, cfg, roots := echUpstream(t)
+	broken, _ := front(t, up, always)
+	good, _ := front(t, up, never)
+	var mu sync.Mutex
+	var lines []string
+	s := start(t, Options{Addrs: []string{broken, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second,
+		Logf: func(f string, a ...any) {
+			mu.Lock()
+			lines = append(lines, fmt.Sprintf(f, a...))
+			mu.Unlock()
+		}})
+
+	if err := dial(t, s, 3*time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{
+		"handshake host=api.bgm.tv edge=" + broken + " ",
+		"result=reset",
+		"handshake host=api.bgm.tv edge=" + good + " ",
+		"result=ok",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("log missing %q:\n%s", want, joined)
+		}
+	}
+}
+
+func TestStalledEdgeIsLoggedAsTimeout(t *testing.T) {
+	stalled, _ := stallingEdge(t)
+	_, cfg, roots := echUpstream(t)
+	var mu sync.Mutex
+	var lines []string
+	s := start(t, Options{Addrs: []string{stalled}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 200 * time.Millisecond,
+		Logf: func(f string, a ...any) {
+			mu.Lock()
+			lines = append(lines, fmt.Sprintf(f, a...))
+			mu.Unlock()
+		}})
+
+	if err := dial(t, s, time.Second); err == nil {
+		t.Fatal("dial to a stalled edge should fail")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if joined := strings.Join(lines, "\n"); !strings.Contains(joined, "result=timeout") {
+		t.Fatalf("log missing result=timeout:\n%s", joined)
 	}
 }

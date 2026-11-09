@@ -9,6 +9,7 @@ import java.io.IOException
 import java.nio.file.Files
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.network.REQUEST_TIMEOUT_MILLIS
+import io.github.touhougo.chogumi.core.network.createImageOkHttpClient
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,7 @@ class RouteFailureTest {
             override val data: Flow<Preferences> = flow { throw IOException("disk") }
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = throw IOException("disk")
         }
-        val route = NetRoute(broken, scope, BuiltinEdgeAddresses, supported = true, core = NoCore)
+        val route = NetRoute(broken, scope, BuiltinEdgeAddresses, supported = true, core = NoCore, networkChanges = NoNetworkChanges, log = null)
 
         scope.launch { route.run() }
 
@@ -85,7 +86,7 @@ class RouteFailureTest {
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
         }
         val core = CountingCore()
-        val route = NetRoute(flaky, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        val route = NetRoute(flaky, scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
 
         awaitUntil("读恢复后起了核心") { route.route() is CoreRoute.Core }
@@ -100,7 +101,7 @@ class RouteFailureTest {
             override val data: Flow<Preferences> = flow { awaitCancellation() }
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = awaitCancellation()
         }
-        val route = NetRoute(stuck, scope, BuiltinEdgeAddresses, supported = true, core = NoCore)
+        val route = NetRoute(stuck, scope, BuiltinEdgeAddresses, supported = true, core = NoCore, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         val end = RecordingEnd()
 
@@ -114,7 +115,7 @@ class RouteFailureTest {
         val store = dataStore()
         store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
         val core = CountingCore()
-        val route = NetRoute(store, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        val route = NetRoute(store, scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
 
         assertEquals(CoreRoute.Core(CoreEndpoint(4242, "secret")), route.route())
@@ -129,7 +130,7 @@ class RouteFailureTest {
     fun `选了直连而核心起不来时请求失败_不走系统网络`() = runBlocking {
         val store = dataStore()
         store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
-        val route = NetRoute(store, scope, BuiltinEdgeAddresses, supported = true, core = BrokenCore)
+        val route = NetRoute(store, scope, BuiltinEdgeAddresses, supported = true, core = BrokenCore, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         val end = RecordingEnd()
 
@@ -153,7 +154,7 @@ class RouteFailureTest {
 
     @Test
     fun `从系统网络开直连而核心起不来时留在系统网络`() = runBlocking {
-        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = BrokenCore)
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = BrokenCore, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         route.route()
 
@@ -175,7 +176,7 @@ class RouteFailureTest {
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = throw IOException("disk full")
         }
         val core = CountingCore()
-        val route = NetRoute(unwritable, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        val route = NetRoute(unwritable, scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         route.route()
 
@@ -189,7 +190,7 @@ class RouteFailureTest {
 
     @Test
     fun `开直连成功后请求走核心`() = runBlocking {
-        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = CountingCore())
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = CountingCore(), networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         route.route()
 
@@ -210,7 +211,7 @@ class RouteFailureTest {
             }
             override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
         }
-        val route = NetRoute(flaky, scope, BuiltinEdgeAddresses, supported = true, core = CountingCore())
+        val route = NetRoute(flaky, scope, BuiltinEdgeAddresses, supported = true, core = CountingCore(), networkChanges = NoNetworkChanges, log = null)
         val seenMode = mutableListOf<RouteMode>()
         val seenHint = mutableListOf<Boolean>()
         // 设置页跟 mode，登录页跟 directAvailable：都不经 run()
@@ -223,7 +224,7 @@ class RouteFailureTest {
 
     @Test
     fun `界面那样的订阅者跟着开关走`() = runBlocking {
-        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = CountingCore())
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = CountingCore(), networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         val seen = mutableListOf<RouteMode>()
         scope.launch { route.mode.collect { synchronized(seen) { seen += it } } }
@@ -237,7 +238,7 @@ class RouteFailureTest {
     @Test
     fun `每个边缘地址的预算加起来小于客户端一次请求的超时`() = runBlocking {
         val core = CountingCore()
-        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = core)
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = NoNetworkChanges, log = null)
         scope.launch { route.run() }
         route.route()
 
@@ -245,5 +246,42 @@ class RouteFailureTest {
 
         val edges = BuiltinEdgeAddresses.addresses().size
         assertTrue("预算 ${core.budget} ms × $edges 个地址要小于 $REQUEST_TIMEOUT_MILLIS ms", core.budget * edges < REQUEST_TIMEOUT_MILLIS)
+    }
+
+    @Test
+    fun `核心最坏换地址的耗时短于客户端一次请求的超时`() {
+        val edges = BuiltinEdgeAddresses.addresses().size
+        val imageRead = createImageOkHttpClient(emptyList()).readTimeoutMillis.toLong()
+
+        assertTrue("最坏 ${coreWorstCaseMillis(edges)} ms 要短于请求超时 $REQUEST_TIMEOUT_MILLIS ms", coreWorstCaseMillis(edges) < REQUEST_TIMEOUT_MILLIS)
+        assertTrue("图片读超时 $imageRead ms 要盖住核心最坏 ${coreWorstCaseMillis(edges)} ms", imageRead >= coreWorstCaseMillis(edges))
+    }
+
+    @Test
+    fun `换网络时让在跑的核心重新看地址好坏`() = runBlocking {
+        val core = CountingCore()
+        val network = ManualNetworkChanges()
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = network, log = null)
+        scope.launch { route.run() }
+        route.route()
+        assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
+
+        network.change()
+
+        awaitUntil("核心重置了网络") { core.resets == 1 }
+    }
+
+    @Test
+    fun `核心没在跑时换网络什么也不做`() = runBlocking {
+        val core = CountingCore()
+        val network = ManualNetworkChanges()
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = core, networkChanges = network, log = null)
+        scope.launch { route.run() }
+        route.route()
+
+        network.change()
+        Thread.sleep(200)
+
+        assertEquals(0, core.resets)
     }
 }

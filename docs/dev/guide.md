@@ -248,8 +248,15 @@ flowchart LR
 - 配置不对（公钥随意的一份）时 Cloudflare 拒绝并随拒绝给出当前配置，用它重连就成功；所以核心内置一份随意的配置即可自举，
   拿到的那份存进 core:netroute 的 DataStore，冷启动直接用。
 - 不是每个 Cloudflare 地址都服务 bgm.tv：104.16.132.229 握手成功但回 403「error code: 1034」（边缘地址受限），核心见到就换下一个地址。
-  TCP 通了而 TLS 卡住的地址也只耽误一份预算：每个地址的拨号加握手预算是客户端一次请求的超时分成「地址数 + 1」份
-  （core:netroute `edgeBudgetMillis`），失败的首选让给下一个地址。
+- 核心连边缘地址的规则只写在 `core/netroute/go/proxy/edges.go` 的注释里：按健康顺序错开并行起拨（间隔是每个地址预算的四分之一，
+  先握手成功的胜出），每个地址的拨号加握手预算是客户端一次请求的超时分成「地址数 + 1」份（core:netroute `edgeBudgetMillis`，
+  最坏耗时 `coreWorstCaseMillis` 短于请求超时）；一次失败不换首选，同一地址连续失败两次才冷却 30 秒，1034 冷却 10 分钟；
+  每个主机同时最多 3 个拨号加握手；设备换了网络（默认网络回调）就清空健康表、关掉空闲连接。仍走 HTTP/1.1。
+- 所有 OkHttp 客户端（三个接口客户端的引擎、图片加载）的读写超时都是一次请求的超时（core:network `requestTimeouts`），
+  不再是 OkHttp 默认的 10 秒；图片对只读请求的网络瞬断重发一次（同接口客户端的读重试判定）。
+- 调试包里核心每次握手记一行到 logcat：`adb logcat -s ChogumiDirect`，
+  `handshake host=… edge=… ms=… result=ok|reset|timeout|ech-rejected|refused|error|canceled`（canceled 是别的地址先胜出，不算失败），
+  另有 `ech-retry`（换上服务端给的配置）与 `edge-restricted`（1034）。
 - 大陆线路（Mac 有线、出口 CN）上：普通 SNI 连 bgm.tv 各地址约 40ms 被重置（线路中注入，早于服务器的回包）；ECH 外层 SNI 是
   `cloudflare-ech.com`，不被重置，10 分钟 120 次请求全部成功。对同一地址连发几次普通 SNI 之后，几十秒内连 ECH 也被重置
   （推断：两次观察，没量出时长）：直连失败时绝不退回普通 SNI。

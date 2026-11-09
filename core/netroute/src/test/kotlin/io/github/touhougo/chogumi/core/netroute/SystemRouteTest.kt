@@ -30,6 +30,8 @@ class SystemRouteTest {
             BuiltinEdgeAddresses,
             supported = true,
             core = NoCore,
+            networkChanges = NoNetworkChanges,
+            log = null,
         )
         scope.launch { route.run() }
         val end = RecordingEnd()
