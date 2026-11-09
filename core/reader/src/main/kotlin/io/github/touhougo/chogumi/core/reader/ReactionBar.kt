@@ -77,6 +77,7 @@ import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.composables.AppDropdownMenu
 import io.github.touhougo.chogumi.core.ui.composables.AppMenuItem
+import io.github.touhougo.chogumi.core.ui.composables.ReactionGridGeometry
 import io.github.touhougo.chogumi.core.ui.composables.RollingText
 import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import kotlinx.coroutines.CoroutineScope
@@ -87,12 +88,6 @@ import kotlinx.coroutines.launch
  * 「添加贴贴」图标按钮、表情选择器（[ReactionPicker]）。贴什么、能贴哪些由调用方给（palette 来自 `reactionsOf` /
  * `TimelineReactionTarget.palette`），这里只管画与把点击换成「贴上 value / 取消（null）」。
  */
-
-// 贴贴选择器与 chip 的几何——设计决定（not in M3）：表情排两行，12 个一行 6 格，格子 44 加左右 8 正好是
-// M3 菜单的最大宽度 280dp（feedback.md Menus），一次点击就能贴，不用横滑或二级菜单。
-private const val REACTION_PICKER_ROWS = 2
-private val ReactionPickerCell = 44.dp
-private val ReactionPickerSmiley = 24.dp
 
 /** 已被占用的表情画多淡：取 Compose M3 组件不可用内容用的透明度（M3 规范里没写数值，我的设计决定）。 */
 private const val TAKEN_ALPHA = 0.38f
@@ -336,29 +331,27 @@ internal fun ReactionPicker(
 }
 
 /**
- * 贴贴的表情格子（楼层的贴贴选择器、编辑器里给投票选项挑表情共用）：排成 [REACTION_PICKER_ROWS] 行（12 个是 6×2，
- * 作品吐槽的 8 个是 4×2，不会有半行），[selected] 高亮，点了交出这个值（再点高亮的那个是取消，交出 null）；
+ * 贴贴的表情格子（楼层的贴贴选择器、编辑器里给投票选项挑表情共用）：排成 [ReactionGridGeometry.ROWS] 行（几何在 core:ui [ReactionGridGeometry]），[selected] 高亮，点了交出这个值（再点高亮的那个是取消，交出 null）；
  * [taken] 里的（别处已占用的）变淡、不能点。
  */
 @Composable
 internal fun ReactionGrid(palette: List<Int>, selected: Int?, taken: Set<Int> = emptySet(), onPick: (Int?) -> Unit) {
-    val columns = (palette.size + REACTION_PICKER_ROWS - 1) / REACTION_PICKER_ROWS
-    Column(Modifier.padding(horizontal = 8.dp)) {
-        palette.chunked(columns.coerceAtLeast(1)).forEach { row ->
+    Column(Modifier.padding(horizontal = ReactionGridGeometry.Padding)) {
+        palette.chunked(ReactionGridGeometry.columnsOf(palette.size)).forEach { row ->
             Row {
                 row.forEach { value ->
                     val isSelected = value == selected
                     val isTaken = value in taken
                     Box(
                         Modifier
-                            .size(ReactionPickerCell)
+                            .size(ReactionGridGeometry.Cell)
                             .clip(MaterialTheme.shapes.medium)
                             .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                             .selectable(selected = isSelected, enabled = !isTaken, role = Role.Button) { onPick(value.takeUnless { isSelected }) }
                             .alpha(if (isTaken) TAKEN_ALPHA else 1f),
                         contentAlignment = Alignment.Center,
                     ) {
-                        ReactionGlyph(reactionDisplayOf(value), ReactionPickerSmiley)
+                        ReactionGlyph(reactionDisplayOf(value), ReactionGridGeometry.Smiley)
                     }
                 }
             }

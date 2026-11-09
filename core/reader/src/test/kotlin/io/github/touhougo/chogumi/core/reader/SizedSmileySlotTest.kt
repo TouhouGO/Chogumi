@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeParser
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule

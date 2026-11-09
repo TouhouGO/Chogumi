@@ -817,13 +817,18 @@
     <string name="explore_tile_all_of">All %1$s</string>
 
     <!-- Explore section arranging: arrange list, edit sheets, add section -->
-    <string name="explore_guide_mark_title">Long-press a cover to mark it</string>
-    <string name="explore_guide_mark_text">Hold any cover, slide toward a status and let go to mark it as watched, wished or watching.</string>
-    <string name="explore_guide_next">Next</string>
-    <string name="explore_guide_arrange_title">Arrange Explore</string>
-    <string name="explore_guide_arrange_text">Long-press any section title to reorder, hide or add sections.</string>
-    <string name="explore_guide_done">Got it</string>
-    <string name="explore_guide_arrange">Arrange</string>
+    <string name="gesture_tour_skip">Skip</string>
+    <string name="gesture_tour_next">Next</string>
+    <string name="gesture_tour_start">Get started</string>
+    <string name="gesture_tour_mark_title">Hold a cover, slide to mark</string>
+    <string name="gesture_tour_mark_text">Slide toward watched, wish or watching and let go. Works on any cover.</string>
+    <string name="gesture_tour_episode_title">Every episode has a discussion</string>
+    <string name="gesture_tour_episode_text">Tap a tile to mark up to that episode. Hold one to read its synopsis and comments.</string>
+    <string name="gesture_tour_floor_title">More in every reply</string>
+    <string name="gesture_tour_floor_text">Tap a reply to answer it. Hold it to react, copy or report, or to edit and delete your own.</string>
+    <string name="gesture_tour_arrange_title">Arrange Explore your way</string>
+    <string name="gesture_tour_arrange_text">Hold any section title to reorder, hide or add sections.</string>
+    <string name="settings_gesture_tour">Tips</string>
     <string name="explore_arrange_title">Arrange sections</string>
     <string name="explore_arrange_enter">Arrange sections</string>
     <string name="explore_arrange_add">Add section</string>

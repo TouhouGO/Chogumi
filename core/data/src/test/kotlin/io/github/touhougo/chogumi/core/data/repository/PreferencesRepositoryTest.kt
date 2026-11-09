@@ -47,11 +47,11 @@ class PreferencesRepositoryTest {
     }
 
     @Test
-    fun `探索页引导_没走完是假_记下之后是真`() = runTest {
+    fun `手势引导_没放过是假_记下之后是真`() = runTest {
         val repo = newRepo()
-        assertEquals(false, repo.exploreGuideShown.first())
-        repo.setExploreGuideShown()
-        assertEquals(true, repo.exploreGuideShown.first())
+        assertEquals(false, repo.gestureTourShown.first())
+        repo.setGestureTourShown()
+        assertEquals(true, repo.gestureTourShown.first())
     }
 
     @Test

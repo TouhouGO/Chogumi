@@ -40,7 +40,7 @@ class TrendingHeroCarouselTest {
         composeRule.setContent {
             ChogumiTheme {
                 Box(Modifier.requiredWidth(width)) {
-                    TrendingHeroCarousel(items = items, onSubjectClick = {}, guide = null, coverDemo = false)
+                    TrendingHeroCarousel(items = items, onSubjectClick = {})
                 }
             }
         }

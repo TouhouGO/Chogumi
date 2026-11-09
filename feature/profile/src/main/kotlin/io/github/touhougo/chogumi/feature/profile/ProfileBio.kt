@@ -11,7 +11,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeAst
 import io.github.touhougo.chogumi.core.reader.BBCodeText
-import io.github.touhougo.chogumi.core.reader.ReaderTypography
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 
 /**
  * 简介（BBCode）：ⓘ 面板里的一张卡，全文展开，长了在面板里滚。

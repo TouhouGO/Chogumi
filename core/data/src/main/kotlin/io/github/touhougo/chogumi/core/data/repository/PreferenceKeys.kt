@@ -49,8 +49,8 @@ object PreferenceKeys {
     /** 刷新率（整数 Hz，`RefreshRate.SYSTEM` = 跟随系统）；存原值，这块屏有没有这一档由 `RefreshRate.effective` 判。 */
     val REFRESH_RATE = intPreferencesKey("pref_refresh_rate")
 
-    /** 探索页的聚焦引导走完了（[PreferencesRepository.exploreGuideShown]）：没有这个键 = 还没走完。 */
-    val EXPLORE_GUIDE_SHOWN = booleanPreferencesKey("pref_explore_guide_shown")
+    /** 手势引导放过了（[PreferencesRepository.gestureTourShown]）：没有这个键 = 还没放过。 */
+    val GESTURE_TOUR_SHOWN = booleanPreferencesKey("pref_gesture_tour_shown")
 
     /** 自动检查更新开没开（[PreferencesRepository.updateCheck]）：没有这个键 = 开着。 */
     val UPDATE_CHECK = booleanPreferencesKey("pref_update_check")

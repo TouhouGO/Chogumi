@@ -381,7 +381,7 @@ private val RING_INSET = 3.dp
 private const val RING_ALPHA = 0.75f
 
 /** 格子描边：下一集 2dp，等确认时点的那一格 3dp（设计稿，not in M3；已播未看、抛弃的 1dp 见 [TileStroke]）。 */
-private val NextStroke = 2.dp
+internal val NextStroke = 2.dp
 private val TargetStroke = 3.dp
 
 /** 等确认时的预览：会标上的格子填 55% 的看过色、描 35% 的 primary 边，会取消的格子整体 40%（设计稿，not in M3）。 */

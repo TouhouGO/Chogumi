@@ -29,7 +29,6 @@ import io.github.touhougo.chogumi.core.data.repository.FakeExploreShelfDao
 import io.github.touhougo.chogumi.core.data.repository.FaultableExploreShelfDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectDao
 import io.github.touhougo.chogumi.core.data.repository.TestMain
-import io.github.touhougo.chogumi.core.data.repository.TestPreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.awaitUntil
 import io.github.touhougo.chogumi.core.data.repository.cancelAndAwait
 import io.github.touhougo.chogumi.core.data.repository.testCalendarRepository
@@ -122,10 +121,6 @@ class ExploreViewModelTest {
     private val main = TestMain()
     private val viewModels = mutableListOf<ExploreViewModel>()
 
-
-    /** 「长按标题可以整理」提示的记录：真 DataStore，收尾删掉。 */
-    private val preferences = TestPreferencesRepository()
-
     /** 每个分类收到过多少个搜索请求；只增不减，测试据此等「补加载真的又发了一次」。 */
     private val requestCounts = ConcurrentHashMap<SubjectType, AtomicInteger>()
 
@@ -159,8 +154,6 @@ class ExploreViewModelTest {
     @After
     fun tearDown() {
         main.uninstall(viewModels.map { it.viewModelScope })
-
-        preferences.close()
         viewModels.clear()
 
         requestCounts.clear()
@@ -298,7 +291,6 @@ class ExploreViewModelTest {
             monoRepository = logos,
             layoutRepository = layoutRepo,
             tagCatalogRepository = testTagCatalogRepository(NextApi(client), FakeTagCatalogDao(), testNsfwFilter(resources)),
-            preferencesRepository = preferences.repository,
             appTime = testAppTime(now),
             collectionMarker = StillCollectionMarker(),
             collectionEditing = StillCollectionEditing(),

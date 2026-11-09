@@ -7,6 +7,7 @@ import io.github.touhougo.chogumi.core.data.repository.FriendsRepository
 import io.github.touhougo.chogumi.core.data.repository.NotificationRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.util.failuresAsLoad
+import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.foundation.AppTime
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.model.AppFeatures
@@ -23,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -53,6 +55,8 @@ data class ShellState(
     val restoreFailed: Boolean = false,
     /** 这一轮恢复已过了 [SLOW_START_MILLIS]（计时到点记下，重试时清掉）；怎么显示由 [initializing]、[slowStart] 判定。 */
     val restoreOverdue: Boolean = false,
+    /** 盖在页面上放手势引导：这台设备上还没放过（偏好里没有记录，新装与升级上来都是），这一次也还没看完或跳过。 */
+    val gestureTour: Boolean = false,
 ) {
     private val restoring: Boolean get() = session == SessionState.Initializing && !restoreFailed
 
@@ -91,6 +95,9 @@ class ShellViewModel(
 
     private var initialization: Job? = null
 
+    /** 这一次进来手势引导看完或跳过了：偏好记下之前、记不下来时都立刻收起（[finishGestureTour]）。 */
+    private val gestureTourFinished = MutableStateFlow(false)
+
     init { retryInitialization() }
 
     /**
@@ -120,7 +127,7 @@ class ShellViewModel(
         }
     }
 
-    /** 会话、外观、功能可见性、未读数合成整页状态；会话恢复完成前不发，读失败时最后一拍是 [Load.Failed]。 */
+    /** 会话、外观、功能可见性、未读数、要不要放手势引导合成整页状态；会话恢复完成前不发，读失败时最后一拍是 [Load.Failed]。 */
     private fun restoredStates(): Flow<Load<ShellState>> = combine(
         authRepository.sessionState,
         // 外观几项先合成一组：combine 的定型重载最多五路。
@@ -134,7 +141,8 @@ class ShellViewModel(
         ),
         preferencesRepository.appFeatures,
         notificationRepository.unreadTotal,
-    ) { session, appearance, features, unreadCount ->
+        combine(preferencesRepository.gestureTourShown, gestureTourFinished) { shown, finished -> !shown && !finished },
+    ) { session, appearance, features, unreadCount, gestureTour ->
         ShellState(
             session = session,
             themeMode = appearance.themeMode,
@@ -145,11 +153,21 @@ class ShellViewModel(
             refreshRate = appearance.refreshRate,
             unreadCount = unreadCount,
             restoreFailed = session == SessionState.InitializationError,
+            gestureTour = gestureTour,
         )
     }
         .dropWhile { it.session == SessionState.Initializing }
         .map<ShellState, Load<ShellState>> { Load.Ready(it) }
         .failuresAsLoad()
+
+    /**
+     * 手势引导看完或跳过：当场收起，记下放过了，之后只从设置的「使用技巧」重看。记不下来时（存储故障）下次启动再放一次，
+     * 用户对此无能为力，不提示。
+     */
+    fun finishGestureTour() {
+        gestureTourFinished.value = true
+        viewModelScope.launch { storageOutcomeOf { preferencesRepository.setGestureTourShown() } }
+    }
 
     fun openLink(route: Route) {
         links.trySend(route)

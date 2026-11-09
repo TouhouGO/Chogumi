@@ -1,6 +1,7 @@
 package io.github.touhougo.chogumi.shell
 
 import androidx.activity.compose.ReportDrawn
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,12 +29,17 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.touhougo.chogumi.BuildConfig
 import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.res.R
@@ -52,6 +58,7 @@ import io.github.touhougo.chogumi.core.ui.composables.ContentLoadingIndicator
 import io.github.touhougo.chogumi.core.ui.composables.LocalNow
 import io.github.touhougo.chogumi.core.ui.composables.RetryError
 import io.github.touhougo.chogumi.core.ui.theme.LocalWindowWidthSizeClass
+import io.github.touhougo.chogumi.core.ui.tour.GestureTour
 
 @Composable
 fun AppShell(
@@ -113,29 +120,33 @@ fun AppShell(
             LocalFriends provides friends,
             LocalSignedInAccount provides state.account,
         ) {
-            ShellLayout(
-                navigation = topLevelNavigationFor(windowSizeClass.widthSizeClass),
-                bottomBar = {
-                    TopLevelNavigationBar(
-                        currentTab = navigator.currentTab,
-                        destinations = destinations,
-                        isVisible = showBottomBar,
-                        onSelect = navigator::selectTab,
-                        unreadCount = state.unreadCount,
-                    )
-                },
-                rail = {
-                    TopLevelNavigationRail(
-                        currentTab = navigator.currentTab,
-                        destinations = destinations,
-                        onSelect = navigator::selectTab,
-                        unreadCount = state.unreadCount,
-                    )
-                },
-            ) { bottomPadding ->
-                AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests)
+            TourOverShell(showTour = state.gestureTour, onTourDone = mainViewModel::finishGestureTour) { shellModifier ->
+                ShellLayout(
+                    modifier = shellModifier,
+                    navigation = topLevelNavigationFor(windowSizeClass.widthSizeClass),
+                    bottomBar = {
+                        TopLevelNavigationBar(
+                            currentTab = navigator.currentTab,
+                            destinations = destinations,
+                            isVisible = showBottomBar,
+                            onSelect = navigator::selectTab,
+                            unreadCount = state.unreadCount,
+                        )
+                    },
+                    rail = {
+                        TopLevelNavigationRail(
+                            currentTab = navigator.currentTab,
+                            destinations = destinations,
+                            onSelect = navigator::selectTab,
+                            unreadCount = state.unreadCount,
+                        )
+                    },
+                ) { bottomPadding ->
+                    AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests)
+                }
             }
-            AppUpdatePromptHost(updates)
+            // 更新提示等引导收起再出
+            if (!state.gestureTour) AppUpdatePromptHost(updates)
             ReportDrawn()
         }
     }
@@ -184,6 +195,23 @@ private fun SlowStartNotice(onRetry: () -> Unit) {
 }
 
 /**
+ * 手势引导盖在整个外壳上（底栏、导航轨也在下面）；返回键与「跳过」一样结束它。引导盖着时外壳对读屏与键盘不存在：
+ * [shell] 拿到的 modifier 清掉它的语义、不让焦点进去（点按由引导的 `Surface` 挡住）。
+ */
+@Composable
+internal fun TourOverShell(showTour: Boolean, onTourDone: () -> Unit, shell: @Composable (Modifier) -> Unit) {
+    shell(if (showTour) Modifier.clearAndSetSemantics {}.focusProperties { onEnter = { cancelFocusChange() } }.focusGroup() else Modifier)
+    if (showTour) {
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = true,
+            onBackCompleted = onTourDone,
+        )
+        GestureTour(onDone = onTourDone)
+    }
+}
+
+/**
  * 外壳布局：主导航（底栏或导航轨）加页面区。页面区 [content] 不论哪种导航形态都在组合里的**同一个位置**：
  * 页面里的可保存状态（页内标签、开着的面板）按组合位置存取，宽度跨过 compact 时 Activity 重建，
  * 页面区若随导航形态换了位置，存下的状态就找不回来，页面全部回到初始状态。所以两种形态共用一个 Scaffold，
@@ -194,9 +222,10 @@ internal fun ShellLayout(
     navigation: TopLevelNavigationKind,
     bottomBar: @Composable () -> Unit,
     rail: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable (bottomPadding: Dp) -> Unit,
 ) {
-    Row(Modifier.fillMaxSize()) {
+    Row(modifier.fillMaxSize()) {
         // 导航轨常驻：页面区宽度在任何页面都不变，进出详情页不会先少一块、后补一块。
         if (navigation == TopLevelNavigationKind.RAIL) rail()
         Scaffold(

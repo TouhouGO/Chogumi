@@ -878,13 +878,18 @@
     <string name="explore_tile_all_of">全部%1$s</string>
 
     <!-- 探索页第一次进来的聚焦引导：长按封面标记、长按标题整理 -->
-    <string name="explore_guide_mark_title">长按封面，直接标记</string>
-    <string name="explore_guide_mark_text">按住任一作品的封面，朝一个方向滑过去再松手，就能标成看过、想看或在看。</string>
-    <string name="explore_guide_next">下一步</string>
-    <string name="explore_guide_arrange_title">整理探索页</string>
-    <string name="explore_guide_arrange_text">长按任一模块的标题，可以调整顺序、隐藏或添加模块。</string>
-    <string name="explore_guide_done">知道了</string>
-    <string name="explore_guide_arrange">去整理</string>
+    <string name="gesture_tour_skip">跳过</string>
+    <string name="gesture_tour_next">下一步</string>
+    <string name="gesture_tour_start">开始使用</string>
+    <string name="gesture_tour_mark_title">按住封面，滑一下就标好</string>
+    <string name="gesture_tour_mark_text">朝看过、想看或在看的方向滑过去再松手，哪个页面的封面都可以。</string>
+    <string name="gesture_tour_episode_title">每一集都有讨论</string>
+    <string name="gesture_tour_episode_text">点格子标到这一集；按住一集，看这一集的简介和评论。</string>
+    <string name="gesture_tour_floor_title">楼层里还有更多</string>
+    <string name="gesture_tour_floor_text">点一层就回复；按住可以贴贴、复制、举报，自己的楼层还能编辑和删除。</string>
+    <string name="gesture_tour_arrange_title">探索页按你的口味排</string>
+    <string name="gesture_tour_arrange_text">按住任一模块的标题，调整顺序、隐藏或添加模块。</string>
+    <string name="settings_gesture_tour">使用技巧</string>
     <!-- 探索页整理模块：整理列表、编辑面板、添加模块 -->
     <string name="explore_arrange_title">整理模块</string>
     <string name="explore_arrange_enter">整理模块</string>

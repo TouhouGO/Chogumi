@@ -58,6 +58,7 @@ import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.core.model.formatEpisodeSort
 import io.github.touhougo.chogumi.core.model.reactionsShownOf
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.common.navigation.rememberLinkOpener
 import io.github.touhougo.chogumi.core.ui.composables.CircleAvatar
 import io.github.touhougo.chogumi.core.ui.composables.FriendMark

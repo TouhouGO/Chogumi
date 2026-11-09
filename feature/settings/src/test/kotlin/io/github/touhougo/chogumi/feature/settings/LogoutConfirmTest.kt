@@ -45,6 +45,7 @@ class LogoutConfirmTest {
                     onBack = {},
                     onProfile = {},
                     onSection = {},
+                    onGestureTour = {},
                     onAbout = {},
                     isLoggedIn = true,
                     showDebugTools = false,

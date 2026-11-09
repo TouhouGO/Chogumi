@@ -26,6 +26,7 @@ class AppEntriesTest {
         Route.Settings,
         Route.SettingsPage(SettingsSection.APPEARANCE),
         Route.About,
+        Route.GestureTour,
         Route.ProfileSettings,
         Route.Search(),
         Route.UserProfile("fixture_user"),

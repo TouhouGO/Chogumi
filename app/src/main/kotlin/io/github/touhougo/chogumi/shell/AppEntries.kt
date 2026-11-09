@@ -38,6 +38,7 @@ import io.github.touhougo.chogumi.core.ui.common.navigation.AppNavigator
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageSheetRegistry
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
+import io.github.touhougo.chogumi.core.ui.tour.GestureTour
 import io.github.touhougo.chogumi.feature.calendar.CalendarScreen
 import io.github.touhougo.chogumi.feature.community.AllGroupsScreen
 import io.github.touhougo.chogumi.feature.community.BlockedUsersScreen
@@ -276,6 +277,7 @@ internal fun appEntries(
                 isLoggedIn = isLoggedIn,
                 onProfile = { navigate(Route.ProfileSettings) },
                 onSection = { navigate(Route.SettingsPage(it)) },
+                onGestureTour = { navigate(Route.GestureTour) },
                 onAbout = { navigate(Route.About) },
             )
         }
@@ -290,6 +292,7 @@ internal fun appEntries(
         }
         entry<Route.ProfileSettings> { ProfileSettingsScreen(onBack = goBack) }
         entry<Route.About> { AboutScreen(onBack = goBack) }
+        entry<Route.GestureTour> { GestureTour(onDone = goBack) }
         entry<Route.Search> {
             SearchScreen(
                 criteria = it.criteria,
