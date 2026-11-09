@@ -44,6 +44,7 @@
 | 改共享原语先数清调用方。（转正 2026-10-25） | `cachedNetworkCall`、`Load.advance`、`collectSection`、`Pager`、常用测试夹具的签名：PR 正文列每个调用方为什么仍然成立，每一类消费方有一个测试（`combine` 几条流算一类）；改的是排版组件时，截图覆盖每一类调用方。夹具签名的改动自己一个 PR，其余分支之后合 main。 |
 | 规则放在所有入口都经过的那一点。（转正 2026-10-27） | OAuth 状态只在 `AuthRepository.login` 清一次，不在每个登录函数里各清一次；同一条命令不写三遍。 |
 | 列表上的决定在事件处对整张表做一次。（转正 2026-10-27） | 见红线 1：`EpisodeTap.changes`、`EpisodeTracking.progressIndexOf`。每格各算一遍是 O(n²)，只在可见的一页里找是越界。 |
+| 先找已有的实现，再动手写。（转正 2026-11-09） | 动手前在 core:ui、core:data 与 core:ui 的 testFixtures、`tools/guards/sources.py` 里找同一种能力，兄弟 PR 刚合入的也算：演示与真组件读同一个判定（格子种类 `EpisodeTracking.episodeGrid`，形状、强调、描边 `TileStyle`），页面级的切换只经 `chogumiTransition`，测试的等待与收尾只经 `awaitUntil` / `cancelAndAwait`，门禁读 Kotlin 只经 `sources.py`。 |
 | 修 bug 不新添死代码。（转正 2026-10-27） | 不起作用的代次检查、守着不可达分支的标志、只为不可达分支留着的辅助函数、只有测试在用的新参数、只给测试留的默认参数：删。 |
 | 修好特例，也测普通的邻居。（转正 2026-10-27） | 修复旁边放一个普通情况的测试：遮罩外的 `[size]` 表情还是原大，输入「0」仍清空进度。 |
 | 不悄悄丢掉，也不悄悄报零。（转正 2026-10-27） | 忙时被拒的请求记下来，忙完就做（`Pager.reloading`）；一个目录都没读到的计数工具报错，不报 0。 |
