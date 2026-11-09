@@ -26,6 +26,7 @@
 | 从外面进来的链接（OAuth 回跳、别的应用里点开的 bgm.tv 网页） | app 的 `LinkActivity`（清单里唯一挂 VIEW 的入口；登记的域名与路径和 `inAppRoute` 由 `LinkManifestContractTest` 守）→ `AppActivity.handleLink`；应用里没有的页交给浏览器（`CustomTabUriHandler` 指名浏览器，不绕回自己） |
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
 | 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
+| 连 bgm.tv 走哪条线路（系统网络 / 直连） | core:netroute：线路设置与核心起停 `NetRoute`、给网络层的调整 `DirectRouting`、边缘地址来源 `EdgeAddresses`、设备支不支持 `directRouteSupported`；网络层只认 core:network 的 `OkHttpCustomizer`（三个接口客户端与图片加载都套上）。直连核心的 Go 源码在 `core/netroute/go/`，改了跑 `tools/echcore/build.sh` 重新生成 `core/netroute/libs/echcore.aar`；别处不引用核心（`python3 tools/guards/check_netroute.py`）。设置页「网络」与登录页的地球、「试试直连」都读同一份设置（§1.10） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
 | 一个页面 | `feature/<名字>/`：Screen + ViewModel + `di/<名字>Module.kt`，feature 之间不互相依赖 |
@@ -238,6 +239,21 @@ flowchart LR
   如周二 02:00 JST 开播的每集都是周一），与放送表的星期同一套归法；所以首页追更时间表按 `airdate` 的星期查放送时刻（`airingMinuteOf`）。
   bgm.tv 放送表不收全部在播作品（国产动画、部分新番不在表里），在追作品哪天播只看下一集的 `airdate`（`followedAiringDateOf`），
   首页与每日放送的「我在追」同一个判定；本机还没有这部的章节时才退回放送表的星期。
+
+### 1.10 直连（ECH）的事实（2026-11-09 线上实测）
+
+- bgm.tv、api.bgm.tv、next.bgm.tv、lain.bgm.tv 都在 Cloudflare 上，解析到 104.26.8.23、104.26.9.23、172.67.73.67；bgm.tv 自己的
+  DNS 没有发布 ECH 配置。Cloudflare 的共用配置（public_name `cloudflare-ech.com`，71 字节，chii.in 的 HTTPS 记录里有同一份）对这四个
+  域名都被接受（`ECHAccepted`），证书是 bgm.tv 的。
+- 配置不对（公钥随意的一份）时 Cloudflare 拒绝并随拒绝给出当前配置，用它重连就成功；所以核心内置一份随意的配置即可自举，
+  拿到的那份存进 core:netroute 的 DataStore，冷启动直接用。
+- 不是每个 Cloudflare 地址都服务 bgm.tv：104.16.132.229 握手成功但回 403「error code: 1034」（边缘地址受限），核心见到就换下一个地址。
+- 大陆线路（Mac 有线、出口 CN）上：普通 SNI 连 bgm.tv 各地址约 40ms 被重置（线路中注入，早于服务器的回包）；ECH 外层 SNI 是
+  `cloudflare-ech.com`，不被重置，10 分钟 120 次请求全部成功。对同一地址连发几次普通 SNI 之后，几十秒内连 ECH 也被重置
+  （推断：两次观察，没量出时长）：直连失败时绝不退回普通 SNI。
+- 同一线路上国内 DNS（运营商、223.5.5.5、119.29.29.29、114、doh.pub、阿里 DoH）给 bgm.tv 与 chii.in 都回假地址；dns.google、
+  cloudflare-dns.com 的 DoH 连不上。所以边缘地址内置，不靠 DNS。
+- 直连只管 OkHttp 的请求（接口客户端与图片加载）。应用里的 WebView（回帖的人机验证页）与浏览器（浏览器授权、打开网页）不经过它。
 
 ## 2. 排版框架级的坑
 

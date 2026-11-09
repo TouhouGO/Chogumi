@@ -391,3 +391,10 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
   （Koin 编译器插件，经 `chogumi.koin` 应用）。
 - 注册只用经典 DSL；没有 Koin 注解（`@InjectedParam`、`@Named`……），没有 `koin-annotations` 依赖。插件自己的 DSL（`viewModel<T>()`）不是选项：
   1.2.1 的全应用检查看不见 feature 模块的 `@InjectedParam` 和默认值，把每个导航参数都报成缺依赖。
+
+## 网络线路：一种实现
+
+连 bgm.tv 走哪条线路（系统网络、直连，以后的代理）只在 core:netroute：设置、核心起停、对请求的改写都在那里。网络层只认 core:network 的
+`OkHttpCustomizer`，三个接口客户端与图片加载套上 Koin 里登记的全部 customizer；页面只认 `NetRoute` / `DirectRouteHint` /
+`directRouteSupported`。直连核心（Go，`echcore.aar`）只有 core:netroute 引用，失败时只报失败、绝不退回普通 SNI（服务端事实在
+[开发须知](dev/guide.md) §1.10）。门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_netroute.py`。

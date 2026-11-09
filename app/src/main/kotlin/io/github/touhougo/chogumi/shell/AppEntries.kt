@@ -30,6 +30,7 @@ import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.model.TopicType
 import io.github.touhougo.chogumi.core.model.indexCategoryOf
 import io.github.touhougo.chogumi.core.model.monoTypeSpec
+import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LocalIndexPicker
 import io.github.touhougo.chogumi.core.ui.common.LocalUserCareerCard
@@ -38,6 +39,7 @@ import io.github.touhougo.chogumi.core.ui.common.navigation.AppNavigator
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageSheetRegistry
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
+import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
 import io.github.touhougo.chogumi.feature.calendar.CalendarScreen
 import io.github.touhougo.chogumi.feature.community.AllGroupsScreen
 import io.github.touhougo.chogumi.feature.community.BlockedUsersScreen
@@ -254,7 +256,11 @@ internal fun appEntries(
 
         // ---- 独立页 ----
         entry<Route.Login> {
-            LoginScreen(onBack = goBack, onSettingsClick = toSettings)
+            LoginScreen(
+                onBack = goBack,
+                onNetworkClick = if (directRouteSupported) ({ navigate(Route.SettingsPage(SettingsSection.NETWORK)) }) else null,
+                onSettingsClick = toSettings,
+            )
         }
         entry<Route.Feed> {
             TimelineScreen(

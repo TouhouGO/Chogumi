@@ -50,7 +50,8 @@ class LoginScreenshotTest {
                     onBrowserLogin = {},
                     onManualToken = {},
                     onBack = {},
-                    onSettingsClick = {},
+                    onNetworkClick = {},
+                            onSettingsClick = {},
                     snackbarHostState = remember { SnackbarHostState() },
                 )
             }

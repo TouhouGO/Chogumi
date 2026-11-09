@@ -19,6 +19,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.engine.okhttp.OkHttpConfig
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
@@ -199,6 +200,7 @@ fun createHttpClient(
     appVersion: String,
     enableLogging: Boolean = false,
     engine: HttpClientEngine? = null,
+    customizers: List<OkHttpCustomizer> = emptyList(),
 ): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         // 必须 true：toFailure 靠 ResponseException（4xx / 5xx 抛出）认出状态码
@@ -252,7 +254,12 @@ fun createHttpClient(
         HttpClient(engine, config)
     } else {
         HttpClient(OkHttp) {
-            engine { config { dispatcher(apiOkHttpDispatcher()) } }
+            engine {
+                config {
+                    dispatcher(apiOkHttpDispatcher())
+                    customizedBy(customizers)
+                }
+            }
             apply(config)
         }
     }
@@ -269,7 +276,11 @@ internal const val API_MAX_REQUESTS_PER_HOST = 10
 internal fun apiOkHttpDispatcher() = Dispatcher().apply { maxRequestsPerHost = API_MAX_REQUESTS_PER_HOST }
 
 /** OAuth 凭据请求：不安装 Bearer，避免令牌刷新依赖自身。 */
-fun createTokenHttpClient(appVersion: String, engine: HttpClientEngine? = null): HttpClient {
+fun createTokenHttpClient(
+    appVersion: String,
+    engine: HttpClientEngine? = null,
+    customizers: List<OkHttpCustomizer> = emptyList(),
+): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         expectSuccess = true
         installJson()
@@ -278,11 +289,16 @@ fun createTokenHttpClient(appVersion: String, engine: HttpClientEngine? = null):
             headers.append("User-Agent", userAgent(appVersion))
         }
     }
-    return if (engine != null) HttpClient(engine, config) else HttpClient(OkHttp, config)
+    return if (engine != null) HttpClient(engine, config) else HttpClient(OkHttp) { customizedEngine(customizers); apply(config) }
+}
+
+/** 在 OkHttp 引擎上套上 [customizers]。 */
+private fun HttpClientConfig<OkHttpConfig>.customizedEngine(customizers: List<OkHttpCustomizer>) {
+    engine { config { customizedBy(customizers) } }
 }
 
 /** 网页请求：不跟随跳转、不缓存、不带 OAuth，状态与 Cookie 都由调用方处理。 */
-fun createWebHttpClient(engine: HttpClientEngine? = null): HttpClient {
+fun createWebHttpClient(engine: HttpClientEngine? = null, customizers: List<OkHttpCustomizer> = emptyList()): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         expectSuccess = false
         followRedirects = false
@@ -291,7 +307,7 @@ fun createWebHttpClient(engine: HttpClientEngine? = null): HttpClient {
             headers.append("User-Agent", WEB_USER_AGENT)
         }
     }
-    return if (engine != null) HttpClient(engine, config) else HttpClient(OkHttp, config)
+    return if (engine != null) HttpClient(engine, config) else HttpClient(OkHttp) { customizedEngine(customizers); apply(config) }
 }
 
 /** core:network 的 Koin 模块（app 壳调用，传入 App 版本、BuildConfig.DEBUG 与 AuthConfig） */
@@ -300,11 +316,11 @@ fun networkModule(
     enableLogging: Boolean,
     authConfig: AuthConfig,
 ) = module {
-    single { createHttpClient(get(), get(), appVersion, enableLogging) }
+    single { createHttpClient(get(), get(), appVersion, enableLogging, customizers = getAll()) }
     single {
         // AuthApi 使用独立客户端：token 端点是凭据型请求，不需要 Bearer 注入与 401 刷新；
         // 若复用共享 HttpClient 会形成构造循环（HttpClient → TokenRefresher → AuthApi → HttpClient）
-        AuthApi(createTokenHttpClient(appVersion), authConfig)
+        AuthApi(createTokenHttpClient(appVersion, customizers = getAll()), authConfig)
     }
     single { UserApi(get()) }
     single { IndexApi(get()) }
@@ -317,7 +333,7 @@ fun networkModule(
     single(named(WEB_CLIENT)) {
         // 网页（不是接口）用独立客户端：不跟随跳转（登录、授权、操作链接的结果都在跳转本身）、不缓存、不带令牌，
         // 非 2xx 由使用方自己判。Cookie 由每个请求显式带上。
-        createWebHttpClient()
+        createWebHttpClient(customizers = getAll())
     }
     single { WebSessionApi(get(named(WEB_CLIENT))) }
     single { WebLoginApi(get(named(WEB_CLIENT)), authConfig) }

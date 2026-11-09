@@ -30,9 +30,7 @@ class SettingsMenuTest {
         override fun logout() = Unit
     }
 
-    @Test
-    fun 每个分类行打开它自己的分类页() {
-        val opened = mutableListOf<SettingsSection>()
+    private fun showSections(networkSection: Boolean, onSection: (SettingsSection) -> Unit) {
         compose.setContent {
             MaterialTheme {
                 SettingsContent(
@@ -41,19 +39,34 @@ class SettingsMenuTest {
                     failures = FailureNotices(),
                     onBack = {},
                     onProfile = {},
-                    onSection = { opened += it },
+                    onSection = onSection,
                     onAbout = {},
                     isLoggedIn = true,
                     showDebugTools = false,
+                    networkSection = networkSection,
                 )
             }
         }
+    }
 
-        listOf("外观", "首页与进度", "评分与社区", "内容过滤", "更新").forEach { title ->
+    @Test
+    fun 每个分类行打开它自己的分类页() {
+        val opened = mutableListOf<SettingsSection>()
+        showSections(networkSection = true) { opened += it }
+
+        listOf("外观", "首页与进度", "评分与社区", "内容过滤", "更新", "网络").forEach { title ->
             compose.onNode(hasText(title) and hasClickAction()).performClick()
         }
 
         assertEquals(SettingsSection.entries, opened)
+    }
+
+    @Test
+    fun 设备不支持直连时没有网络分类() {
+        showSections(networkSection = false) {}
+
+        compose.onNodeWithText("更新").assertExists()
+        compose.onNodeWithText("网络").assertDoesNotExist()
     }
 
     @Test
@@ -87,6 +100,7 @@ class SettingsMenuTest {
                     onAbout = {},
                     isLoggedIn = isLoggedIn,
                     showDebugTools = false,
+                    networkSection = false,
                 )
             }
         }

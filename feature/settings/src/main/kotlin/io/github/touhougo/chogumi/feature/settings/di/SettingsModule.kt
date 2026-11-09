@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.feature.settings.CoilImageCache
 import io.github.touhougo.chogumi.feature.settings.ContentSettingsViewModel
 import io.github.touhougo.chogumi.feature.settings.ImageCache
 import io.github.touhougo.chogumi.feature.settings.LauncherAliasIcons
+import io.github.touhougo.chogumi.feature.settings.NetworkSettingsViewModel
 import io.github.touhougo.chogumi.feature.settings.PreferenceSettingsViewModel
 import io.github.touhougo.chogumi.feature.settings.ProfileSettingsViewModel
 import io.github.touhougo.chogumi.feature.settings.SettingsViewModel
@@ -23,4 +24,5 @@ val settingsModule = module {
     viewModelOf(::ContentSettingsViewModel)
     viewModelOf(::ProfileSettingsViewModel)
     viewModelOf(::UpdateSettingsViewModel)
+    viewModelOf(::NetworkSettingsViewModel)
 }

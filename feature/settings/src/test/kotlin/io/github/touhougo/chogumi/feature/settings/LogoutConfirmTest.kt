@@ -48,6 +48,7 @@ class LogoutConfirmTest {
                     onAbout = {},
                     isLoggedIn = true,
                     showDebugTools = false,
+                    networkSection = false,
                 )
             }
         }
