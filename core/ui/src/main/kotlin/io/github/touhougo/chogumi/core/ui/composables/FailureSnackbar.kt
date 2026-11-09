@@ -29,7 +29,7 @@ import io.github.touhougo.chogumi.core.res.R
  */
 private suspend fun SnackbarHostState.showFailure(
     message: String,
-    actionLabel: String? = null,
+    actionLabel: String?,
 ): SnackbarResult =
     if (actionLabel == null) {
         showSnackbar(message = message, duration = SnackbarDuration.Short)

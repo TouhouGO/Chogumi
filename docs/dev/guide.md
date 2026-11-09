@@ -14,6 +14,8 @@
 | 失败与加载形态 | core:foundation 的 `Failure` / `Outcome` / `Load`；异常 → `Failure` 只在 core:network `toFailure()`，`Failure` → 文案只在 core:ui |
 | 进度写入（「+」、章节方格） | core:data 的 `EpTapCoordinator` → `ProgressOrchestrator` |
 | 仓库、缓存、DTO 映射 | core:data 的 `repository/`、`db/mapper/`（写入时刻显式传入） |
+| 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 清理失败时读取仍先认持久归属，下一次会话变化或记录搜索再清；会话本身读不出时维护结束、不崩，之后只靠记录搜索再清 |
+| 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
 | 富文本、楼层、动态卡片 | core:reader |
@@ -79,6 +81,17 @@ Bangumi 服务端先按 `limit / offset` 切数据库结果集，再跳过查不
 - 令牌不用 Keystore 硬件加密：威胁模型不含「拿到已解锁手机提取私有目录」，而 Keystore 在锁屏凭据变更或 OEM 异常时会偶发
   密钥失效导致强制登出。网页会话的 Cookie 例外，用 Keystore 的 AES-GCM 加密后存在同一个文件里（`KeystoreCookieCipher`）：
   它能做网页上的一切，而密钥失效的代价只是丢掉网页会话（解不开就当没有，提示重新用账号密码登录），不会登出。
+
+#### 令牌的有效期与刷新
+
+- 账号密码登录与浏览器授权都是拿授权码换令牌（`AuthApi.exchangeCode`）：每换一次，服务端新发一张 OAuth 令牌，
+  bgm.tv 的「个人令牌」页按应用名列出（「Chogumi」）。令牌有效期由服务端定为 7 天（`expires_in` 604800），客户端改不了。
+  手动填的 Access Token 原样存下，不新发。应用不创建个人令牌。
+- 登录靠刷新延续：请求挨 401 时 `TokenRefresherImpl` 用 refresh_token 换一对新令牌，不主动按 `expires_in` 刷新。
+  刷新请求按 bgm.tv 授权文档带齐 `grant_type`、`client_id`、`client_secret`、`refresh_token`、`redirect_uri`
+  （与换授权码同一个值）。refresh_token 的有效期文档没写；刷新在线上的结果未实测（推断）。
+- 登出只清本机的令牌，不在服务端作废：OAuth 没有公开的作废接口，令牌页的删除是 next.bgm.tv 的网页操作，不在接口合同里。
+  旧令牌到期自然失效。
 
 #### 浏览器 OAuth 的已接受风险
 

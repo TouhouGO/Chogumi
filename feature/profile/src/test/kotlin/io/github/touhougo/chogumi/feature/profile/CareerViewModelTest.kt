@@ -145,13 +145,21 @@ class CareerViewModelTest {
             return Outcome.Success(previewPicks)
         }
 
+        /** 合起来算的结果；每次调用开始时取当时的值。 */
+        @Volatile var overall: CollectionStatistics = OTHER_OVERALL
+        /** 不为 null 时合起来算挂在这里，等测试放行。 */
+        @Volatile var overallGate: CompletableDeferred<Unit>? = null
+
         override suspend fun overallStatisticsFor(
             username: String,
             subjectTypes: Collection<SubjectType>,
             currentYear: Int,
         ): Outcome<CollectionStatistics> {
+            val result = overall
+            val gate = overallGate
             overallCalls += subjectTypes.toSet()
-            return Outcome.Success(OTHER_OVERALL)
+            gate?.await()
+            return Outcome.Success(result)
         }
     }
 
@@ -197,7 +205,7 @@ class CareerViewModelTest {
         return testUserRepository(resources, UserApi(client), store, dao)
     }
 
-    private fun selfVm(source: FakeStatsSource): CareerViewModel {
+    private fun selfVm(source: CollectionStatsDataSource): CareerViewModel {
         val users = makeUserRepository(userSubjectJson = "")
         return CareerViewModel(null, SubjectType.ANIME, false, source, FakeOtherCareers(), users, appTime = inYear2026)
             .also { viewModels += it }
@@ -216,6 +224,37 @@ class CareerViewModelTest {
     }
 
     // ---- 本人 ----
+
+    @Test
+    fun `同步时刻读取失败仍结束刷新并保留已有内容`() = runBlocking<Unit> {
+        val source = FakeStatsSource()
+        var readFails = false
+        val failed = CompletableDeferred<Unit>()
+        val wrapped = object : CollectionStatsDataSource by source {
+            override suspend fun lastSyncedAt(): Long? {
+                if (readFails) {
+                    failed.complete(Unit)
+                    throw java.io.IOException("同步时刻读失败")
+                }
+                return source.lastSyncedAt()
+            }
+        }
+        val vm = withContext(main.dispatcher) { selfVm(wrapped) }
+        awaitUntil("首次同步完成") { vm.uiState.value.lastSyncedAt != null }
+        source.emit(mapOf(SubjectType.ANIME to SELF_STATS))
+        awaitUntil("统计已显示") { vm.uiState.value.ownStats != null }
+        withContext(main.dispatcher) {
+            readFails = true
+            vm.refresh()
+        }
+        failed.await()
+        withContext(main.dispatcher) {
+            assertEquals(false, vm.uiState.value.refreshing, "时刻读失败仍要结束刷新")
+            assertEquals(SYNCED_AT, vm.uiState.value.lastSyncedAt, "失败保留上次同步时刻")
+            assertEquals(NoticeText.Reason(Failure.Storage), vm.failures.current.value?.text)
+        }
+        assertIs<CareerContent.Ready>(vm.uiState.value.content())
+    }
 
     @Test
     fun `本人打开即请求一次非强制同步，统计到达后画出完整内容`() = runBlocking<Unit> {
@@ -388,6 +427,25 @@ class CareerViewModelTest {
         val card = assertIs<CareerCardContent.Ready>(vm.uiState.value.cardContent(publicRatings = true))
         assertEquals(5, card.portrait.done, "完成数读服务端摘要")
         assertEquals(OTHER_OVERALL.coverPicks, card.portrait.covers)
+    }
+
+    @Test
+    fun `先开始的合并晚到时不覆盖后一次合并的结果`() = runBlocking<Unit> {
+        val first = CompletableDeferred<Unit>()
+        val others = FakeOtherCareers().apply { overallGate = first }
+        val vm = otherVm(others, userSubjectJson = SMALL_SUMMARY)
+        awaitUntil("第一次合起来算开始") { others.overallCalls.size == 1 }
+
+        val newer = OTHER_OVERALL.copy(totalCount = 11)
+        others.overallGate = null
+        others.overall = newer
+        vm.summarize(SubjectType.ANIME)
+        awaitUntil("后一次合起来算落下") { vm.uiState.value.otherOverall == newer }
+
+        // 假数据源不换线程，第一次合并放行后整轮在 Main 上：排空 Main，它的写入（如果有）已经落下
+        first.complete(Unit)
+        withContext(Dispatchers.Main) { }
+        assertEquals(newer, vm.uiState.value.otherOverall, "先开始的那次晚到，不能把结果换回旧的")
     }
 
     @Test

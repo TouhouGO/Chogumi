@@ -4,6 +4,7 @@ import io.github.touhougo.chogumi.core.network.AuthConfig
 import io.github.touhougo.chogumi.core.network.createTokenHttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -12,6 +13,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class AuthApiTest {
 
@@ -63,10 +67,17 @@ class AuthApiTest {
     }
 
     @Test
-    fun `refresh 请求路径正确`() = runTest {
+    fun `refresh 请求带齐文档要求的参数`() = runTest {
         val (api, engine) = makeApi(HttpStatusCode.OK, tokenJson)
         api.refresh("old_rt")
-        assertEquals("/oauth/access_token", engine.requestHistory.single().url.encodedPath)
+        val request = engine.requestHistory.single()
+        assertEquals("/oauth/access_token", request.url.encodedPath)
+        val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
+        assertEquals("refresh_token", body["grant_type"]?.jsonPrimitive?.content)
+        assertEquals("bgmtest", body["client_id"]?.jsonPrimitive?.content)
+        assertEquals("secret", body["client_secret"]?.jsonPrimitive?.content)
+        assertEquals("old_rt", body["refresh_token"]?.jsonPrimitive?.content)
+        assertEquals("chogumi://oauth/callback", body["redirect_uri"]?.jsonPrimitive?.content)
     }
 
     @Test
