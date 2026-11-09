@@ -58,7 +58,6 @@ class ExploreContentTest {
                     onOpenSearch = { _, _, _ -> },
                     onOpenCalendar = {},
                     arrangeActions = NoArrangeActions,
-                    guide = null,
                 )
             }
         }
@@ -122,7 +121,6 @@ class ExploreContentTest {
                     onOpenSearch = { _, _, _ -> },
                     onOpenCalendar = {},
                     arrangeActions = NoArrangeActions,
-                    guide = null,
                 )
             }
         }

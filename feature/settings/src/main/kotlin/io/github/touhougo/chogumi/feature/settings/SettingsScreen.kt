@@ -50,7 +50,8 @@ import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * 设置的一级菜单：自己的资料（登录了才有，点了由 [onProfile] 去个人资料页），各分类（[SettingsSection]，点了由 [onSection] 去那一页），图片缓存，关于（[onAbout]），
+ * 设置的一级菜单：自己的资料（登录了才有，点了由 [onProfile] 去个人资料页），各分类（[SettingsSection]，点了由 [onSection] 去那一页），图片缓存，
+ * 使用技巧（[onGestureTour]，重看手势引导），关于（[onAbout]），
  * 调试区（可调试构建），退出登录（登录了才有）。
  */
 @Composable
@@ -59,6 +60,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onSection: (SettingsSection) -> Unit,
+    onGestureTour: () -> Unit,
     onAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -76,6 +78,7 @@ fun SettingsScreen(
         onBack = onBack,
         onProfile = onProfile,
         onSection = onSection,
+        onGestureTour = onGestureTour,
         onAbout = onAbout,
         isLoggedIn = isLoggedIn,
         showDebugTools = debuggable,
@@ -91,6 +94,7 @@ fun SettingsContent(
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onSection: (SettingsSection) -> Unit,
+    onGestureTour: () -> Unit,
     onAbout: () -> Unit,
     isLoggedIn: Boolean,
     /** 调试区（按链接跳转、上次崩溃），只在可调试构建里显示。 */
@@ -132,6 +136,7 @@ fun SettingsContent(
                     title = null,
                     rows = listOf<SettingsRow>(
                         { index, count -> ImageCacheRow(index, count, state.imageCacheBytes) { confirmingClearCache = true } },
+                        { index, count -> LinkRow(index, count, stringResource(R.string.settings_gesture_tour), R.drawable.touch_app_24, onGestureTour) },
                         { index, count -> LinkRow(index, count, stringResource(R.string.about), R.drawable.info_24, onAbout) },
                     ),
                 ),

@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
@@ -50,13 +51,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.touhougo.chogumi.core.model.CollectionType
+import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.composables.CollectionTypeColors
 import io.github.touhougo.chogumi.core.ui.composables.ModalScrim
@@ -75,7 +76,7 @@ import kotlinx.coroutines.launch
 
 /** 浮起的封面：放大 1.06、阴影 Level 3（tokens.md Elevation level 3 = 6dp）；放大与阴影是设计决定（not in M3）。 */
 private const val LiftScale = 1.06f
-private val LiftElevation = 6.dp
+internal val LiftElevation = 6.dp
 
 /**
  * 按住预示时封面收到的圆角（CornerLarge），浮起时也是它（形状变化表达长按，interaction.md）；静止已比它圆的封面
@@ -89,14 +90,14 @@ private val SlotCornerPressed = 12.dp
 private val SlotCornerSelected = 16.dp
 
 /** 圆钮阴影 Level 2（3dp）、逐个弹出的间隔（设计决定，M3 不规定 stagger）。 */
-private val SlotElevation = 3.dp
+internal val SlotElevation = 3.dp
 private const val SlotStaggerMillis = 15L
 
 /** 圆钮从中心弹出时的起始缩放、选中那一格原地缩到的比例（设计决定）。 */
 private const val SlotCollapsedScale = 0.3f
 private const val ChosenShrinkScale = 0.6f
 
-/** 中心的死区圈：白描边 2、整体透明 0.7（设计决定，原型 `.hub`）。演示里的手指是同一个圈填实（[DemoFinger]）。 */
+/** 中心的死区圈：白描边 2、整体透明 0.7（设计决定，原型 `.hub`）。手势引导里的手指是同一个圈填实。 */
 private val HubStroke = 2.dp
 internal const val HubAlpha = 0.7f
 internal const val HubStrokeAlpha = 0.75f
@@ -110,14 +111,71 @@ private val AimEndGap = 6.dp
 private val PreviewHeight = 32.dp
 private val PreviewGap = 8.dp
 
-/** 长按环展开后从环心到最远处（环上方的预演胶囊顶边）的距离：引导的卡开在这一圈之外，不压住演示。 */
-val PosterRingReach: Dp = RingGeometry.Radius + RingGeometry.Push + RingGeometry.Button / 2 + PreviewGap + PreviewHeight
+/**
+ * 环怎么画只看这几样：按下点、环心、打开时的状态、条目类型，以及此刻开着没有、指着哪一格、选了哪一格。
+ * 真环是 [RingSession]；手势引导的演示环（tour 包）也给它，画法只有 [RingLayers] 一份。
+ */
+internal interface RingLook {
+    val press: Offset
+    val center: Offset
+    val current: CollectionType?
+    val subjectType: SubjectType
+
+    /** false = 正在收起（动画走完才撤掉浮层）。 */
+    val open: Boolean
+
+    /** 手指此刻指着的那一格。 */
+    val hot: RingSlot?
+
+    /** 选中的那一格：收起时它原地缩掉，其余收回中心。 */
+    val chosen: RingSlot?
+}
 
 @Composable
 internal fun RingOverlay(ring: RingSession, layer: PosterMarkLayer, modifier: Modifier) {
+    val density = LocalDensity.current
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = ring.open,
+        onBackCompleted = layer::dismiss,
+    )
+    RingLayers(ring, onDismiss = layer::dismiss, onChoose = layer::choose, onClosed = { layer.finish(ring) }, modifier) { liftScale ->
+        // 浮起的封面：画的是封面原位录下的同一份内容，只露出原位看得见的那一块（RingSession.cover），圆角与原位同一个动画（posterCoverShape）
+        val cover = ring.cover
+        Box(
+            Modifier
+                .offset { IntOffset(cover.left.roundToInt(), cover.top.roundToInt()) }
+                .size(with(density) { cover.width.toDp() }, with(density) { cover.height.toDp() })
+                .graphicsLayer {
+                    scaleX = liftScale()
+                    scaleY = liftScale()
+                    shape = RoundedCornerShape(ring.mark.corner.value)
+                    clip = true
+                    shadowElevation = LiftElevation.toPx()
+                }
+                .drawBehind {
+                    translate(ring.coverContent.x, ring.coverContent.y) { drawLayer(ring.mark.graphics) }
+                    ring.coverLifted = true
+                },
+        )
+    }
+}
+
+/**
+ * 环的几层与它们的展开收起（真环与手势引导的演示环共用）：遮罩、浮起的封面（[cover]，拿到此刻的放大倍数）、中心圈与瞄准线、六格、
+ * 瞄准时的预演胶囊。收起的动画走完调 [onClosed]。
+ */
+@Composable
+internal fun RingLayers(
+    ring: RingLook,
+    onDismiss: () -> Unit,
+    onChoose: (RingSlot) -> Unit,
+    onClosed: () -> Unit,
+    modifier: Modifier,
+    cover: @Composable (liftScale: () -> Float) -> Unit,
+) {
     val motion = MaterialTheme.motionScheme
     val appMotion = LocalAppMotion.current
-    val density = LocalDensity.current
     val open = ring.open
     val slots = RingSlot.entries
     val progress = remember { slots.map { Animatable(0f) } }
@@ -149,36 +207,12 @@ internal fun RingOverlay(ring: RingSession, layer: PosterMarkLayer, modifier: Mo
                 launch { liftScale.animateTo(1f, motion.defaultSpatialSpec()) }
             }
         }
-        if (!open) layer.finish(ring)
+        if (!open) onClosed()
     }
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        // 演示的环不接返回：返回归引导（它不收起）
-        isBackEnabled = open && !ring.demo,
-        onBackCompleted = layer::dismiss,
-    )
 
     Box(modifier) {
-        // 演示的环不画自己的遮罩：引导的遮罩在环下面一直开着
-        ModalScrim(shown = open && !ring.demo, onDismiss = layer::dismiss)
-        // 浮起的封面：画的是封面原位录下的同一份内容，只露出原位看得见的那一块（RingSession.cover），圆角与原位同一个动画（posterCoverShape）
-        val cover = ring.cover
-        Box(
-            Modifier
-                .offset { IntOffset(cover.left.roundToInt(), cover.top.roundToInt()) }
-                .size(with(density) { cover.width.toDp() }, with(density) { cover.height.toDp() })
-                .graphicsLayer {
-                    scaleX = liftScale.value
-                    scaleY = liftScale.value
-                    shape = RoundedCornerShape(ring.mark.corner.value)
-                    clip = true
-                    shadowElevation = LiftElevation.toPx()
-                }
-                .drawBehind {
-                    translate(ring.coverContent.x, ring.coverContent.y) { drawLayer(ring.mark.graphics) }
-                    ring.coverLifted = true
-                },
-        )
+        ModalScrim(shown = open, onDismiss = onDismiss)
+        cover { liftScale.value }
         AimAndHub(ring, fade = { fade.value }, hubScale = { hub.value })
         slots.forEachIndexed { i, slot ->
             RingButton(
@@ -187,7 +221,7 @@ internal fun RingOverlay(ring: RingSession, layer: PosterMarkLayer, modifier: Mo
                 progress = { progress[i].value },
                 fade = { fade.value },
                 shrink = { if (slot == ring.chosen) shrink.value else 0f },
-                onClick = { layer.choose(slot) },
+                onClick = { onChoose(slot) },
             )
         }
         if (open) ring.hot?.let { hot -> key(hot) { RingPreview(ring, hot) } }
@@ -196,7 +230,7 @@ internal fun RingOverlay(ring: RingSession, layer: PosterMarkLayer, modifier: Mo
 
 /** 中心的死区圈与从中心指向瞄准那一格的线。 */
 @Composable
-private fun AimAndHub(ring: RingSession, fade: () -> Float, hubScale: () -> Float) {
+private fun AimAndHub(ring: RingLook, fade: () -> Float, hubScale: () -> Float) {
     val hot = ring.hot
     var lastHot by remember { mutableStateOf(hot) }
     if (hot != null) lastHot = hot
@@ -232,7 +266,7 @@ private fun AimAndHub(ring: RingSession, fade: () -> Float, hubScale: () -> Floa
  */
 @Composable
 private fun RingButton(
-    ring: RingSession,
+    ring: RingLook,
     slot: RingSlot,
     progress: () -> Float,
     fade: () -> Float,
@@ -327,7 +361,7 @@ private fun RingButton(
  * 换一格就重新弹出一次。
  */
 @Composable
-private fun RingPreview(ring: RingSession, slot: RingSlot) {
+private fun RingPreview(ring: RingLook, slot: RingSlot) {
     val motion = MaterialTheme.motionScheme
     val pop = remember { Animatable(0.6f) }
     val alpha = remember { Animatable(0f) }

@@ -51,7 +51,6 @@ class ExploreRecompositionTest {
                         onOpenSearch = { _, _, _ -> },
                         onOpenCalendar = {},
                         arrangeActions = NoArrangeActions,
-                        guide = null,
                     )
                 }
             }

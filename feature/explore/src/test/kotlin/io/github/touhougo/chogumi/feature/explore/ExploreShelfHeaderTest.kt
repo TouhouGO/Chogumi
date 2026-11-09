@@ -59,7 +59,6 @@ class ExploreShelfHeaderTest {
                     onOpenSearch = { _, _, _ -> },
                     onOpenCalendar = {},
                     arrangeActions = actions,
-                    guide = null,
                 )
             }
         }

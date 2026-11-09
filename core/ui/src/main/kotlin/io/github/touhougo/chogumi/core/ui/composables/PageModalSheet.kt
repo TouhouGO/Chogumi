@@ -47,11 +47,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -448,36 +444,32 @@ private fun AnchoredDraggableState<SheetValue>.distanceAboveHidden(): Float? =
     if (anchors.hasPositionFor(SheetValue.Hidden) && !offset.isNaN()) anchors.positionOf(SheetValue.Hidden) - offset else null
 
 /**
- * 页面里模态浮层下的遮罩（全 App 唯一画法：页面面板、海报长按环、第一次进来的引导）：`scrim` 色 32%（M3 foundations.md「Scrim: use the
+ * 页面里模态浮层下的遮罩（全 App 唯一画法：页面面板、海报长按环）：`scrim` 色 32%（M3 foundations.md「Scrim: use the
  * `scrim` color role at 32% opacity」，即 [BottomSheetDefaults.ScrimColor]），随 [shown] 以 effects 弹簧淡入淡出；
- * 开着时点一下就 [onDismiss]，读屏读作「关闭」。[onDismiss] 为 null 的遮罩点了不收（引导只认卡上的按钮），也不挂触摸与读屏动作。
- * 收起中不挂触摸：空的触摸节点也会挡住下面的页面。[cutout] 给出时挖掉这块不压暗（引导亮出它指着的那一块）。
+ * 开着时点一下就 [onDismiss]，读屏读作「关闭」。收起中不挂触摸：空的触摸节点也会挡住下面的页面。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ModalScrim(
     shown: Boolean,
-    onDismiss: (() -> Unit)?,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    cutout: (DrawScope.() -> Path)? = null,
 ) {
     val scrimAlpha by animateFloatAsState(if (shown) 1f else 0f, MaterialTheme.motionScheme.defaultEffectsSpec(), label = "scrim")
     val scrimColor = BottomSheetDefaults.ScrimColor
     val closeLabel = stringResource(R.string.close)
     val dismiss by rememberUpdatedState(onDismiss)
-    val dismissible = shown && onDismiss != null
     Canvas(
         modifier
             .fillMaxSize()
-            .then(if (dismissible) Modifier.pointerInput(Unit) { detectTapGestures { dismiss?.invoke() } } else Modifier)
+            .then(if (shown) Modifier.pointerInput(Unit) { detectTapGestures { dismiss() } } else Modifier)
             .semantics {
-                if (dismissible) {
+                if (shown) {
                     contentDescription = closeLabel
-                    onClick { dismiss?.invoke(); true }
+                    onClick { dismiss(); true }
                 }
             },
     ) {
-        val color = scrimColor.copy(alpha = scrimColor.alpha * scrimAlpha)
-        if (cutout == null) drawRect(color) else clipPath(cutout(), ClipOp.Difference) { drawRect(color) }
+        drawRect(scrimColor.copy(alpha = scrimColor.alpha * scrimAlpha))
     }
 }

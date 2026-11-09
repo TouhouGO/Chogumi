@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,7 +51,6 @@ import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.collection.PosterMarkHost
-import io.github.touhougo.chogumi.core.ui.collection.PosterRingReach
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageTransitionKind
 import io.github.touhougo.chogumi.core.ui.common.navigation.ScrollToTopOnTabReselect
 import io.github.touhougo.chogumi.core.ui.common.navigation.chogumiTransition
@@ -62,15 +60,9 @@ import io.github.touhougo.chogumi.core.ui.composables.ContainedSearchEntry
 import io.github.touhougo.chogumi.core.ui.composables.FailureNoticeEffect
 import io.github.touhougo.chogumi.core.ui.composables.PressArea
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonCrossfade
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightAction
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightGuide
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightGuideState
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightScrim
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightStep
 import io.github.touhougo.chogumi.core.ui.composables.SubjectTypeTabs
 import io.github.touhougo.chogumi.core.ui.composables.TabPager
 import io.github.touhougo.chogumi.core.ui.composables.pressedCorner
-import io.github.touhougo.chogumi.core.ui.composables.rememberSpotlightGuideState
 import io.github.touhougo.chogumi.core.ui.composables.rememberTabPagerState
 import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import java.time.LocalDate
@@ -89,9 +81,7 @@ fun ExploreScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     FailureNoticeEffect(viewModel.failures, snackbarHostState)
-    val guide = rememberSpotlightGuideState()
-    val guideStep = exploreGuideStep(state.guide, viewModel.guide)
-    // 货架与热门大图上的海报都能长按标记；引导的遮罩在长按环之下、卡在之上（演示里的环露在遮罩上面）
+    // 货架与热门大图上的海报都能长按标记
     PosterMarkHost(
         state = state.posterMarks,
         controller = viewModel.posterMarks,
@@ -99,8 +89,6 @@ fun ExploreScreen(
         onLogin = onLogin,
         snackbar = snackbarHostState,
         modifier = modifier.fillMaxSize(),
-        underlay = { SpotlightScrim(guide, guideStep) },
-        overlay = { SpotlightGuide(guide, guideStep) },
     ) {
         ExploreContent(
             state = state,
@@ -111,9 +99,6 @@ fun ExploreScreen(
             onOpenSearch = onOpenSearch,
             onOpenCalendar = onOpenCalendar,
             arrangeActions = viewModel.arranger,
-            guide = guide,
-            // 引导开着时下面的页面对读屏隐藏（模态）
-            modifier = if (guide.covers(guideStep)) Modifier.clearAndSetSemantics {} else Modifier,
         )
         // 整理时返回先退出整理（只在整理时拦）；面板开着时面板自己的返回在前
         NavigationBackHandler(
@@ -125,34 +110,6 @@ fun ExploreScreen(
         // 收藏面板开着时提示条画在面板上
         if (!state.posterMarks.sheet.isShown) SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
     }
-}
-
-/**
- * 引导这一步画成什么：第一步亮出热门第一张封面（与轮播项同一个圆角）、演示长按环，卡上「下一步」；第二步亮出第一条货架的标题行
- * （CornerLarge），卡上「知道了」「去整理」。点遮罩、按返回都不收起，只有这几个按钮。
- */
-@Composable
-private fun exploreGuideStep(step: ExploreGuideStep?, guide: ExploreGuide): SpotlightStep? = when (step) {
-    null -> null
-    ExploreGuideStep.CoverMark -> SpotlightStep(
-        target = GuideCoverTarget,
-        shape = MaterialTheme.shapes.extraLarge,
-        title = stringResource(R.string.explore_guide_mark_title),
-        text = stringResource(R.string.explore_guide_mark_text),
-        actions = listOf(SpotlightAction(stringResource(R.string.explore_guide_next), guide::next)),
-        // 演示的环与预演胶囊以封面中心为心展开，卡开在它们之外
-        clearance = PosterRingReach,
-    )
-    ExploreGuideStep.Arrange -> SpotlightStep(
-        target = GuideArrangeTarget,
-        shape = MaterialTheme.shapes.large,
-        title = stringResource(R.string.explore_guide_arrange_title),
-        text = stringResource(R.string.explore_guide_arrange_text),
-        actions = listOf(
-            SpotlightAction(stringResource(R.string.explore_guide_done)) { guide.finish(thenArrange = false) },
-            SpotlightAction(stringResource(R.string.explore_guide_arrange)) { guide.finish(thenArrange = true) },
-        ),
-    )
 }
 
 @Composable
@@ -167,8 +124,6 @@ internal fun ExploreContent(
     onOpenCalendar: () -> Unit,
     /** 整理模式：长按货架标题进入、整理列表里的排序移除编辑。 */
     arrangeActions: ArrangeListActions,
-    /** 第一次进来的聚焦引导：当前分类那一页把它指着的封面与标题报给它；null = 不出引导。 */
-    guide: SpotlightGuideState?,
     modifier: Modifier = Modifier,
 ) {
     // 页序与分类栏同一份：五个内容分类
@@ -255,9 +210,6 @@ internal fun ExploreContent(
                                     onOpenSearch = onOpenSearch,
                                     onOpenCalendar = onOpenCalendar,
                                     onArrange = arrangeActions::enter,
-                                    // 引导只指着当前分类那一页（左右邻页也组合着，不能各报一份）
-                                    guide = guide.takeIf { type == state.selectedType },
-                                    coverDemo = state.guide == ExploreGuideStep.CoverMark,
                                     modifier = Modifier.testTag("explore_list_${type.name}"),
                                 )
                             }
@@ -277,8 +229,7 @@ private const val WORKS_SHELF = "works_shelf"
 
 /**
  * 一个分类的一页：入口行 + 货架，按这个分类自己的版面（[ExploreUiState.layoutOf]）与内容（[ExploreUiState.contentOf]）；
- * [today] 给今日放送的副标题。长按货架标题进整理（[onArrange]）。[guide] 不为 null 时把引导指着的热门第一张封面与第一条货架的
- * 标题报给它，[coverDemo] 时在那张封面上放长按环的演示。
+ * [today] 给今日放送的副标题。长按货架标题进整理（[onArrange]）。
  */
 @Composable
 private fun ExploreTypePage(
@@ -291,13 +242,9 @@ private fun ExploreTypePage(
     onOpenSearch: (criteria: SearchCriteria, title: String?, openFilters: Boolean) -> Unit,
     onOpenCalendar: () -> Unit,
     onArrange: () -> Unit,
-    guide: SpotlightGuideState?,
-    coverDemo: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    // 引导第二步指着的那一条：近期热门之后的第一条货架
-    val guided = layout.shelves.firstOrNull { it !is ExploreShelf.Trending }?.id
     ScrollToTopOnTabReselect(listState)
     LazyColumn(
         state = listState,
@@ -338,8 +285,6 @@ private fun ExploreTypePage(
                                     TrendingHeroCarousel(
                                         items = heroItems,
                                         onSubjectClick = onSubjectClick,
-                                        guide = guide,
-                                        coverDemo = guide != null && coverDemo,
                                     )
                                 }
                             }
@@ -349,32 +294,28 @@ private fun ExploreTypePage(
 
                 is ExploreShelf.Works -> {
                     item(key = "works_${shelf.id}_$type", contentType = WORKS_SHELF) {
-                        ArrangeGuideTarget(guide.takeIf { shelf.id == guided }) {
-                            WorksShelf(
-                                shelf = shelf,
-                                typeContent = typeContent,
-                                today = today,
-                                onSubjectClick = onSubjectClick,
-                                onOpenSearch = onOpenSearch,
-                                onOpenCalendar = onOpenCalendar,
-                                onArrange = onArrange,
-                            )
-                        }
+                        WorksShelf(
+                            shelf = shelf,
+                            typeContent = typeContent,
+                            today = today,
+                            onSubjectClick = onSubjectClick,
+                            onOpenSearch = onOpenSearch,
+                            onOpenCalendar = onOpenCalendar,
+                            onArrange = onArrange,
+                        )
                     }
                 }
 
                 is ExploreShelf.Tiles -> {
                     item(key = "tiles_${shelf.id}_$type", contentType = "tiles") {
-                        ArrangeGuideTarget(guide.takeIf { shelf.id == guided }) {
-                            TilesShelf(
-                                shelf = shelf,
-                                typeContent = typeContent,
-                                onShown = { tiles -> onTilesShown(type, shelf.id, tiles) },
-                                onSubjectClick = onSubjectClick,
-                                onOpenSearch = onOpenSearch,
-                                onArrange = onArrange,
-                            )
-                        }
+                        TilesShelf(
+                            shelf = shelf,
+                            typeContent = typeContent,
+                            onShown = { tiles -> onTilesShown(type, shelf.id, tiles) },
+                            onSubjectClick = onSubjectClick,
+                            onOpenSearch = onOpenSearch,
+                            onArrange = onArrange,
+                        )
                     }
                 }
             }

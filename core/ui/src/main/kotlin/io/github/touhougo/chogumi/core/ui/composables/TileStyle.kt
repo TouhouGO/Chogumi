@@ -134,14 +134,20 @@ internal fun DrawScope.drawDroppedSlash(color: Color) {
 }
 
 /**
- * 一种格子静止时的面（底色、描边、抛弃的斜线）：图例的色块照它画，与方格里的格子是同一份样子。
- * 方格里的格子颜色要过渡，各项分开取（[tileContainer] / [tileContent] / [outlined] / [drawDroppedSlash]）。
+ * 一种格子静止时的面（底色、描边、抛弃的斜线；下一集是 [NextStroke] 的 primary 描边）：图例的色块与手势引导的演示格子照它画，
+ * 与方格里的格子是同一份样子。方格里的格子颜色要过渡，各项分开取（[tileContainer] / [tileContent] / [outlined] / [drawDroppedSlash]）。
  */
 @Composable
 internal fun Modifier.tileFace(kind: EpisodeCellKind, shape: Shape): Modifier {
     val colors = MaterialTheme.colorScheme
     return background(colors.tileContainer(kind), shape)
-        .then(if (kind.outlined) Modifier.border(TileStroke, colors.outlineVariant, shape) else Modifier)
+        .then(
+            when {
+                kind == EpisodeCellKind.NEXT -> Modifier.border(NextStroke, colors.primary, shape)
+                kind.outlined -> Modifier.border(TileStroke, colors.outlineVariant, shape)
+                else -> Modifier
+            },
+        )
         .then(if (kind == EpisodeCellKind.DROPPED) Modifier.drawBehind { drawDroppedSlash(colors.outlineVariant) } else Modifier)
 }
 

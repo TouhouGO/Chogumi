@@ -67,7 +67,6 @@ class ExploreSkeletonScreenshotTest {
                             onOpenSearch = { _, _, _ -> },
                             onOpenCalendar = {},
                             arrangeActions = NoArrangeActions,
-                            guide = null,
                         )
                     }
                 }
@@ -114,7 +113,6 @@ class ExploreSkeletonScreenshotTest {
                                 onOpenSearch = { _, _, _ -> },
                                 onOpenCalendar = {},
                                 arrangeActions = NoArrangeActions,
-                                guide = null,
                             )
                         }
                     }

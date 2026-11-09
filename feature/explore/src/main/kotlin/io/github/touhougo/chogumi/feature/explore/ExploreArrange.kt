@@ -19,10 +19,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -57,8 +55,6 @@ import io.github.touhougo.chogumi.core.ui.composables.ReorderableList
 import io.github.touhougo.chogumi.core.ui.composables.containerColor
 import io.github.touhougo.chogumi.core.ui.composables.SectionHeader
 import io.github.touhougo.chogumi.core.ui.composables.SegmentedItem
-import io.github.touhougo.chogumi.core.ui.composables.SpotlightGuideState
-import io.github.touhougo.chogumi.core.ui.composables.spotlightTarget
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPoster
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPosterSkeletonBox
 
@@ -77,7 +73,7 @@ internal fun ShelfHeader(
         title = title,
         subtitle = subtitle,
         onArrowClick = onArrowClick,
-        modifier = arrangeOnLongPress(onArrange).spotlightTarget(LocalArrangeGuide.current, GuideArrangeTarget),
+        modifier = arrangeOnLongPress(onArrange),
     )
 }
 
@@ -99,15 +95,6 @@ private fun arrangeOnLongPress(onArrange: () -> Unit): Modifier {
             )
         }
         .semantics { onLongClick(label) { arrange(); true } }
-}
-
-/** 引导第二步指着的标题：[ArrangeGuideTarget] 里的 [ShelfHeader] 把自己报给它（[GuideArrangeTarget]）；不在里面为 null。 */
-private val LocalArrangeGuide = staticCompositionLocalOf<SpotlightGuideState?> { null }
-
-/** [content] 是引导第二步指着的那条货架（近期热门之后的第一条）：它的标题报给 [guide]；[guide] 为 null 时什么也不做。 */
-@Composable
-internal fun ArrangeGuideTarget(guide: SpotlightGuideState?, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalArrangeGuide provides guide, content = content)
 }
 
 /**

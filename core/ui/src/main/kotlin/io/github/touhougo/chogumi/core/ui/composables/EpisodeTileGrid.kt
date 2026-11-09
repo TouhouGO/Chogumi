@@ -288,7 +288,7 @@ private fun rangeSaver(key: String): Saver<MutableIntState, Any> = keyedListSave
 )
 
 /** 这一行每格在连段里的位置（[TileJoin]）：前面、后面是否还连着看过的格子。 */
-private fun joinsOf(cells: Int, bands: List<EpisodeBand>): List<TileJoin> = (0 until cells).map { column ->
+internal fun joinsOf(cells: Int, bands: List<EpisodeBand>): List<TileJoin> = (0 until cells).map { column ->
     val band = bands.firstOrNull { column in it.startColumn..it.endColumn }
     TileJoin(start = band != null && column > band.startColumn, end = band != null && column < band.endColumn)
 }

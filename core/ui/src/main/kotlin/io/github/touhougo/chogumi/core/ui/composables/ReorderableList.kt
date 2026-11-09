@@ -304,7 +304,7 @@ private fun SwipeRevealRow(enabled: Boolean, onRemove: () -> Unit, content: @Com
 private val DeleteActionWidth = 64.dp
 
 /** 拖着的行抬起的阴影：M3 elevation level 3（tokens.md Elevation）。 */
-private val DraggedElevation = 6.dp
+internal val DraggedElevation = 6.dp
 
 /** 一次拖动：拖的是哪一行、手指走了多远。只有一个手指在拖（同一时刻只有一行）。 */
 internal class DragState(private val list: LazyListState) {

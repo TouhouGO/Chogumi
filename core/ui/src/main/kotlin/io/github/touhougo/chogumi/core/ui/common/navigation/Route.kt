@@ -60,6 +60,10 @@ sealed interface Route : NavKey {
     @Serializable
     data object About : Route
 
+    /** 设置 › 使用技巧：重看手势引导（启动时自动放的那一份）。 */
+    @Serializable
+    data object GestureTour : Route
+
     /**
      * 搜索。条件只从 [criteria] 一个入口进——详情页点标签、探索页的入口与货架「查看全部」
      * 都在调用侧先转成 [SearchCriteria] 再导航。

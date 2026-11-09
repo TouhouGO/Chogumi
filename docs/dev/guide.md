@@ -17,7 +17,7 @@
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
 | 富文本、楼层、动态卡片 | core:reader |
-| 第一次进来的引导（压暗整页、亮出一块、旁边一张卡） | core:ui 的 `SpotlightScrim`（遮罩，`ModalScrim` 的挖洞形式）与 `SpotlightGuide`（卡与挡手的那一层），中间能夹一层要露在遮罩上面的东西；被指着的地方挂 `spotlightTarget`，卡与章节跳格确认同一张 `RichTipCard`，只有卡上的按钮收起；要演示长按环用 `PosterMarkDemo`（真的环与胶囊，不写收藏）。探索页的两步与「走完过」的记录在 feature:explore 的 `ExploreGuide` |
+| 手势引导（只靠长按才找得到的几处，各一页会动的演示） | core:ui 的 `tour` 包：`GestureTour` 是整套页（翻页用 `TabPager`），每页一个演示（`MarkDemo` 封面长按环、`EpisodeDemo` 按住一集、`FloorDemo` 楼层长按、`ArrangeDemo` 整理探索页），都画在 `TourStage` 里（按真实 dp 排、整块缩小，字与色块是 `SkeletonSketch` 的示意图画法）。演示不另编数字：长按环就是真环的 `RingLayers`（给它一个 `RingLook`）与 `MarkBadges`，格子是 `tileFace` 与 `EpisodeTileRows`，整理列表是分段列表的形状与拖动排序的抬起；楼层与整理行读不到 core:reader、feature:explore 的私有常量，照它们写了一份并注明出处。改了长按环、格子、楼层菜单、整理列表的样子，演示跟着看一遍。第一次打开与升级后由外壳（`AppShell`，`ShellState.gestureTour`，偏好 `gestureTourShown`）盖在页面上放一次，设置的「使用技巧」（`Route.GestureTour`）重看 |
 | 界面大小（应用的密度） | core:model `DisplayScale`（档位与收敛）→ core:ui `displayScaleOverride`（Activity 只换 `densityDpi`，dp 处处跟着走）；不在页面里改 `LocalDensity` |
 | 刷新率 | core:model `RefreshRate`（档位从这块屏报的模式来，不写死）→ core:ui `requestRefreshRate`（窗口 `preferredDisplayModeId` 的唯一落点，AppActivity 调） |
 | 配色与明暗 | 来源（种子色、配色方案、系统取色）只经 core:ui `themeColorSource` → `appColorScheme`，App、小组件、对比度测试同一条路；十套方案的角色色是 `PresetSchemes.kt` 的静态表（对比度由 `PresetColorSchemeTest` 守）；主题模式 → 明暗只经 `ThemeMode.fixedDark` / `darkThemeOf` |

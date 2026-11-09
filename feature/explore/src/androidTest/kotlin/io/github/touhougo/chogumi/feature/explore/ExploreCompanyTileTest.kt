@@ -89,7 +89,6 @@ class ExploreCompanyTileTest {
                     onOpenSearch = searchCapture,
                     onOpenCalendar = {},
                     arrangeActions = NoArrangeActions,
-                    guide = null,
                 )
             }
         }

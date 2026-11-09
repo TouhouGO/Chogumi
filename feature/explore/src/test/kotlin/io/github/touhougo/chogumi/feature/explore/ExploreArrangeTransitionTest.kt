@@ -39,7 +39,7 @@ class ExploreArrangeTransitionTest {
         ))
         compose.setContent {
             ChogumiTheme {
-                ExploreContent(state, {}, {}, { _, _, _ -> }, {}, { _, _, _ -> }, {}, NoArrangeActions, guide = null)
+                ExploreContent(state, {}, {}, { _, _, _ -> }, {}, { _, _, _ -> }, {}, NoArrangeActions)
             }
         }
         compose.waitForIdle()

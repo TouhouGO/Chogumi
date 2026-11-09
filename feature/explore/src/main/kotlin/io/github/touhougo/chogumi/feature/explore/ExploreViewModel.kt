@@ -7,7 +7,6 @@ import io.github.touhougo.chogumi.core.data.repository.CalendarRepository
 import io.github.touhougo.chogumi.core.data.repository.ExploreLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.MonoRepository
 import io.github.touhougo.chogumi.core.data.repository.SearchRepository
-import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.TagCatalogRepository
 import io.github.touhougo.chogumi.core.data.util.loadOnce
 import io.github.touhougo.chogumi.core.data.util.storageAsLoad
@@ -122,8 +121,6 @@ data class ExploreUiState(
     val posterMarks: PosterMarkState = PosterMarkState(),
     /** 整理模式，只由 [ExploreViewModel.arranger] 改。 */
     val arrange: ShelfArrangeState = ShelfArrangeState(),
-    /** 第一次进来的聚焦引导走到哪一步；null = 不出。只由 [ExploreViewModel.guide] 改。 */
-    val guide: ExploreGuideStep? = null,
 ) {
     /** 当前分类的内容。 */
     val current: ExploreTypeContent get() = contents[selectedType] ?: ExploreTypeContent()
@@ -147,8 +144,6 @@ class ExploreViewModel(
     layoutRepository: ExploreLayoutRepository,
     /** 整理里改作品货架条件时，筛选面板的标签目录建议。 */
     tagCatalogRepository: TagCatalogRepository,
-    /** 第一次进来的聚焦引导只出一次的记录。 */
-    preferencesRepository: PreferencesRepository,
     /** 「今天」：货架表随它变（几月新番、本月新作、今日放送）。 */
     appTime: AppTime,
     collectionMarker: CollectionMarker,
@@ -180,15 +175,6 @@ class ExploreViewModel(
         failures = failures,
         layouts = layoutRepository,
         tagCatalog = tagCatalogRepository,
-    )
-
-    /** 第一次进来的聚焦引导：长按封面标记、长按标题整理。 */
-    val guide = ExploreGuide(
-        scope = viewModelScope,
-        write = { change -> updateState { it.copy(guide = change(it.guide)) } },
-        failures = failures,
-        preferences = preferencesRepository,
-        arrange = arranger::enter,
     )
 
     /**

@@ -34,6 +34,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.touhougo.chogumi.BuildConfig
 import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.res.R
@@ -51,6 +54,7 @@ import io.github.touhougo.chogumi.core.ui.composables.ContentLoadingIndicator
 import io.github.touhougo.chogumi.core.ui.composables.LocalNow
 import io.github.touhougo.chogumi.core.ui.composables.RetryError
 import io.github.touhougo.chogumi.core.ui.theme.LocalWindowWidthSizeClass
+import io.github.touhougo.chogumi.core.ui.tour.GestureTour
 
 @Composable
 fun AppShell(
@@ -133,7 +137,17 @@ fun AppShell(
             ) { bottomPadding ->
                 AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests)
             }
-            AppUpdatePromptHost(updates)
+            if (state.gestureTour) {
+                // 手势引导盖在整个外壳上（底栏、导航轨也在下面）；返回键与「跳过」一样结束它。更新提示等它收起再出
+                NavigationBackHandler(
+                    state = rememberNavigationEventState(NavigationEventInfo.None),
+                    isBackEnabled = true,
+                    onBackCompleted = mainViewModel::finishGestureTour,
+                )
+                GestureTour(onDone = mainViewModel::finishGestureTour)
+            } else {
+                AppUpdatePromptHost(updates)
+            }
             ReportDrawn()
         }
     }

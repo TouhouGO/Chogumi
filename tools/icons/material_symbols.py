@@ -144,6 +144,7 @@ ICONS: dict[str, tuple[str, bool]] = {
     "text_format": ("text_format", False),
     "theaters": ("theaters", False),
     "theaters_filled": ("theaters", True),
+    "touch_app": ("touch_app", False),
     "trophy": ("trophy", False),
     "tune": ("tune", False),
     "tv": ("tv", False),
