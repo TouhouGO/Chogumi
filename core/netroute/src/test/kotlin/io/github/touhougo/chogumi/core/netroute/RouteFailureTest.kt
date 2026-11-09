@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
 import java.nio.file.Files
+import io.github.touhougo.chogumi.core.foundation.Outcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -83,5 +84,52 @@ class RouteFailureTest {
 
         val upstream = RecordingEnd { Response.Builder().code(502).message("Bad Gateway") }
         get(client({ core }, upstream)).use { assertEquals(502, it.code) }
+    }
+
+    @Test
+    fun `从系统网络开直连而核心起不来时留在系统网络`() = runBlocking {
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = BrokenCore)
+        scope.launch { route.run() }
+        route.route()
+
+        val result = route.setMode(RouteMode.DIRECT)
+
+        assertTrue("开不了要返回失败", result is Outcome.Failed)
+        assertEquals(CoreRoute.System, route.route())
+        assertEquals(RouteMode.SYSTEM, route.mode.first())
+        val end = RecordingEnd()
+        get(client({ route.route() }, end)).close()
+        assertEquals("https://api.bgm.tv/v0/subjects/12", end.requests.single().url.toString())
+    }
+
+    @Test
+    fun `开直连时设置存不进就停掉新起的核心_留在系统网络`() = runBlocking {
+        val store = dataStore()
+        val unwritable = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = store.data
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = throw IOException("disk full")
+        }
+        val core = CountingCore()
+        val route = NetRoute(unwritable, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        scope.launch { route.run() }
+        route.route()
+
+        val result = route.setMode(RouteMode.DIRECT)
+
+        assertTrue("存不进要返回失败", result is Outcome.Failed)
+        assertEquals(CoreRoute.System, route.route())
+        assertEquals(1, core.starts)
+        assertEquals(1, core.stops)
+    }
+
+    @Test
+    fun `开直连成功后请求走核心`() = runBlocking {
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = CountingCore())
+        scope.launch { route.run() }
+        route.route()
+
+        assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
+
+        assertEquals(CoreRoute.Core(CoreEndpoint(4242, "secret")), route.route())
     }
 }

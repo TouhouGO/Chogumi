@@ -122,13 +122,27 @@ class NetRoute internal constructor(
         }
     }
 
-    /** 换线路。换到直连时先把核心起起来，起不来就不换、返回失败；已经选着直连时这也是「重试」。 */
+    /**
+     * 换线路。换到直连时先把核心起起来、再存设置，两步都成了才换过去：起不来，或存不进（新起的核心随即停掉），都留在原来的线路上、
+     * 返回失败。已经选着直连而核心没起来时，这也是「重试」。
+     */
     suspend fun setMode(mode: RouteMode): Outcome<Unit> {
-        if (mode == RouteMode.DIRECT) {
-            val route = transitions.withLock { startedRoute().also { state.value = it } }
-            if (route !is CoreRoute.Core) return Outcome.Failed(Failure.Unknown)
+        if (mode == RouteMode.SYSTEM) return outcomeOf { prefs.edit { it[MODE_KEY] = mode.name } }
+        return transitions.withLock {
+            val previous = state.value
+            val started = startedRoute()
+            if (started !is CoreRoute.Core) return@withLock Outcome.Failed(Failure.Unknown)
+            val saved: Outcome<Unit> = outcomeOf { prefs.edit { it[MODE_KEY] = mode.name } }
+            state.value = when {
+                saved is Outcome.Success -> started
+                previous is CoreRoute.Core -> previous
+                else -> {
+                    stoppedRoute()
+                    previous
+                }
+            }
+            saved
         }
-        return outcomeOf { prefs.edit { it[MODE_KEY] = mode.name } }
     }
 
     internal fun route(): CoreRoute {

@@ -42,3 +42,18 @@ internal object BrokenCore : DirectCore {
 
     override fun stop() = Unit
 }
+
+/** 起得来的核心，数它起了几次、停了几次。 */
+internal class CountingCore : DirectCore {
+    @Volatile var starts = 0
+    @Volatile var stops = 0
+
+    override fun start(addresses: List<String>, config: ByteArray, onConfig: (ByteArray) -> Unit): CoreEndpoint {
+        starts++
+        return CoreEndpoint(4242, "secret")
+    }
+
+    override fun stop() {
+        stops++
+    }
+}
