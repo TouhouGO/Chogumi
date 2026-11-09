@@ -145,13 +145,21 @@ class CareerViewModelTest {
             return Outcome.Success(previewPicks)
         }
 
+        /** 合起来算的结果；每次调用开始时取当时的值。 */
+        @Volatile var overall: CollectionStatistics = OTHER_OVERALL
+        /** 不为 null 时合起来算挂在这里，等测试放行。 */
+        @Volatile var overallGate: CompletableDeferred<Unit>? = null
+
         override suspend fun overallStatisticsFor(
             username: String,
             subjectTypes: Collection<SubjectType>,
             currentYear: Int,
         ): Outcome<CollectionStatistics> {
+            val result = overall
+            val gate = overallGate
             overallCalls += subjectTypes.toSet()
-            return Outcome.Success(OTHER_OVERALL)
+            gate?.await()
+            return Outcome.Success(result)
         }
     }
 
@@ -419,6 +427,25 @@ class CareerViewModelTest {
         val card = assertIs<CareerCardContent.Ready>(vm.uiState.value.cardContent(publicRatings = true))
         assertEquals(5, card.portrait.done, "完成数读服务端摘要")
         assertEquals(OTHER_OVERALL.coverPicks, card.portrait.covers)
+    }
+
+    @Test
+    fun `先开始的合并晚到时不覆盖后一次合并的结果`() = runBlocking<Unit> {
+        val first = CompletableDeferred<Unit>()
+        val others = FakeOtherCareers().apply { overallGate = first }
+        val vm = otherVm(others, userSubjectJson = SMALL_SUMMARY)
+        awaitUntil("第一次合起来算开始") { others.overallCalls.size == 1 }
+
+        val newer = OTHER_OVERALL.copy(totalCount = 11)
+        others.overallGate = null
+        others.overall = newer
+        vm.summarize(SubjectType.ANIME)
+        awaitUntil("后一次合起来算落下") { vm.uiState.value.otherOverall == newer }
+
+        // 假数据源不换线程，第一次合并放行后整轮在 Main 上：排空 Main，它的写入（如果有）已经落下
+        first.complete(Unit)
+        withContext(Dispatchers.Main) { }
+        assertEquals(newer, vm.uiState.value.otherOverall, "先开始的那次晚到，不能把结果换回旧的")
     }
 
     @Test
