@@ -175,6 +175,15 @@
     <string name="settings_ratings_community">Ratings and community</string>
     <string name="settings_content_filter">Content filter</string>
     <string name="settings_updates">Updates</string>
+    <string name="settings_network">Network</string>
+    <string name="network_direct">Direct connection</string>
+    <string name="network_direct_details">Hides the site you\'re visiting with an encrypted handshake (ECH), so it can\'t be recognized and blocked.</string>
+    <string name="network_direct_confirm_title">Turn on direct connection?</string>
+    <string name="network_direct_confirm_text">Direct connection is experimental and may be unstable.</string>
+    <string name="network_direct_confirm">Turn on</string>
+    <string name="network_direct_failed">Couldn\'t start direct connection</string>
+    <string name="login_unreachable">Can\'t reach bgm.tv</string>
+    <string name="login_try_direct">Try direct</string>
     <string name="settings_update_current_version">Current version</string>
     <string name="settings_update_check_now">Check now</string>
     <string name="settings_update_checking">Checking</string>
@@ -1320,6 +1329,7 @@
     <string name="about_third_party_colormath">Colormath</string>
     <string name="about_third_party_jsoup">jsoup</string>
     <string name="about_third_party_slf4j">SLF4J</string>
+    <string name="about_third_party_go">Go and gomobile (direct connection core)</string>
     <string name="about_third_party_desugar">desugar_jdk_libs</string>
     <string name="about_third_party_bangumi_smileys">Bangumi smileys</string>
     <string name="about_bangumi_smileys_license">Copyright belongs to Bangumi; no open-source license has been stated</string>

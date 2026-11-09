@@ -98,6 +98,8 @@ ICONS: dict[str, tuple[str, bool]] = {
     "info": ("info", False),
     "info_filled": ("info", True),
     "key": ("key", False),
+    "language": ("language", False),
+    "language_filled": ("language", True),
     "link": ("link", False),
     "list_alt": ("list_alt", False),
     "list_alt_filled": ("list_alt", True),

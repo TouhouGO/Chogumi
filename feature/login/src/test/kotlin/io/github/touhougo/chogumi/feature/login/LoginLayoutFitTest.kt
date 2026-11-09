@@ -60,6 +60,7 @@ class LoginLayoutFitTest {
                             onBrowserLogin = {},
                             onManualToken = {},
                             onBack = {},
+                            onNetworkClick = {},
                             onSettingsClick = {},
                             snackbarHostState = remember { SnackbarHostState() },
                         )

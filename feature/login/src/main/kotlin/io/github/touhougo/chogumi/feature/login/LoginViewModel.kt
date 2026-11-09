@@ -2,20 +2,27 @@ package io.github.touhougo.chogumi.feature.login
 
 import androidx.lifecycle.viewModelScope
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
+import io.github.touhougo.chogumi.core.common.notice.NoticeAction
 import io.github.touhougo.chogumi.core.common.viewmodel.StateViewModel
 import io.github.touhougo.chogumi.core.data.repository.AuthRepository
 import io.github.touhougo.chogumi.core.data.repository.LoginAttempt
 import io.github.touhougo.chogumi.core.data.repository.PasswordCaptcha
 import io.github.touhougo.chogumi.core.data.util.launchWrite
 import io.github.touhougo.chogumi.core.data.util.loadOutcome
+import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.Load
+import io.github.touhougo.chogumi.core.foundation.hiddenFailureOf
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
+import io.github.touhougo.chogumi.core.netroute.DirectRouteHint
+import io.github.touhougo.chogumi.core.netroute.looksUnreachable
 import io.github.touhougo.chogumi.core.res.R
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** 账号密码登录表单里填的东西。 */
@@ -41,10 +48,14 @@ data class LoginUiState(
  */
 class LoginViewModel(
     private val authRepository: AuthRepository,
+    directRouteHint: DirectRouteHint,
 ) : StateViewModel<LoginUiState>(LoginUiState()) {
 
-    /** 登录失败（账号密码或验证码不对、授权回调出错、token 无效）与输入为空的提示。 */
+    /** 登录失败（账号密码或验证码不对、授权回调出错、token 无效）与输入为空的提示；连不上 bgm.tv 时是「试试直连」。 */
     val failures = FailureNotices()
+
+    /** 连不上 bgm.tv 时提示不提示「试试直连」：设备支持、且现在走系统网络。 */
+    private val directAvailable = directRouteHint.available().stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /**
      * 在途的一次提交（账号密码或令牌）。[LoginUiState.processing] 由仓库异步回流、晚一帧，
@@ -63,12 +74,30 @@ class LoginViewModel(
         authRepository.loginError
             .drop(1)
             .filterNotNull()
-            .onEach { failures.post(it) }
+            .onEach(::postFailure)
             .launchIn(viewModelScope)
 
         authRepository.isLoggedIn
             .onEach { loggedIn -> if (loggedIn) discardAttempt() else loadCaptcha(attempt = null) }
             .launchIn(viewModelScope)
+    }
+
+    private fun suggestsDirect(failure: Failure) = directAvailable.value && looksUnreachable(failure)
+
+    /**
+     * 验证码没取到：连不上 bgm.tv 时提示「试试直连」（框里有没有旧图都是）；否则只有旧图还在框里（框里看不出来，[hiddenFailureOf]）时
+     * 说一声、带重试，没有图时失败画在框里。
+     */
+    private fun noticeCaptchaFailure(load: Load<PasswordCaptcha>, attempt: LoginAttempt?) {
+        val failure = (load as? Load.Failed)?.failure ?: return
+        when {
+            suggestsDirect(failure) -> failures.post(R.string.login_unreachable, TryDirectRoute)
+            currentState.captcha.hiddenFailureOf(load) != null -> failures.post(failure, retry = { loadCaptcha(attempt) })
+        }
+    }
+
+    private fun postFailure(failure: Failure) {
+        if (suggestsDirect(failure)) failures.post(R.string.login_unreachable, TryDirectRoute) else failures.post(failure)
     }
 
     /** 登上了：这次登录用完了，填过的字（含密码）不留到下次登出后。 */
@@ -89,8 +118,10 @@ class LoginViewModel(
     /** 换一张验证码，填过的字作废。 */
     private fun loadCaptcha(attempt: LoginAttempt?) {
         updateState { it.copy(form = it.form.copy(captcha = "")) }
-        // 旧图还在框里时换图失败：框里看不出来，collectSection 会说一声
-        launchSection(CAPTCHA_SECTION, failures, { loadOutcome { authRepository.passwordCaptcha(attempt) } }, { it.captcha }) {
+        // 验证码的失败提示只在这一处定（区块自己不发）：在结果落到页面状态之前，页面看到失败时提示已经在了
+        launchSection(CAPTCHA_SECTION, failures = null, {
+            loadOutcome { authRepository.passwordCaptcha(attempt) }.onEach { noticeCaptchaFailure(it, attempt) }
+        }, { it.captcha }) {
             copy(captcha = it)
         }
     }
@@ -138,3 +169,6 @@ class LoginViewModel(
 }
 
 private const val CAPTCHA_SECTION = "captcha"
+
+/** 提示条上的「试试直连」：点了去设置的「网络」页（[LoginScreen] 认出它）。 */
+internal val TryDirectRoute = NoticeAction(R.string.login_try_direct)

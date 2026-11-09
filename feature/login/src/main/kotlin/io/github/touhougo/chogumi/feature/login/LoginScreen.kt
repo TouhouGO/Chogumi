@@ -125,15 +125,17 @@ private val RefreshBadgeIconSize = 14.dp
  *
  * 内容：上方是从屏幕顶边画起的海报（品牌色形状 + 应用名），下方一块圆角面板托着账号密码表单（邮箱、密码、验证码；
  * 一次拿到令牌与网页会话，网页才有的操作都能做）和整行宽的登录按钮，面板底部是两个备选入口：浏览器授权（先说明它做不了
- * 网页才有的操作，确认后再去）、手动粘贴 Access Token。顶栏右侧是设置：未登录也能改设置。整页固定一屏，不滚动（[LoginLayout]）。
+ * 网页才有的操作，确认后再去）、手动粘贴 Access Token。顶栏右侧是网络（[onNetworkClick]：去设置的「网络」页，打不开 bgm.tv 时从这里开直连；
+ * 设备不支持直连时为 null、不画）与设置：未登录也能改设置。整页固定一屏，不滚动（[LoginLayout]）。
  */
 @Composable
 fun LoginScreen(
     onBack: () -> Unit,
+    onNetworkClick: (() -> Unit)?,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LoginScreen(koinViewModel<LoginViewModel>(viewModelStoreOwner = loginViewModelOwner()), onBack, onSettingsClick, modifier)
+    LoginScreen(koinViewModel<LoginViewModel>(viewModelStoreOwner = loginViewModelOwner()), onBack, onNetworkClick, onSettingsClick, modifier)
 }
 
 /**
@@ -148,6 +150,7 @@ internal fun loginViewModelOwner(): ViewModelStoreOwner = checkNotNull(LocalActi
 internal fun LoginScreen(
     viewModel: LoginViewModel,
     onBack: () -> Unit,
+    onNetworkClick: (() -> Unit)?,
     onSettingsClick: () -> Unit,
     modifier: Modifier,
 ) {
@@ -156,7 +159,7 @@ internal fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var dialog by rememberSaveable { mutableStateOf(LoginDialog.NONE) }
 
-    FailureNoticeEffect(viewModel.failures, snackbarHostState)
+    FailureNoticeEffect(viewModel.failures, snackbarHostState, onAction = { if (it === TryDirectRoute) onNetworkClick?.invoke() })
 
     LoginContent(
         processing = uiState.processing,
@@ -168,6 +171,7 @@ internal fun LoginScreen(
         onBrowserLogin = { dialog = LoginDialog.BROWSER },
         onManualToken = { dialog = LoginDialog.MANUAL_TOKEN },
         onBack = onBack,
+        onNetworkClick = onNetworkClick,
         onSettingsClick = onSettingsClick,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
@@ -210,6 +214,7 @@ internal fun LoginContent(
     onBrowserLogin: () -> Unit,
     onManualToken: () -> Unit,
     onBack: () -> Unit,
+    onNetworkClick: (() -> Unit)?,
     onSettingsClick: () -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
@@ -224,6 +229,11 @@ internal fun LoginContent(
                 fill = rememberScrolledFill(scroll),
                 onBack = onBack,
                 actions = {
+                    if (onNetworkClick != null) {
+                        IconButton(onClick = onNetworkClick) {
+                            Icon(painterResource(R.drawable.language_filled_24), stringResource(R.string.settings_network))
+                        }
+                    }
                     IconButton(onClick = onSettingsClick) {
                         Icon(painterResource(R.drawable.settings_filled_24), stringResource(R.string.settings))
                     }
