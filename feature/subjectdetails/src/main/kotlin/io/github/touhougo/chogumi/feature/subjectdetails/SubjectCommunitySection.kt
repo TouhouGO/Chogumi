@@ -3,9 +3,7 @@ package io.github.touhougo.chogumi.feature.subjectdetails
 import androidx.annotation.DrawableRes
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -23,8 +21,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -71,14 +67,13 @@ import io.github.touhougo.chogumi.core.ui.composables.ContentGrid
 import io.github.touhougo.chogumi.core.ui.composables.EmptyLine
 import io.github.touhougo.chogumi.core.ui.composables.GridCell
 import io.github.touhougo.chogumi.core.ui.composables.MenuChip
+import io.github.touhougo.chogumi.core.ui.composables.PeopleListSheet
 import io.github.touhougo.chogumi.core.ui.composables.PersonGridItem
 import io.github.touhougo.chogumi.core.ui.composables.PersonGridItemSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.PressArea
 import io.github.touhougo.chogumi.core.ui.composables.RetryError
-import io.github.touhougo.chogumi.core.ui.composables.ScrollableModalSheet
 import io.github.touhougo.chogumi.core.ui.composables.SectionHeader
 import io.github.touhougo.chogumi.core.ui.composables.SelectableChip
-import io.github.touhougo.chogumi.core.ui.composables.SheetTitleRow
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonText
 import io.github.touhougo.chogumi.core.ui.composables.StackedAvatars
 import io.github.touhougo.chogumi.core.ui.composables.labelResFor
@@ -423,7 +418,6 @@ private fun watchingPairs(subject: SubjectBo): List<AnnotatedString> {
  * 谁在看面板（原型截图 07、`sheetHtml('collects')`）：标题 → 状态 chip 横排 → 收藏者分段列表（翻页）。
  * 「最近」的计数来自社区 tab 已经取过的不筛总数（[CommunityOverview.collectorsTotal]），五态来自条目详情。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CollectorsSheet(
     subject: SubjectBo,
@@ -434,29 +428,28 @@ internal fun CollectorsSheet(
     val viewModel: SubjectCollectorsViewModel = koinViewModel { parametersOf(subject.id) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
-    ScrollableModalSheet(
+    PeopleListSheet(
+        title = stringResource(R.string.community_collectors_title),
         onDismiss = onDismiss,
         contentKey = subject.id,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        SheetTitleRow(stringResource(R.string.community_collectors_title))
-        CollectionFilterChips(
-            subject = subject,
-            selected = state.type,
-            allLabel = stringResource(R.string.community_collectors_recent),
-            countOf = { type -> type?.let { subject.collectionCountOf(it) } ?: recentTotal },
-            onSelect = viewModel::selectType,
-        )
-        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter) {
-            CollectorList(
-                state = state.collectors,
-                gridState = gridState,
+        filters = {
+            CollectionFilterChips(
                 subject = subject,
-                onRetry = viewModel::retry,
-                onLoadMore = viewModel::loadMore,
-                onUserClick = onUserClick,
+                selected = state.type,
+                allLabel = stringResource(R.string.community_collectors_recent),
+                countOf = { type -> type?.let { subject.collectionCountOf(it) } ?: recentTotal },
+                onSelect = viewModel::selectType,
             )
-        }
+        },
+    ) {
+        CollectorList(
+            state = state.collectors,
+            gridState = gridState,
+            subject = subject,
+            onRetry = viewModel::retry,
+            onLoadMore = viewModel::loadMore,
+            onUserClick = onUserClick,
+        )
     }
 }
 
@@ -522,8 +515,8 @@ private fun collectionFilterLabel(type: CollectionType?, subject: SubjectBo, all
     type?.let { stringResource(it.labelResFor(subject.type)) } ?: allLabel
 
 /**
- * 谁在看面板按收藏状态筛的一排 chip：[allLabel] + 五态（文案见 [collectionFilterLabel]），
- * [countOf] 给出数字就跟在文字后；横向可滑。吐槽箱用同一组选项的下拉 chip（[MenuChip]）。
+ * 谁在看面板按收藏状态筛的一排 chip（放在 [PeopleListSheet] 的筛选行里）：[allLabel] + 五态（文案见 [collectionFilterLabel]），
+ * [countOf] 给出数字就跟在文字后。吐槽箱用同一组选项的下拉 chip（[MenuChip]）。
  */
 @Composable
 private fun CollectionFilterChips(
@@ -532,22 +525,14 @@ private fun CollectionFilterChips(
     allLabel: String,
     countOf: (CollectionType?) -> Int?,
     onSelect: (CollectionType?) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = CommunityGutter, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        CollectionFilters.forEach { type ->
-            val label = collectionFilterLabel(type, subject, allLabel)
-            val count = countOf(type)
-            SelectableChip(
-                label = count?.let { stringResource(R.string.label_with_count, label, it) } ?: label,
-                selected = type == selected,
-                onClick = { onSelect(type) },
-            )
-        }
+    CollectionFilters.forEach { type ->
+        val label = collectionFilterLabel(type, subject, allLabel)
+        val count = countOf(type)
+        SelectableChip(
+            label = count?.let { stringResource(R.string.label_with_count, label, it) } ?: label,
+            selected = type == selected,
+            onClick = { onSelect(type) },
+        )
     }
 }

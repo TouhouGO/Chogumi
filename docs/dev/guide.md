@@ -17,7 +17,7 @@
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
 | 富文本、楼层、动态卡片 | core:reader |
-| 谁贴了（长按贴贴或投票选项打开的名单面板） | core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |
+| 名单面板（作品「谁在看」、楼层「谁贴了」） | 框架只有 core:ui `PeopleListSheet`（标题 + 筛选 chip 行 + 人物区）；谁贴了在 core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |
 | 第一次进来的引导（压暗整页、亮出一块、旁边一张卡） | core:ui 的 `SpotlightScrim`（遮罩，`ModalScrim` 的挖洞形式）与 `SpotlightGuide`（卡与挡手的那一层），中间能夹一层要露在遮罩上面的东西；被指着的地方挂 `spotlightTarget`，卡与章节跳格确认同一张 `RichTipCard`，只有卡上的按钮收起；要演示长按环用 `PosterMarkDemo`（真的环与胶囊，不写收藏）。探索页的两步与「走完过」的记录在 feature:explore 的 `ExploreGuide` |
 | 界面大小（应用的密度） | core:model `DisplayScale`（档位与收敛）→ core:ui `displayScaleOverride`（Activity 只换 `densityDpi`，dp 处处跟着走）；不在页面里改 `LocalDensity` |
 | 刷新率 | core:model `RefreshRate`（档位从这块屏报的模式来，不写死）→ core:ui `requestRefreshRate`（窗口 `preferredDisplayModeId` 的唯一落点，AppActivity 调） |

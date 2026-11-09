@@ -1,16 +1,8 @@
 package io.github.touhougo.chogumi.core.reader
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -19,7 +11,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -33,15 +24,14 @@ import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LocalSignedInAccount
 import io.github.touhougo.chogumi.core.ui.composables.ContentGrid
 import io.github.touhougo.chogumi.core.ui.composables.GridCell
+import io.github.touhougo.chogumi.core.ui.composables.PeopleListSheet
 import io.github.touhougo.chogumi.core.ui.composables.PersonGridItem
-import io.github.touhougo.chogumi.core.ui.composables.ScrollableModalSheet
 import io.github.touhougo.chogumi.core.ui.composables.SelectableChip
-import io.github.touhougo.chogumi.core.ui.composables.SheetTitleRow
 
 /*
  * 谁贴了：长按一颗贴贴（或贴贴投票的一个选项），打开这一处贴贴的名单面板。与作品「谁在看」面板同一种写法：
- * 满高面板（[ScrollableModalSheet]，点一个人会进他的主页）→ 标题 → 一排筛选 chip（每种表情一个，带人数）→ 人物网格
- * （[PersonGridItem]，与收藏者、好友同一种格子）。名单来自贴贴本身（[CommentReactionBo.others]），不另外请求；
+ * 名单面板（[PeopleListSheet]：满高面板 → 标题 → 一排筛选 chip，每种表情一个、带人数 → 人物网格），格子是
+ * [PersonGridItem]（与收藏者、好友同一种），点一个人进他的主页。名单来自贴贴本身（[CommentReactionBo.others]），不另外请求；
  * 头像按用户名走头像入口（[bgmUserAvatarUrl]）。
  */
 
@@ -111,18 +101,11 @@ internal fun ReactionUsersSheet(
     contentKey: Any? = null,
 ) {
     val shown = reactions.firstOrNull { it.value == value } ?: reactions.firstOrNull() ?: return
-    ScrollableModalSheet(
+    PeopleListSheet(
+        title = stringResource(R.string.reaction_users_title),
         onDismiss = onDismiss,
         contentKey = contentKey,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        SheetTitleRow(stringResource(R.string.reaction_users_title))
-        Row(
-            modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        filters = {
             reactions.forEach { reaction ->
                 SelectableChip(
                     label = "${reaction.count}",
@@ -131,12 +114,11 @@ internal fun ReactionUsersSheet(
                     onClick = { onSelect(reaction.value) },
                 )
             }
-        }
-        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter) {
-            // 换一个表情是另一份名单：从头看起
-            key(shown.value) {
-                ReactionUserGrid(shown, onUserClick)
-            }
+        },
+    ) {
+        // 换一个表情是另一份名单：从头看起
+        key(shown.value) {
+            ReactionUserGrid(shown, onUserClick)
         }
     }
 }
