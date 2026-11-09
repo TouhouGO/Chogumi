@@ -717,3 +717,57 @@ func TestASilentHTTP2ConnectionIsDroppedQuickly(t *testing.T) {
 		t.Fatalf("code %d err %v after %v, want a quick 502 once the silent connection is detected", code, err, took)
 	}
 }
+
+func TestStartKeepsItsOwnCopyOfTheConfig(t *testing.T) {
+	addr, cfg, roots := echUpstream(t)
+	given := append([]byte(nil), cfg...)
+	s := start(t, Options{Addrs: []string{addr}, ECHConfig: given, rootCAs: roots, EdgeTimeout: 2 * time.Second})
+	for i := range given { // 调用方的那份之后变了（gomobile 传进来的字节在调用结束后就不归我们了）
+		given[i] = 0xff
+	}
+
+	if code, err := getProxied(context.Background(), s, "/api.bgm.tv/a"); err != nil || code != 200 {
+		t.Fatalf("code %d err %v, want 200 with the config as it was at Start", code, err)
+	}
+}
+
+func TestBrokenStoredConfigFallsBackToBuiltinAndBootstraps(t *testing.T) {
+	addr, cfg, roots := echUpstream(t)
+	var saved atomic.Int32
+	s := start(t, Options{Addrs: []string{addr}, ECHConfig: []byte{0x00, 0x05, 0xfe, 0x0d, 0x00, 0x01, 0x07}, rootCAs: roots,
+		EdgeTimeout: 2 * time.Second, OnECHConfig: func(got []byte) {
+			if string(got) == string(cfg) {
+				saved.Add(1)
+			}
+		}})
+
+	if code, err := getProxied(context.Background(), s, "/api.bgm.tv/a"); err != nil || code != 200 {
+		t.Fatalf("code %d err %v, want 200 after falling back to the builtin config and taking the retry config", code, err)
+	}
+	if saved.Load() != 1 {
+		t.Fatalf("server's config saved %d times, want once", saved.Load())
+	}
+}
+
+func TestValidECHConfigList(t *testing.T) {
+	if !validECHConfigList(BuiltinECHConfig) {
+		t.Fatal("builtin config rejected")
+	}
+	key, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	good := echList(echConfig(1, key.PublicKey().Bytes(), "cloudflare-ech.com"))
+	if !validECHConfigList(good) {
+		t.Fatal("a well-formed list rejected")
+	}
+	for name, bad := range map[string][]byte{
+		"empty":          {},
+		"short":          {0x00},
+		"length lies":    append([]byte{0x00, 0x99}, good[2:]...),
+		"truncated":      good[:len(good)-3],
+		"trailing bytes": append(append([]byte(nil), good...), 0x00),
+		"empty list":     {0x00, 0x00},
+	} {
+		if validECHConfigList(bad) {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}

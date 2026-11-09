@@ -65,13 +65,19 @@ func Start(o Options) (*Server, error) {
 	if len(addrs) == 0 {
 		addrs = BuiltinAddrs
 	}
-	cfg := o.ECHConfig
-	if len(cfg) == 0 {
-		cfg = BuiltinECHConfig
-	}
 	logf := o.Logf
 	if logf == nil {
 		logf = func(string, ...any) {}
+	}
+	// 自己留一份：调用方的切片之后可能被改或被收回（经 gomobile 从 Java 传进来的字节只在那一次调用里有效）
+	cfg := append([]byte(nil), o.ECHConfig...)
+	switch {
+	case len(cfg) == 0:
+		cfg = BuiltinECHConfig
+	case !validECHConfigList(cfg):
+		// 存下的配置坏了（外部输入）：用内置的那份起步，被拒时换上服务端给的，不让直连从此一直失败
+		logf("ech-config-invalid bytes=%d", len(cfg))
+		cfg = BuiltinECHConfig
 	}
 	edgeTimeout := o.EdgeTimeout
 	if edgeTimeout <= 0 {

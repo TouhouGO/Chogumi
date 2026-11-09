@@ -247,6 +247,8 @@ flowchart LR
   域名都被接受（`ECHAccepted`），证书是 bgm.tv 的。
 - 配置不对（公钥随意的一份）时 Cloudflare 拒绝并随拒绝给出当前配置，用它重连就成功；所以核心内置一份随意的配置即可自举，
   拿到的那份存进 core:netroute 的 DataStore，冷启动直接用。
+  核心起动时自己复制一份配置（gomobile 从 Java 传进 Go 的字节只在那一次调用里有效，留着用会被改掉）；存下的那份结构上不是
+  ECHConfigList 时当外部输入降级：用内置的那份起步、再自举。
 - 不是每个 Cloudflare 地址都服务 bgm.tv：104.16.132.229 握手成功但回 403「error code: 1034」（边缘地址受限），核心见到就换下一个地址。
 - 核心连边缘地址的规则只写在 `core/netroute/go/proxy/edges.go` 的注释里：ALPN 先 h2，每个主机一条连接、请求在上面并发
   （取消一个请求只重置它那条流；这条连接悄悄不通了，一份预算收不到帧就发 ping、再半份没回就断开）；按健康顺序错开并行起拨、先握手成功的胜出，间隔是排第一的地址实测握手耗时的 1.5 倍、夹在
@@ -260,7 +262,7 @@ flowchart LR
   不再是 OkHttp 默认的 10 秒；图片对只读请求的网络瞬断重发一次（同接口客户端的读重试判定；调用方取消了——图片滚出屏幕——不算，不再发）。
 - 调试包里核心每次握手记一行到 logcat：`adb logcat -s ChogumiDirect`，
   `handshake host=… edge=… ms=… result=ok proto=h2|h1` 或 `result=reset|timeout|ech-rejected|refused|error|canceled`（canceled 是别的地址先胜出，不算失败），
-  另有 `ech-retry`（换上服务端给的配置）与 `edge-restricted`（1034）。
+  另有 `ech-retry`（换上服务端给的配置）、`ech-config-invalid`（存下的配置坏了，改用内置的）与 `edge-restricted`（1034）。
 - 大陆线路（Mac 有线、出口 CN）上：普通 SNI 连 bgm.tv 各地址约 40ms 被重置（线路中注入，早于服务器的回包）；ECH 外层 SNI 是
   `cloudflare-ech.com`，不被重置，10 分钟 120 次请求全部成功。对同一地址连发几次普通 SNI 之后，几十秒内连 ECH 也被重置
   （推断：两次观察，没量出时长）：直连失败时绝不退回普通 SNI。
