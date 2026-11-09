@@ -148,7 +148,9 @@ class NetRoute internal constructor(
     }
 
     /** 唯一改 [state] 的地方。[persist] 为 true 是用户动手（要存设置、失败留原状），false 是应用存着的设置。 */
-    private suspend fun transition(mode: RouteMode, persist: Boolean): Outcome<Unit> = transitions.withLock {
+    private suspend fun transition(requestedMode: RouteMode, persist: Boolean): Outcome<Unit> = transitions.withLock {
+        // 观察者收到的拍可能早于等待锁期间用户存下的线路：锁内重读当前快照，不用迟到的拍停掉新核心。
+        val mode = if (persist) requestedMode else this.mode.first()
         val wasRunning = running != null
         val next: CoreRoute = if (mode == RouteMode.DIRECT && supported) {
             when (val started = startCore()) {

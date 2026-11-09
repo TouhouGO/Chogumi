@@ -223,6 +223,39 @@ class RouteFailureTest {
     }
 
     @Test
+    fun `启动的旧系统快照迟到不能覆盖已经保存的直连`() = runBlocking {
+        val store = dataStore()
+        val old = store.data.first()
+        val readStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val releaseOld = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val oldProcessed = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val firstRead = java.util.concurrent.atomic.AtomicBoolean(true)
+        val delayed = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow {
+                if (firstRead.compareAndSet(true, false)) {
+                    readStarted.complete(Unit)
+                    releaseOld.await()
+                    emit(old)
+                    oldProcessed.complete(Unit)
+                }
+                emitAll(store.data)
+            }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
+        }
+        val core = CountingCore()
+        val route = NetRoute(delayed, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        scope.launch { route.run() }
+        readStarted.await()
+        assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
+        assertEquals(CoreRoute.Core(CoreEndpoint(4242, "secret")), route.route())
+
+        releaseOld.complete(Unit)
+        oldProcessed.await()
+
+        assertEquals("旧系统快照不应停掉新起的核心", 0, core.stops)
+    }
+
+    @Test
     fun `界面那样的订阅者在读失败_存储恢复后也跟上设置`() = runBlocking {
         val store = dataStore()
         store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
