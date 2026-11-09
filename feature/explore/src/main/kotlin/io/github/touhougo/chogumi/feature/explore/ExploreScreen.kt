@@ -54,6 +54,7 @@ import io.github.touhougo.chogumi.core.ui.collection.PosterMarkHost
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageTransitionKind
 import io.github.touhougo.chogumi.core.ui.common.navigation.ScrollToTopOnTabReselect
 import io.github.touhougo.chogumi.core.ui.common.navigation.chogumiTransition
+import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
 import io.github.touhougo.chogumi.core.ui.composables.ChogumiPullToRefreshBox
 import io.github.touhougo.chogumi.core.ui.composables.CollapsibleHeader
 import io.github.touhougo.chogumi.core.ui.composables.ContainedSearchEntry

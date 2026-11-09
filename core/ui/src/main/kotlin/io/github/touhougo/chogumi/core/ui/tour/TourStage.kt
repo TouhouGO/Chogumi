@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
@@ -64,7 +65,7 @@ internal class StageSpace(val size: Size) {
 
 /**
  * 演示台：`extraLarge` 圆角的一块 `surfaceContainer`，正方形；[content] 拿到按真实 dp 排版的区域（[StageSpace]），
- * 里面的字条与色块是骨架的示意图画法（[SkeletonSketch]）。整块对读屏隐藏：每页的标题与说明已经说了它在演示什么。
+ * 里面的字条与色块是骨架的示意图画法（[SkeletonSketch]）。整块对读屏隐藏、不接点按：每页的标题与说明已经说了它在演示什么。
  */
 @Composable
 internal fun TourStage(modifier: Modifier = Modifier, content: @Composable BoxScope.(stage: StageSpace) -> Unit) {
@@ -94,6 +95,8 @@ internal fun TourStage(modifier: Modifier = Modifier, content: @Composable BoxSc
         SkeletonSketch {
             Box(Modifier.fillMaxSize().onPlaced { stage.root = it }) { content(stage) }
         }
+        // 演示里有真组件（菜单项、按钮、搜索入口），盖一层只收不消费的触摸层：它们收不到点按，左右滑照样交给翻页
+        Box(Modifier.fillMaxSize().pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } })
     }
 }
 

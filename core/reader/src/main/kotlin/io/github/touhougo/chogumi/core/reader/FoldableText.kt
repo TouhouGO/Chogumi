@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeAst
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 
 /**

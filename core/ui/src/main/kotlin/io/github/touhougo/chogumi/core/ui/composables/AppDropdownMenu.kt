@@ -50,11 +50,16 @@ fun AppDropdownMenu(
     onDismissRequest: () -> Unit,
     groups: List<@Composable ColumnScope.() -> Unit>,
 ) {
-    DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismissRequest) {
-        groups.forEachIndexed { index, group ->
-            if (index > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index, groups.size), content = group)
-        }
+    DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismissRequest) { MenuGroups(groups) }
+}
+
+/** 分组菜单里的各组：每组一块，组间 M3 菜单的 gap。弹出的 [AppDropdownMenu] 与手势引导里长按菜单的示意都画它。 */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun MenuGroups(groups: List<@Composable ColumnScope.() -> Unit>) {
+    groups.forEachIndexed { index, group ->
+        if (index > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+        DropdownMenuGroup(shapes = MenuDefaults.groupShape(index, groups.size), content = group)
     }
 }
 

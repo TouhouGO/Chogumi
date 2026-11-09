@@ -1,11 +1,10 @@
-package io.github.touhougo.chogumi.core.reader
+package io.github.touhougo.chogumi.core.ui.common
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import io.github.touhougo.chogumi.core.model.ReadingTextSize
-import io.github.touhougo.chogumi.core.ui.common.LocalReadingTextSize
 
 /**
  * 阅读排版的**唯一出处**：帖子正文、楼层、简介、个人简介、动态正文、引用条、楼层头部的字号 / 行高 / 字距都从这里取，

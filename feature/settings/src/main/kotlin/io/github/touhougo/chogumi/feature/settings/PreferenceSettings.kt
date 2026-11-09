@@ -292,7 +292,7 @@ private fun RefreshRateRow(index: Int, count: Int, options: List<Int>, selected:
     )
 }
 
-/** 阅读字号（3 档互斥单选）。档位 → 字阶的映射在 core:reader 的 `ReaderTypography`，这里只写档位名。 */
+/** 阅读字号（3 档互斥单选）。档位 → 字阶的映射在 core:ui 的 `ReaderTypography`，这里只写档位名。 */
 @Composable
 private fun ReadingTextSizeRow(index: Int, count: Int, size: ReadingTextSize, onSelect: (ReadingTextSize) -> Unit) {
     ChoiceRow(

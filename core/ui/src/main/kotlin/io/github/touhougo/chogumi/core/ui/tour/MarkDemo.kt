@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import io.github.touhougo.chogumi.core.model.COLLECTION_MARK_WINDOW_NANOS
 import io.github.touhougo.chogumi.core.model.CollectionType
@@ -44,9 +43,6 @@ import io.github.touhougo.chogumi.core.ui.composables.skeletonFill
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
-
-/** 演示封面的宽：海报卡在手机上大约这么宽（设计决定，not in M3）。 */
-private val CoverWidth = 112.dp
 
 /** 演示里的条目：动画，环上的叫法按动画取（看过、在看……）。 */
 private val DemoSubjectType = SubjectType.ANIME
@@ -84,7 +80,7 @@ internal fun MarkDemo(playing: Boolean, modifier: Modifier = Modifier) {
         var pending by remember { mutableStateOf<PendingMark?>(null) }
         var marked by remember { mutableStateOf<CollectionType?>(null) }
 
-        val coverSize = with(density) { Size(CoverWidth.toPx(), (CoverWidth / ChogumiDimens.CoverRatio).toPx()) }
+        val coverSize = with(density) { Size(ChogumiDimens.CoverWidth.toPx(), (ChogumiDimens.CoverWidth / ChogumiDimens.CoverRatio).toPx()) }
         val cover = Rect(Offset((area.width - coverSize.width) / 2, (area.height - coverSize.height) / 2), coverSize)
         val corner by animatePosterCorner(charged = pressed || ring?.open == true, landing = ring?.open == false, restCorner = PosterCorner)
 

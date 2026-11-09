@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeParser
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonText
 
 /** 简介区块的 testTag：真实简介与骨架共用。 */

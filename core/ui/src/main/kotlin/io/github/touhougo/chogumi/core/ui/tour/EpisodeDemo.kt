@@ -2,11 +2,8 @@ package io.github.touhougo.chogumi.core.ui.tour
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,13 +12,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,12 +28,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.model.EpisodeCellKind
 import io.github.touhougo.chogumi.core.model.EpisodeTracking
-import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.composables.EpisodeHeadFrame
 import io.github.touhougo.chogumi.core.ui.composables.EpisodeTileRows
 import io.github.touhougo.chogumi.core.ui.composables.GridCell
 import io.github.touhougo.chogumi.core.ui.composables.ModalScrim
@@ -195,7 +186,7 @@ private fun DemoTile(number: Int, kind: EpisodeCellKind, join: TileJoin, pressed
 
 /**
  * 单集面板的示意：页面面板的形状、底色与把手（[BottomSheetDefaults]，与 PageModalSheet 同一套），
- * 头部是单集面板的几行（集数 labelMedium、标题 headlineSmall、名字 bodyMedium）与右边同一个回复按钮，下面是评论楼层（[DemoFloor]）。
+ * 头部是单集面板头部的框架 [EpisodeHeadFrame]（字画成骨架、右边同一个回复按钮），下面是评论楼层（[DemoFloor]）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,21 +194,12 @@ private fun DemoEpisodeSheet(modifier: Modifier) {
     Surface(shape = BottomSheetDefaults.ExpandedShape, color = BottomSheetDefaults.ContainerColor, modifier = modifier) {
         Column {
             BottomSheetDefaults.DragHandle(Modifier.align(Alignment.CenterHorizontally))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = ChogumiDimens.ScreenPadding).padding(bottom = 8.dp),
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SkeletonText(MaterialTheme.typography.labelMedium, widthFraction = 0.25f)
-                    SkeletonText(MaterialTheme.typography.headlineSmall, widthFraction = 0.7f)
-                    SkeletonText(MaterialTheme.typography.bodyMedium, widthFraction = 0.45f)
-                }
-                FilledTonalButton(onClick = {}) {
-                    Icon(painterResource(R.drawable.reply_24), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    Text(stringResource(R.string.reply))
-                }
-            }
+            EpisodeHeadFrame(
+                number = { SkeletonText(it, widthFraction = 0.25f) },
+                title = { SkeletonText(it, widthFraction = 0.7f) },
+                airdate = { SkeletonText(it, widthFraction = 0.45f) },
+                onReply = {},
+            )
             repeat(DemoFloorCount) { DemoFloor() }
         }
     }

@@ -29,9 +29,9 @@ import io.github.touhougo.chogumi.core.model.PmThread
 import io.github.touhougo.chogumi.core.model.UserBo
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.core.reader.BBCodeText
-import io.github.touhougo.chogumi.core.reader.ReaderTypography
 import io.github.touhougo.chogumi.core.reader.bodyGestures
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.composables.CircleAvatar
 import io.github.touhougo.chogumi.core.ui.composables.MetaText
 import io.github.touhougo.chogumi.core.ui.composables.PressArea

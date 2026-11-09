@@ -97,6 +97,7 @@ import io.github.touhougo.chogumi.core.reader.reactionpoll.joinReactionPoll
 import io.github.touhougo.chogumi.core.reader.reactionpoll.splitReactionPoll
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.Gated
+import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
 import io.github.touhougo.chogumi.core.ui.composables.BusyButton
 import io.github.touhougo.chogumi.core.ui.composables.ContentGrid
 import io.github.touhougo.chogumi.core.ui.composables.FailureNoticeEffect
