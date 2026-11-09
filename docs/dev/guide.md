@@ -79,6 +79,17 @@ Bangumi 服务端先按 `limit / offset` 切数据库结果集，再跳过查不
   密钥失效导致强制登出。网页会话的 Cookie 例外，用 Keystore 的 AES-GCM 加密后存在同一个文件里（`KeystoreCookieCipher`）：
   它能做网页上的一切，而密钥失效的代价只是丢掉网页会话（解不开就当没有，提示重新用账号密码登录），不会登出。
 
+#### 令牌的有效期与刷新
+
+- 账号密码登录与浏览器授权都是拿授权码换令牌（`AuthApi.exchangeCode`）：每换一次，服务端新发一张 OAuth 令牌，
+  bgm.tv 的「个人令牌」页按应用名列出（「Chogumi」）。令牌有效期由服务端定为 7 天（`expires_in` 604800），客户端改不了。
+  手动填的 Access Token 原样存下，不新发。应用不创建个人令牌。
+- 登录靠刷新延续：请求挨 401 时 `TokenRefresherImpl` 用 refresh_token 换一对新令牌，不主动按 `expires_in` 刷新。
+  刷新请求按 bgm.tv 授权文档带齐 `grant_type`、`client_id`、`client_secret`、`refresh_token`、`redirect_uri`
+  （与换授权码同一个值）。refresh_token 的有效期文档没写；刷新在线上的结果未实测（推断）。
+- 登出只清本机的令牌，不在服务端作废：OAuth 没有公开的作废接口，令牌页的删除是 next.bgm.tv 的网页操作，不在接口合同里。
+  旧令牌到期自然失效。
+
 #### 浏览器 OAuth 的已接受风险
 
 账号密码登录是主入口；浏览器授权是次要入口，打开浏览器前有确认框。浏览器回调保留 `chogumi://oauth/callback`：
