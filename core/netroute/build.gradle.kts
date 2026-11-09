@@ -21,6 +21,7 @@ dependencies {
     // 直连核心（Go 源码在 go/，tools/echcore/build.sh 生成，只含 arm64-v8a）：整个应用里只有本模块依赖它
     implementation(files("libs/echcore.aar"))
 
+    testImplementation(testFixtures(projects.core.data))
     testImplementation(libs.junit4)
     // 网页会话经核心的测试用生产工厂 createWebHttpClient（Ktor）
     testImplementation(libs.ktor.client.core)

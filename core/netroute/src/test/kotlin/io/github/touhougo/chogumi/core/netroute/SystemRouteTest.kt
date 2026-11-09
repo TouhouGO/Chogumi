@@ -2,10 +2,10 @@ package io.github.touhougo.chogumi.core.netroute
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import java.nio.file.Files
+import io.github.touhougo.chogumi.core.data.repository.cancelAndAwait
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,7 +19,7 @@ class SystemRouteTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @After
-    fun tearDown() = scope.cancel()
+    fun tearDown() = cancelAndAwait(listOf(scope))
 
     @Test
     fun `系统网络时请求原样发出`() {

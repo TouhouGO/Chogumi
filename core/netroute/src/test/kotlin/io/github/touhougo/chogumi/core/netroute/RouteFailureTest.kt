@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
+import io.github.touhougo.chogumi.core.data.repository.awaitUntil
 import java.nio.file.Files
+import io.github.touhougo.chogumi.core.data.repository.cancelAndAwait
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.network.REQUEST_TIMEOUT_MILLIS
 import java.util.concurrent.atomic.AtomicInteger
@@ -14,7 +16,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
@@ -35,7 +36,7 @@ class RouteFailureTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @After
-    fun tearDown() = scope.cancel()
+    fun tearDown() = cancelAndAwait(listOf(scope))
 
     private fun client(routes: CoreRoutes, end: RecordingEnd) = OkHttpClient.Builder().apply {
         DirectRouting(routes).customize(this)
@@ -48,15 +49,6 @@ class RouteFailureTest {
     private fun dataStore(): DataStore<Preferences> {
         val dir = Files.createTempDirectory("netroute").toFile()
         return PreferenceDataStoreFactory.create(scope = scope) { dir.resolve("netroute.preferences_pb") }
-    }
-
-    /** 等 [condition] 成立（单调的条件），至多 5 秒。 */
-    private fun awaitUntil(what: String, condition: () -> Boolean) {
-        val deadline = System.nanoTime() + 5_000_000_000L
-        while (!condition()) {
-            check(System.nanoTime() < deadline) { "等待「$what」超时" }
-            Thread.sleep(20)
-        }
     }
 
     @Test
@@ -274,8 +266,8 @@ class RouteFailureTest {
         scope.launch { route.mode.collect { synchronized(seenMode) { seenMode += it } } }
         scope.launch { route.directAvailable.collect { synchronized(seenHint) { seenHint += it } } }
 
-        awaitUntil("设置页看到存储恢复后的直连") { synchronized(seenMode) { seenMode.lastOrNull() == RouteMode.DIRECT } }
-        awaitUntil("登录页的提示条件跟着变") { synchronized(seenHint) { seenHint.lastOrNull() == false } }
+        awaitUntil("设置页看到存储恢复后的直连") { synchronized(seenMode) { RouteMode.DIRECT in seenMode } }
+        awaitUntil("登录页的提示条件跟着变") { synchronized(seenHint) { false in seenHint } }
     }
 
     @Test
@@ -284,11 +276,11 @@ class RouteFailureTest {
         scope.launch { route.run() }
         val seen = mutableListOf<RouteMode>()
         scope.launch { route.mode.collect { synchronized(seen) { seen += it } } }
-        awaitUntil("先看到系统网络") { synchronized(seen) { seen.lastOrNull() == RouteMode.SYSTEM } }
+        awaitUntil("先看到系统网络") { synchronized(seen) { RouteMode.SYSTEM in seen } }
 
         assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
 
-        awaitUntil("开了之后看到直连") { synchronized(seen) { seen.lastOrNull() == RouteMode.DIRECT } }
+        awaitUntil("开了之后看到直连") { synchronized(seen) { RouteMode.DIRECT in seen } }
     }
 
     @Test
