@@ -57,6 +57,7 @@ class RefreshBypassesHttpCacheTest {
             },
             engine = engine,
             appVersion = "test",
+            customizers = emptyList(),
         ).also { resources.own(it) }
         val repo = testSubjectRepository(resources, SubjectApi(client), NextApi(client), FakeSubjectDao(), FakeEpisodeDao(), FakeSubjectSectionDao(), testNsfwFilter(resources))
 

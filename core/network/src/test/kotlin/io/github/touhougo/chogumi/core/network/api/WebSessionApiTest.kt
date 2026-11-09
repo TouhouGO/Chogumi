@@ -86,6 +86,7 @@ class WebSessionApiTest {
                 val page = pages[request.url.toString()]
                 if (page != null) respond(page, HttpStatusCode.OK) else respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "/"))
             },
+            customizers = emptyList(),
         ),
     )
 
@@ -287,6 +288,7 @@ class WebSessionApiTest {
                         respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "/settings"))
                     }
                 },
+                customizers = emptyList(),
             ),
         )
 
@@ -320,6 +322,7 @@ class WebSessionApiTest {
                 val (status, location, body) = answer(request)
                 respond(body, status, if (location != null) headersOf(HttpHeaders.Location, location) else headersOf())
             },
+            customizers = emptyList(),
         ),
     )
 

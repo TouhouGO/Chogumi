@@ -57,7 +57,7 @@ class SessionRequestTest {
                 headers = jsonHeaders,
             )
         }
-        return createHttpClient(provider, NoRefresh, enableLogging = false, engine = engine, appVersion = "test") to seen
+        return createHttpClient(provider, NoRefresh, enableLogging = false, engine = engine, appVersion = "test", customizers = emptyList()) to seen
     }
 
     @Test
@@ -103,7 +103,7 @@ class SessionRequestTest {
         }
         val client = createHttpClient(Provider("global"), object : TokenRefresher {
             override suspend fun refresh(rejectedAccessToken: String?): Boolean { refreshed.set(true); return true }
-        }, engine = engine, appVersion = "test")
+        }, engine = engine, appVersion = "test", customizers = emptyList())
 
         runCatching { client.get("https://api.bgm.tv/v0/me") { pinSessionToken("expired_token") } }
 
@@ -130,7 +130,7 @@ class SessionRequestTest {
                 headers = jsonHeaders,
             )
         }
-        val client = createHttpClient(Provider("global_should_never_be_used"), NoRefresh, engine = engine, appVersion = "test")
+        val client = createHttpClient(Provider("global_should_never_be_used"), NoRefresh, engine = engine, appVersion = "test", customizers = emptyList())
 
         client.get("https://api.bgm.tv/v0/me") { pinSessionToken("token_a") }
         client.get("https://api.bgm.tv/v0/me") { pinSessionToken("token_b") }

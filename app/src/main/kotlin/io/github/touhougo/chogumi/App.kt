@@ -85,7 +85,7 @@ class App : Application(), SingletonImageLoader.Factory {
         // onCreate 的主线程上不取任何单例：AuthRepository（三个 HTTP 客户端、DataStore）与 SearchRepository（Room 库）
         // 都在后台取；外壳 ViewModel 随后取同一份单例，Koin 的单例按定义加锁创建，只会等、不会建两份。
         val appScope = get<CoroutineScope>(named("appScope"))
-        // 网络线路跟着设置起停直连核心；读到设置之前，发往 bgm.tv 的请求在网络层等它（NetRoute.endpoint）
+        // 网络线路跟着设置起停直连核心；读到设置之前，发往 bgm.tv 的请求在网络层等它（NetRoute.route）
         appScope.launch {
             get<NetRoute>().run()
         }

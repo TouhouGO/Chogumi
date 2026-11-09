@@ -203,7 +203,7 @@ fun createHttpClient(
     appVersion: String,
     enableLogging: Boolean = false,
     engine: HttpClientEngine? = null,
-    customizers: List<OkHttpCustomizer> = emptyList(),
+    customizers: List<OkHttpCustomizer>,
 ): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         // 必须 true：toFailure 靠 ResponseException（4xx / 5xx 抛出）认出状态码
@@ -282,7 +282,7 @@ internal fun apiOkHttpDispatcher() = Dispatcher().apply { maxRequestsPerHost = A
 fun createTokenHttpClient(
     appVersion: String,
     engine: HttpClientEngine? = null,
-    customizers: List<OkHttpCustomizer> = emptyList(),
+    customizers: List<OkHttpCustomizer>,
 ): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         expectSuccess = true
@@ -301,7 +301,7 @@ private fun HttpClientConfig<OkHttpConfig>.customizedEngine(customizers: List<Ok
 }
 
 /** 网页请求：不跟随跳转、不缓存、不带 OAuth，状态与 Cookie 都由调用方处理。 */
-fun createWebHttpClient(engine: HttpClientEngine? = null, customizers: List<OkHttpCustomizer> = emptyList()): HttpClient {
+fun createWebHttpClient(engine: HttpClientEngine? = null, customizers: List<OkHttpCustomizer>): HttpClient {
     val config: HttpClientConfig<*>.() -> Unit = {
         expectSuccess = false
         followRedirects = false

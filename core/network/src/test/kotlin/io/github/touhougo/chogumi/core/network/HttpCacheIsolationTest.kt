@@ -41,7 +41,7 @@ class HttpCacheIsolationTest {
                 ),
             )
         }
-        val client = createHttpClient(FakeTokenProvider(), FakeRefresher, engine = engine, appVersion = "test")
+        val client = createHttpClient(FakeTokenProvider(), FakeRefresher, engine = engine, appVersion = "test", customizers = emptyList())
 
         client.get("https://api.bgm.tv/v0/subjects/1") { pinSessionToken("token_user_a") }
         val anonymous = client.get("https://api.bgm.tv/v0/subjects/1") { pinSessionToken(null) }

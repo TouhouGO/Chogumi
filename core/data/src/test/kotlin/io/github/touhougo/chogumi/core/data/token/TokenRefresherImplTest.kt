@@ -37,7 +37,7 @@ class TokenRefresherImplTest {
             refreshRequests.incrementAndGet()
             answer()
         }
-        val api = AuthApi(resources.own(createTokenHttpClient("test", engine)), AuthConfig("id", "secret", "chogumi://oauth/callback"))
+        val api = AuthApi(resources.own(createTokenHttpClient("test", engine, customizers = emptyList())), AuthConfig("id", "secret", "chogumi://oauth/callback"))
         return TokenRefresherImpl(api, store)
     }
 

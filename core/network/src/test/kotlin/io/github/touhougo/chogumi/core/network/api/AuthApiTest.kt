@@ -33,7 +33,7 @@ class AuthApiTest {
                 headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
             )
         }
-        val client = createTokenHttpClient("test", engine)
+        val client = createTokenHttpClient("test", engine, customizers = emptyList())
         return AuthApi(client, config) to engine
     }
 
