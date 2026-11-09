@@ -2,6 +2,7 @@ package io.github.touhougo.chogumi.core.ui.tour
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -170,14 +172,17 @@ internal fun ArrangeDemo(playing: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
-/** 探索页的一条货架：标题一行（货架标题的骨架），下面一排封面。 */
+/**
+ * 探索页的一条货架：标题一行（货架标题的骨架），下面一排封面。封面排在一条横滑的行里（不接手势），
+ * 每张都是整张，超出的由演示台裁掉，和真货架一样；不横滑时最后一张会被挤成剩下的宽度。
+ */
 @Composable
 private fun DemoShelf(onHeaderPlaced: ((LayoutCoordinates) -> Unit)?) {
     Column {
         SectionHeaderSkeleton(if (onHeaderPlaced != null) Modifier.onPlaced(onHeaderPlaced) else Modifier)
         Row(
             horizontalArrangement = Arrangement.spacedBy(GridSpacing),
-            modifier = Modifier.padding(start = GridPadding),
+            modifier = Modifier.horizontalScroll(rememberScrollState(), enabled = false).padding(start = GridPadding),
         ) {
             repeat(ShelfCovers) {
                 SubjectPosterSkeletonBox(Modifier.width(ChogumiDimens.CoverWidth))
