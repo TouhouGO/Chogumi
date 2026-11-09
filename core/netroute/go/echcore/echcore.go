@@ -4,6 +4,7 @@ package echcore
 import (
 	"strings"
 	"sync"
+	"time"
 
 	"echcore/proxy"
 )
@@ -28,8 +29,8 @@ var (
 )
 
 // Start 起核心；已经在跑就返回同一个。addrs 是逗号分隔的边缘地址（"ip" 或 "ip:端口"），config 是上次存下的 ECH 配置
-// （没有就传空，用内置的），sink 收之后服务端给的新配置。
-func Start(addrs string, config []byte, sink ConfigSink) (*Endpoint, error) {
+// （没有就传空，用内置的），edgeTimeoutMillis 是每个地址的拨号加握手预算（见 proxy.Options.EdgeTimeout），sink 收之后服务端给的新配置。
+func Start(addrs string, config []byte, edgeTimeoutMillis int, sink ConfigSink) (*Endpoint, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if cur == nil {
@@ -39,7 +40,12 @@ func Start(addrs string, config []byte, sink ConfigSink) (*Endpoint, error) {
 				list = append(list, a)
 			}
 		}
-		s, err := proxy.Start(proxy.Options{Addrs: list, ECHConfig: config, OnECHConfig: sink.Save})
+		s, err := proxy.Start(proxy.Options{
+			Addrs:       list,
+			ECHConfig:   config,
+			EdgeTimeout: time.Duration(edgeTimeoutMillis) * time.Millisecond,
+			OnECHConfig: sink.Save,
+		})
 		if err != nil {
 			return nil, err
 		}

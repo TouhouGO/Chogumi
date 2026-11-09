@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -181,5 +183,93 @@ func TestAddressesWithoutPortUse443(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("%d: %s, want %s", i, got[i], want[i])
 		}
+	}
+}
+
+// stallingEdge 接受 TCP、从不回 TLS（TCP 通了而握手卡住的边缘）。返回它的地址与它接受过几条连接。
+func stallingEdge(t *testing.T) (string, *atomic.Int32) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var accepted atomic.Int32
+	var held []net.Conn
+	var mu sync.Mutex
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			accepted.Add(1)
+			mu.Lock()
+			held = append(held, c)
+			mu.Unlock()
+		}
+	}()
+	t.Cleanup(func() {
+		ln.Close()
+		mu.Lock()
+		for _, c := range held {
+			c.Close()
+		}
+		mu.Unlock()
+	})
+	return ln.Addr().String(), &accepted
+}
+
+// getWithin 发一个请求，客户端最多等 [limit]（模拟 App 一次请求的超时）。
+func getWithin(t *testing.T, s *Server, limit time.Duration) (int, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://"+net.JoinHostPort("127.0.0.1", strconv.Itoa(s.Port()))+"/api.bgm.tv/a", nil)
+	req.Header.Set(TokenHeader, s.Token())
+	resp, err := (&http.Transport{}).RoundTrip(req)
+	if err != nil {
+		return 0, err
+	}
+	resp.Body.Close()
+	return resp.StatusCode, nil
+}
+
+func TestStalledEdgeHandsOverToTheNextWithinBudget(t *testing.T) {
+	stalled, _ := stallingEdge(t)
+	good, cfg, roots := echUpstream(t)
+	s := start(t, Options{Addrs: []string{stalled, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 300 * time.Millisecond})
+
+	// 两个地址的预算加起来（600ms）小于客户端的超时（2s）：卡住的那个让过去，第二个接上
+	if code, err := getWithin(t, s, 2*time.Second); err != nil || code != http.StatusOK {
+		t.Fatalf("code %d err %v, want 200 via the second edge", code, err)
+	}
+}
+
+func TestAStalledPreferredEdgeYieldsEvenWhenTheCallerGivesUpFirst(t *testing.T) {
+	stalled, _ := stallingEdge(t)
+	good, cfg, roots := echUpstream(t)
+	s := start(t, Options{Addrs: []string{stalled, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 300 * time.Millisecond})
+
+	// 调用方在卡住的首选用完预算之前就放弃了：这一次没轮到第二个地址
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, err := s.up.dialTLS(ctx, "tcp", "api.bgm.tv:443"); err == nil {
+		t.Fatal("dial should fail on the stalled edge")
+	}
+	if got := s.up.addrs[s.up.pick()]; got != good {
+		t.Fatalf("next dial starts at %s, want the other edge %s", got, good)
+	}
+}
+
+func TestHealthyPreferredEdgeIsTheOnlyOneContacted(t *testing.T) {
+	stalled, accepted := stallingEdge(t)
+	good, cfg, roots := echUpstream(t)
+	s := start(t, Options{Addrs: []string{good, stalled}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 300 * time.Millisecond})
+
+	if code, err := getWithin(t, s, 2*time.Second); err != nil || code != http.StatusOK {
+		t.Fatalf("code %d err %v, want 200", code, err)
+	}
+	if got := accepted.Load(); got != 0 {
+		t.Fatalf("contacted the second edge %d times while the first was healthy", got)
 	}
 }

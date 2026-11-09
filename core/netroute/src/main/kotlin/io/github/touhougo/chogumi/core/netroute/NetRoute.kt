@@ -8,6 +8,7 @@ import io.github.touhougo.chogumi.core.data.util.ObservedPreferences
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.Outcome
+import io.github.touhougo.chogumi.core.network.REQUEST_TIMEOUT_MILLIS
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -76,9 +77,15 @@ internal fun interface CoreRoutes {
     fun current(): CoreRoute
 }
 
+/**
+ * 每个边缘地址的拨号加握手预算：客户端一次请求的超时（core:network [REQUEST_TIMEOUT_MILLIS]）分成「地址数 + 1」份，
+ * TCP 通了而 TLS 卡住的地址轮流让过去之后还剩一份给请求本身，能用的地址总能在客户端放弃之前轮到。
+ */
+internal fun edgeBudgetMillis(edges: Int): Long = REQUEST_TIMEOUT_MILLIS / (edges + 1)
+
 /** 直连核心的起停（生产是 Go 核心 [GoDirectCore]）。[start] 起不来就抛异常。 */
 internal interface DirectCore {
-    fun start(addresses: List<String>, config: ByteArray, onConfig: (ByteArray) -> Unit): CoreEndpoint
+    fun start(addresses: List<String>, config: ByteArray, edgeBudgetMillis: Long, onConfig: (ByteArray) -> Unit): CoreEndpoint
 
     fun stop()
 }
@@ -175,7 +182,8 @@ class NetRoute internal constructor(
             is Outcome.Success -> read.value
             is Outcome.Failed -> null
         }
-        outcomeOf { core.start(edges.addresses(), stored ?: ByteArray(0), ::saveConfig) }
+        val addresses = edges.addresses()
+        outcomeOf { core.start(addresses, stored ?: ByteArray(0), edgeBudgetMillis(addresses.size), ::saveConfig) }
             .also { if (it is Outcome.Success) running = it.value }
     }
 

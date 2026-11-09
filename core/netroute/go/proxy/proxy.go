@@ -35,7 +35,8 @@ const ErrorHeader = "X-Chogumi-Proxy-Error"
 // 调用方据此还原。
 const OriginalLocationHeader = "X-Chogumi-Original-Location"
 
-const handshakeTimeout = 15 * time.Second
+// DefaultEdgeTimeout 是没给 Options.EdgeTimeout 时每个边缘地址的拨号加握手预算（命令行与测试用；App 由客户端的单次超时推出）。
+const DefaultEdgeTimeout = 4 * time.Second
 
 // Options 里空着的项用内置值。
 type Options struct {
@@ -43,6 +44,9 @@ type Options struct {
 	Addrs []string
 	// ECHConfig 是初始 ECHConfigList（上次存下的那份）；空着用 BuiltinECHConfig。
 	ECHConfig []byte
+	// EdgeTimeout 是一个边缘地址的拨号加 ECH 握手的预算：TCP 通了而 TLS 卡住的地址最多耽误这么久就换下一个。
+	// 几个地址的预算加起来要小于调用方一次请求的超时，否则还没轮到能用的地址请求就被调用方取消了。空着用 DefaultEdgeTimeout。
+	EdgeTimeout time.Duration
 	// OnECHConfig 在服务端给出新配置（握手被拒时附带的重试配置）时调用，调用方把它存起来，下次 Start 时传回。
 	OnECHConfig func(config []byte)
 	Logf        func(format string, args ...any)
@@ -73,6 +77,10 @@ func Start(o Options) (*Server, error) {
 	if logf == nil {
 		logf = func(string, ...any) {}
 	}
+	edgeTimeout := o.EdgeTimeout
+	if edgeTimeout <= 0 {
+		edgeTimeout = DefaultEdgeTimeout
+	}
 	onConfig := o.OnECHConfig
 	if onConfig == nil {
 		onConfig = func([]byte) {}
@@ -82,11 +90,12 @@ func Start(o Options) (*Server, error) {
 		return nil, err
 	}
 	up := &upstream{
-		addrs:    withPort(addrs),
-		dialer:   net.Dialer{Timeout: 10 * time.Second},
-		roots:    o.rootCAs,
-		onConfig: onConfig,
-		logf:     logf,
+		addrs:       withPort(addrs),
+		dialer:      net.Dialer{},
+		edgeTimeout: edgeTimeout,
+		roots:       o.rootCAs,
+		onConfig:    onConfig,
+		logf:        logf,
 	}
 	up.ech.Store(&cfg)
 	up.transport = &http.Transport{
@@ -198,15 +207,16 @@ func withPort(addrs []string) []string {
 // ---------- 上游 ----------
 
 type upstream struct {
-	addrs     []string
-	mu        sync.Mutex
-	preferred int
-	ech       atomic.Pointer[[]byte]
-	dialer    net.Dialer
-	roots     *x509.CertPool
-	transport *http.Transport
-	onConfig  func([]byte)
-	logf      func(string, ...any)
+	addrs       []string
+	mu          sync.Mutex
+	preferred   int
+	ech         atomic.Pointer[[]byte]
+	dialer      net.Dialer
+	edgeTimeout time.Duration
+	roots       *x509.CertPool
+	transport   *http.Transport
+	onConfig    func([]byte)
+	logf        func(string, ...any)
 }
 
 type addrConn struct {
@@ -226,7 +236,17 @@ func (u *upstream) prefer(i int) {
 	u.mu.Unlock()
 }
 
-// 地址按优先的那个起轮换；成功的成为下一次的首选。
+// yield 把首选让给下一个地址（[i] 正是首选时）。
+func (u *upstream) yield(i int) {
+	u.mu.Lock()
+	if u.preferred == i {
+		u.preferred = (i + 1) % len(u.addrs)
+	}
+	u.mu.Unlock()
+}
+
+// 地址按优先的那个起轮换，每个最多 edgeTimeout；成功的成为下一次的首选，失败的若是首选就让给下一个
+// （调用方在轮完之前取消了，下一次请求也从别的地址开始）。
 func (u *upstream) dialTLS(ctx context.Context, _, addr string) (net.Conn, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -242,6 +262,7 @@ func (u *upstream) dialTLS(ctx context.Context, _, addr string) (net.Conn, error
 			return c, nil
 		}
 		u.logf("dial %s via %s: %v", host, u.addrs[idx], err)
+		u.yield(idx)
 		errs = append(errs, fmt.Errorf("%s: %w", u.addrs[idx], err))
 		if ctx.Err() != nil {
 			break
@@ -252,7 +273,7 @@ func (u *upstream) dialTLS(ctx context.Context, _, addr string) (net.Conn, error
 
 // 一个地址上的 ECH 握手：被拒时换上服务端给的重试配置再握一次；新配置留在内存给之后的连接用，并交给 onConfig 存起来。
 func (u *upstream) handshake(ctx context.Context, host, addr string) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, handshakeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, u.edgeTimeout)
 	defer cancel()
 	for retried := false; ; retried = true {
 		raw, err := u.dialer.DialContext(ctx, "tcp", addr)
@@ -319,12 +340,10 @@ func edgeRestricted(resp *http.Response) bool {
 }
 
 func (u *upstream) demote(addr string) {
-	u.mu.Lock()
 	for i, a := range u.addrs {
-		if a == addr && u.preferred == i {
-			u.preferred = (i + 1) % len(u.addrs)
+		if a == addr {
+			u.yield(i)
 		}
 	}
-	u.mu.Unlock()
 	u.transport.CloseIdleConnections()
 }

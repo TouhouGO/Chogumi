@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
 import java.nio.file.Files
 import io.github.touhougo.chogumi.core.foundation.Outcome
+import io.github.touhougo.chogumi.core.network.REQUEST_TIMEOUT_MILLIS
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -231,5 +232,18 @@ class RouteFailureTest {
         assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
 
         awaitUntil("开了之后看到直连") { synchronized(seen) { seen.lastOrNull() == RouteMode.DIRECT } }
+    }
+
+    @Test
+    fun `每个边缘地址的预算加起来小于客户端一次请求的超时`() = runBlocking {
+        val core = CountingCore()
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = core)
+        scope.launch { route.run() }
+        route.route()
+
+        assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
+
+        val edges = BuiltinEdgeAddresses.addresses().size
+        assertTrue("预算 ${core.budget} ms × $edges 个地址要小于 $REQUEST_TIMEOUT_MILLIS ms", core.budget * edges < REQUEST_TIMEOUT_MILLIS)
     }
 }

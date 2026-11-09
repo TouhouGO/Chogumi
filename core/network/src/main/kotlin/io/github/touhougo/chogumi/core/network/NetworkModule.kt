@@ -50,8 +50,11 @@ import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
-/** 请求超时：单次尝试的上限（含重试时每一次尝试各算各的，见 [installReadRetryAndTimeout]）。 */
-private const val REQUEST_TIMEOUT_MILLIS = 15_000L
+/**
+ * 请求超时：单次尝试的上限（含重试时每一次尝试各算各的，见 [installReadRetryAndTimeout]）。
+ * 直连核心按它给每个边缘地址分预算（core:netroute `edgeBudgetMillis`），所以是公开的。
+ */
+const val REQUEST_TIMEOUT_MILLIS = 15_000L
 
 /** 连接超时：单次尝试内建立连接的上限。 */
 private const val CONNECT_TIMEOUT_MILLIS = 10_000L

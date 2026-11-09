@@ -29,7 +29,7 @@ internal class RecordingEnd(
 
 /** 测试里不该被起起来的核心：起它就是测试错了。 */
 internal object NoCore : DirectCore {
-    override fun start(addresses: List<String>, config: ByteArray, onConfig: (ByteArray) -> Unit): CoreEndpoint =
+    override fun start(addresses: List<String>, config: ByteArray, edgeBudgetMillis: Long, onConfig: (ByteArray) -> Unit): CoreEndpoint =
         error("这条测试不该起核心")
 
     override fun stop() = Unit
@@ -37,7 +37,7 @@ internal object NoCore : DirectCore {
 
 /** 起不来的核心（例如本机端口开不出来）。 */
 internal object BrokenCore : DirectCore {
-    override fun start(addresses: List<String>, config: ByteArray, onConfig: (ByteArray) -> Unit): CoreEndpoint =
+    override fun start(addresses: List<String>, config: ByteArray, edgeBudgetMillis: Long, onConfig: (ByteArray) -> Unit): CoreEndpoint =
         throw java.io.IOException("listen failed")
 
     override fun stop() = Unit
@@ -47,9 +47,11 @@ internal object BrokenCore : DirectCore {
 internal class CountingCore : DirectCore {
     @Volatile var starts = 0
     @Volatile var stops = 0
+    @Volatile var budget = 0L
 
-    override fun start(addresses: List<String>, config: ByteArray, onConfig: (ByteArray) -> Unit): CoreEndpoint {
+    override fun start(addresses: List<String>, config: ByteArray, edgeBudgetMillis: Long, onConfig: (ByteArray) -> Unit): CoreEndpoint {
         starts++
+        budget = edgeBudgetMillis
         return CoreEndpoint(4242, "secret")
     }
 
