@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -141,7 +142,8 @@ internal fun ArrangeDemo(playing: Boolean, modifier: Modifier = Modifier) {
             transitionSpec = { chogumiTransition(PageTransitionKind.TopLevel, pageMotion, 1).using(null) },
             label = "tour_arrange",
         ) { listShown ->
-            Column(Modifier.fillMaxSize()) {
+            // 页面是竖着滚的：每条货架都按自己的高排整条，放不下的由演示台裁掉，不被挤进剩下的高度
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState(), enabled = false)) {
                 if (listShown) {
                     ArrangeBar(onAdd = {}, onDone = {})
                     Column(
