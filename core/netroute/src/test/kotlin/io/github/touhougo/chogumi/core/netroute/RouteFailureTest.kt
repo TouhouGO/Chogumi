@@ -8,16 +8,18 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
 import java.nio.file.Files
 import io.github.touhougo.chogumi.core.foundation.Outcome
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -47,6 +49,15 @@ class RouteFailureTest {
         return PreferenceDataStoreFactory.create(scope = scope) { dir.resolve("netroute.preferences_pb") }
     }
 
+    /** 等 [condition] 成立（单调的条件），至多 5 秒。 */
+    private fun awaitUntil(what: String, condition: () -> Boolean) {
+        val deadline = System.nanoTime() + 5_000_000_000L
+        while (!condition()) {
+            check(System.nanoTime() < deadline) { "等待「$what」超时" }
+            Thread.sleep(20)
+        }
+    }
+
     @Test
     fun `设置读不出来时按系统网络算_不让应用崩`() = runBlocking {
         val broken = object : DataStore<Preferences> {
@@ -55,9 +66,62 @@ class RouteFailureTest {
         }
         val route = NetRoute(broken, scope, BuiltinEdgeAddresses, supported = true, core = NoCore)
 
-        withTimeout(5_000) { route.run() }
+        scope.launch { route.run() }
 
         assertEquals(CoreRoute.System, route.route())
+    }
+
+    @Test
+    fun `读失败之后接着观察设置_恢复后照设置走`() = runBlocking {
+        val store = dataStore()
+        store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
+        val reads = AtomicInteger()
+        val flaky = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow {
+                if (reads.incrementAndGet() == 1) throw IOException("disk")
+                emitAll(store.data)
+            }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
+        }
+        val core = CountingCore()
+        val route = NetRoute(flaky, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        scope.launch { route.run() }
+
+        awaitUntil("读恢复后起了核心") { route.route() is CoreRoute.Core }
+        assertTrue(route.setMode(RouteMode.SYSTEM) is Outcome.Success)
+        assertEquals(CoreRoute.System, route.route())
+        assertEquals(1, core.stops)
+    }
+
+    @Test
+    fun `线路一直没定下来时请求失败_不走系统网络`() {
+        val stuck = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow { awaitCancellation() }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = awaitCancellation()
+        }
+        val route = NetRoute(stuck, scope, BuiltinEdgeAddresses, supported = true, core = NoCore)
+        scope.launch { route.run() }
+        val end = RecordingEnd()
+
+        assertThrows(IOException::class.java) { get(client({ route.route() }, end)) }
+
+        assertTrue("请求不该发出去", end.requests.isEmpty())
+    }
+
+    @Test
+    fun `冷启动时设置是直连就走核心_关掉后停核心走系统网络`() = runBlocking {
+        val store = dataStore()
+        store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
+        val core = CountingCore()
+        val route = NetRoute(store, scope, BuiltinEdgeAddresses, supported = true, core = core)
+        scope.launch { route.run() }
+
+        assertEquals(CoreRoute.Core(CoreEndpoint(4242, "secret")), route.route())
+        assertTrue(route.setMode(RouteMode.SYSTEM) is Outcome.Success)
+        assertEquals(CoreRoute.System, route.route())
+        assertEquals(RouteMode.SYSTEM, route.mode.first())
+        assertEquals(1, core.starts)
+        assertEquals(1, core.stops)
     }
 
     @Test

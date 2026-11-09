@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
@@ -55,15 +56,18 @@ fun interface DirectRouteHint {
 /** 本机直连核心的端口与令牌。 */
 internal data class CoreEndpoint(val port: Int, val token: String)
 
-/** 一个请求此刻该怎么走。 */
+/** 一个请求此刻该怎么走。只有 [System] 放请求走系统网络。 */
 internal sealed interface CoreRoute {
+    /** 还没定下来（应用刚启动、设置还没读到）：请求失败，不先按系统网络发出。 */
+    data object Undecided : CoreRoute
+
     /** 系统网络：请求原样发出。 */
     data object System : CoreRoute
 
     /** 交给本机核心。 */
     data class Core(val endpoint: CoreEndpoint) : CoreRoute
 
-    /** 选了直连、核心却没起来：请求失败，不退回系统网络（普通 SNI 会被拦，还会连累同一地址上之后的直连）。 */
+    /** 设置是直连、核心却没起来：请求失败（普通 SNI 会被拦，还会连累同一地址上之后的直连）。 */
     data object Unavailable : CoreRoute
 }
 
@@ -80,12 +84,17 @@ internal interface DirectCore {
 }
 
 /**
- * 当前线路：设置（设备级，不跟账号走，登录之前就要用）与直连核心的起停。默认 [RouteMode.SYSTEM]。
+ * 连 bgm.tv 的线路：设置（设备级，不跟账号走，登录之前就要用；默认 [RouteMode.SYSTEM]）与直连核心。
  *
- * 网络层每个请求经 [route] 问一次怎么走：应用启动后第一次读到设置之前，请求在那里等（至多 [READY_TIMEOUT_SECONDS] 秒）。
- * 选了直连而核心起不来时是 [CoreRoute.Unavailable]：请求失败，直到核心起来（用户在设置里重试）或换回系统网络。
- * 设置读不出来（磁盘出错）按系统网络算。服务端给的 ECH 配置存在同一个 DataStore 里，下次起核心时直接用；失效时核心照旧被拒、
- * 换上新给的那份、再存一次。
+ * 模型（代码只照这几条做）：
+ * - **线路状态只有一个来源** [state]，网络层每个请求经 [route] 读它；只有 [CoreRoute.System] 放请求走系统网络。还没定下来
+ *   （[CoreRoute.Undecided]：启动后至多等 [READY_TIMEOUT_SECONDS] 秒，超时也算）与设置是直连而核心没起来（[CoreRoute.Unavailable]）
+ *   一样，请求失败——直连失败绝不退回普通连接。
+ * - **状态只由 [transition] 改**：开直连、关直连、应用存着的设置，都经它，在同一把锁里起核心、存设置、停旧核心，全部成了才换状态。
+ *   用户动手（[setMode]）失败时留在原状态、返回失败；应用存着的设置（[run]）时核心起不来就是 [CoreRoute.Unavailable]。
+ * - **观察设置的循环不结束**（[run]）：读失败按系统网络应用一次，隔一会儿重新订阅；每次应用都放行等着的请求。
+ *
+ * 服务端给的 ECH 配置存在同一个 DataStore 里，下次起核心时直接用；失效时核心照旧被拒、换上新给的那份、再存一次。
  */
 class NetRoute internal constructor(
     dataStore: DataStore<Preferences>,
@@ -95,12 +104,12 @@ class NetRoute internal constructor(
     private val core: DirectCore,
 ) {
     private val prefs = ObservedPreferences(dataStore)
-    private val ready = CountDownLatch(1)
+    private val decided = CountDownLatch(1)
     private val transitions = Mutex()
-    private val state = MutableStateFlow<CoreRoute>(CoreRoute.System)
-    private var coreStarted = false
+    private val state = MutableStateFlow<CoreRoute>(CoreRoute.Undecided)
+    private var running: CoreEndpoint? = null
 
-    /** 设置里存的线路；读不出来时是系统网络。 */
+    /** 设置里存的线路（给界面）；读不出来时是系统网络。 */
     val mode: Flow<RouteMode> = prefs.data
         .map(::modeOf)
         .catch { e -> if (e is IOException) emit(RouteMode.SYSTEM) else throw e }
@@ -109,78 +118,76 @@ class NetRoute internal constructor(
     /** 设备支持直连、且现在走系统网络。 */
     val directAvailable: Flow<Boolean> = mode.map { supported && it == RouteMode.SYSTEM }.distinctUntilChanged()
 
-    /** 选了直连、核心却没起来。 */
+    /** 设置是直连、核心却没起来。 */
     val directUnavailable: Flow<Boolean> = state.map { it == CoreRoute.Unavailable }.distinctUntilChanged()
 
-    /** 跟着设置起停核心；应用启动时在应用作用域里调一次，一直跑。 */
+    /** 跟着设置起停核心；应用启动时在应用作用域里调一次，一直跑（读失败之后重新订阅）。 */
     suspend fun run() {
-        mode.collect { mode ->
-            transitions.withLock {
-                state.value = if (mode == RouteMode.DIRECT && supported) startedRoute() else stoppedRoute()
-            }
-            ready.countDown()
+        while (true) {
+            mode.collect { transition(it, persist = false) }
+            delay(RESUBSCRIBE_DELAY_MILLIS)
         }
     }
 
-    /**
-     * 换线路。换到直连时先把核心起起来、再存设置，两步都成了才换过去：起不来，或存不进（新起的核心随即停掉），都留在原来的线路上、
-     * 返回失败。已经选着直连而核心没起来时，这也是「重试」。
-     */
-    suspend fun setMode(mode: RouteMode): Outcome<Unit> {
-        if (mode == RouteMode.SYSTEM) return outcomeOf { prefs.edit { it[MODE_KEY] = mode.name } }
-        return transitions.withLock {
-            val previous = state.value
-            val started = startedRoute()
-            if (started !is CoreRoute.Core) return@withLock Outcome.Failed(Failure.Unknown)
-            val saved: Outcome<Unit> = outcomeOf { prefs.edit { it[MODE_KEY] = mode.name } }
-            state.value = when {
-                saved is Outcome.Success -> started
-                previous is CoreRoute.Core -> previous
-                else -> {
-                    stoppedRoute()
-                    previous
-                }
-            }
-            saved
-        }
-    }
+    /** 用户换线路：成了才换（失败时留在原线路）。设置是直连而核心没起来时，再开一次就是「重试」。 */
+    suspend fun setMode(mode: RouteMode): Outcome<Unit> = transition(mode, persist = true)
 
     internal fun route(): CoreRoute {
-        ready.await(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        decided.await(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         return state.value
     }
+
+    /** 唯一改 [state] 的地方。[persist] 为 true 是用户动手（要存设置、失败留原状），false 是应用存着的设置。 */
+    private suspend fun transition(mode: RouteMode, persist: Boolean): Outcome<Unit> = transitions.withLock {
+        val wasRunning = running != null
+        val next: CoreRoute = if (mode == RouteMode.DIRECT && supported) {
+            when (val started = startCore()) {
+                is Outcome.Success -> CoreRoute.Core(started.value)
+                is Outcome.Failed -> {
+                    if (!persist) state.value = CoreRoute.Unavailable
+                    return@withLock started
+                }
+            }
+        } else {
+            CoreRoute.System
+        }
+        if (persist) {
+            val saved: Outcome<Unit> = outcomeOf { prefs.edit { it[MODE_KEY] = mode.name } }
+            if (saved is Outcome.Failed) {
+                if (!wasRunning && next is CoreRoute.Core) stopCore()
+                return@withLock saved
+            }
+        }
+        if (next == CoreRoute.System) stopCore()
+        state.value = next
+        Outcome.Success(Unit)
+    }.also { decided.countDown() }
 
     private fun saveConfig(config: ByteArray) {
         scope.launch { outcomeOf { prefs.edit { it[ECH_CONFIG_KEY] = config } } }
     }
 
-    private suspend fun startedRoute(): CoreRoute = withContext(Dispatchers.IO) {
+    private suspend fun startCore(): Outcome<CoreEndpoint> = running?.let { Outcome.Success(it) } ?: withContext(Dispatchers.IO) {
         val stored = when (val read = outcomeOf { prefs.data.first()[ECH_CONFIG_KEY] }) {
             is Outcome.Success -> read.value
             is Outcome.Failed -> null
         }
-        when (val started = outcomeOf { core.start(edges.addresses(), stored ?: ByteArray(0), ::saveConfig) }) {
-            is Outcome.Success -> {
-                coreStarted = true
-                CoreRoute.Core(started.value)
-            }
-            is Outcome.Failed -> CoreRoute.Unavailable
-        }
+        outcomeOf { core.start(edges.addresses(), stored ?: ByteArray(0), ::saveConfig) }
+            .also { if (it is Outcome.Success) running = it.value }
     }
 
     // 没起过就不碰核心：Go 核心的类一加载就要载入 .so，不支持的设备上没有它。
-    private suspend fun stoppedRoute(): CoreRoute {
-        if (coreStarted) {
-            withContext(Dispatchers.IO) { outcomeOf { core.stop() } }
-            coreStarted = false
-        }
-        return CoreRoute.System
+    private suspend fun stopCore() {
+        if (running == null) return
+        withContext(Dispatchers.IO) { outcomeOf { core.stop() } }
+        running = null
     }
 
     private companion object {
         val MODE_KEY = stringPreferencesKey("route_mode")
         val ECH_CONFIG_KEY = byteArrayPreferencesKey("ech_config")
         const val READY_TIMEOUT_SECONDS = 5L
+        const val RESUBSCRIBE_DELAY_MILLIS = 1_000L
 
         fun modeOf(prefs: Preferences): RouteMode =
             RouteMode.entries.firstOrNull { it.name == prefs[MODE_KEY] } ?: RouteMode.SYSTEM
