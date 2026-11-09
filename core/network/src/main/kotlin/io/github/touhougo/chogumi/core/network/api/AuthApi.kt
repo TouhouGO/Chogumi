@@ -38,7 +38,7 @@ class AuthApi(
             )
         }.body()
 
-    /** 用 refresh_token 换新 token */
+    /** 用 refresh_token 换新 token。bgm.tv 的授权文档把 redirect_uri 列为刷新的必填参数，和换授权码时同一个值。 */
     suspend fun refresh(refreshToken: String): TokenResponseDto =
         client.post("$BGM_SITE/oauth/access_token") {
             contentType(ContentType.Application.Json)
@@ -48,6 +48,7 @@ class AuthApi(
                     clientSecret = config.clientSecret,
                     grantType = "refresh_token",
                     refreshToken = refreshToken,
+                    redirectUri = config.redirectUri,
                 )
             )
         }.body()
