@@ -1,5 +1,7 @@
 package io.github.touhougo.chogumi.core.model
 
+import java.net.URLEncoder
+
 /**
  * 用户资料领域模型。
  *
@@ -56,3 +58,12 @@ data class UserBo(
  */
 fun userAvatarUrl(large: String, medium: String, small: String): String? =
     large.ifBlank { medium.ifBlank { small } }.ifBlank { null }
+
+/**
+ * 只知道用户名时的头像图址（贴贴名单只给 id、用户名、昵称）：v0 的头像入口跳转到这个人当前的头像，档位与 [userAvatarUrl] 同取大图。
+ * 自定义头像的文件名带随机后缀，按 uid 拼不出来，所以走这个入口；没换过头像的人这里是 404，画默认的占位。
+ * 这个入口要带 App 的 User-Agent（默认的会被拒），由图片加载器给 `api.bgm.tv` 的请求统一加上。用户名为空时 null。
+ */
+fun bgmUserAvatarUrl(username: String): String? =
+    username.takeIf { it.isNotBlank() }?.let { "https://api.bgm.tv/v0/users/${URLEncoder.encode(it, "UTF-8")}/avatar?type=large" }
+

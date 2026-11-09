@@ -16,6 +16,7 @@ import io.github.touhougo.chogumi.core.data.repository.SearchRepository
 import io.github.touhougo.chogumi.core.data.update.AppUpdates
 import io.github.touhougo.chogumi.core.network.AuthConfig
 import io.github.touhougo.chogumi.core.network.networkModule
+import io.github.touhougo.chogumi.core.network.userAgent
 import io.github.touhougo.chogumi.core.ui.image.CoverSizeInterceptor
 import io.github.touhougo.chogumi.di.appModule
 import io.github.touhougo.chogumi.feature.calendar.di.calendarModule
@@ -94,13 +95,14 @@ class App : Application(), SingletonImageLoader.Factory {
 
     /**
      * 图片加载：缓存用 Coil 默认值（内存约 1/4、磁盘上限 250MB），网络由 coil-network-okhttp 自动注册。
-     * 额外注册两样：封面按画出来的宽取图床的缩放档（[CoverSizeInterceptor]，不为一张小海报下载、解码原图）；
-     * 动图解码（Bangumi 表情多是 GIF，不注册的话只显示第一帧）。
+     * 额外注册：封面按画出来的宽取图床的缩放档（[CoverSizeInterceptor]，不为一张小海报下载、解码原图）；
+     * 发往 `api.bgm.tv` 的头像请求带 App 的 User-Agent（[ApiImageUserAgent]）；动图解码（Bangumi 表情多是 GIF，不注册的话只显示第一帧）。
      */
     override fun newImageLoader(context: PlatformContext) =
         ImageLoader.Builder(context)
             .components {
                 add(CoverSizeInterceptor)
+                add(ApiImageUserAgent(userAgent(BuildConfig.VERSION_NAME)))
                 add(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) AnimatedImageDecoder.Factory() else GifDecoder.Factory())
                 // 帖子里的 SVG 图（[img]…svg[/img]，如应用商店徽章）：网页照常显示，这里也要能解码
                 add(SvgDecoder.Factory())

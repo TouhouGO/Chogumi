@@ -59,7 +59,9 @@ import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.UserCollectionBo
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.core.model.staffPositionRows
+import io.github.touhougo.chogumi.core.reader.CommentReactionUsers
 import io.github.touhougo.chogumi.core.reader.CommentUserCard
+import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.collection.CollectionSheetHost
@@ -260,6 +262,7 @@ fun SubjectDetailsScreen(
     var infoSheetOpen by rememberSaveable(subjectId) { mutableStateOf(false) }
     var collectorsSheetOpen by rememberSaveable(subjectId) { mutableStateOf(false) }
     val commentCard = rememberUserCardState()
+    val reactionUsers = rememberReactionUsersState()
     // 网格长按弹出的单集信息弹层（纯 UI 开关，无 VM 对应物）
     // 长按打开的单集面板：存集 id（可保存），从面板进用户主页再返回时面板还在
     var detailEpisodeId by rememberSaveable(subjectId) { mutableStateOf<Int?>(null) }
@@ -445,6 +448,7 @@ fun SubjectDetailsScreen(
                                             onOpenCollectors = { collectorsSheetOpen = true },
                                             onUserClick = onUserClick,
                                             onAvatarClick = commentCard::open,
+                                            onReactionUsers = reactionUsers::open,
                                             onReact = loginGate.guard(communityViewModel::react),
                                             onModerate = moderate,
                                             onSelectCommentFilter = communityViewModel::selectCommentFilter,
@@ -491,6 +495,7 @@ fun SubjectDetailsScreen(
     }
 
     CommentUserCard(commentCard, community.comments.items, onUserClick, moderate)
+    CommentReactionUsers(reactionUsers, community.comments.items, onUserClick)
 
     // 谁在看面板：收藏者按状态筛、翻页（面板自己的 ViewModel）
     if (collectorsSheetOpen && subject != null) {

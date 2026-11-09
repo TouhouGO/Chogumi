@@ -11,7 +11,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.draft.ComposerDraft
@@ -73,6 +77,9 @@ fun TimelineDetailSheet(
     val sheetColor = BottomSheetDefaults.ContainerColor
     ScrollableModalSheet(onDismiss = onDismiss, contentKey = state.id) {
         val userCard = rememberUserCardState()
+        // 动态自己的贴贴名单只记停在哪个表情（面板只属于这一条动态）；楼层的按楼 id 记
+        var itemReactionUsers by rememberSaveable { mutableStateOf<Int?>(null) }
+        val floorReactionUsers = rememberReactionUsersState()
         val sortEdge = rememberStickyHeaderEdge(listState, sheetColor)
         LazyColumn(
             state = listState,
@@ -107,6 +114,7 @@ fun TimelineDetailSheet(
                         reactions = reactions,
                         onReact = onReact,
                         onReply = { onReply.action(ReplyTarget.Topic) },
+                        onShowUsers = { value -> itemReactionUsers = value },
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                     )
                 }
@@ -120,6 +128,7 @@ fun TimelineDetailSheet(
                 onToggleOpOnly = onToggleOpOnly,
                 onUserClick = onUser,
                 onAvatarClick = userCard::open,
+                onReactionUsers = floorReactionUsers::open,
                 onRetry = onRetry,
                 onReply = onReply,
                 onModerate = onModerate,
@@ -127,6 +136,10 @@ fun TimelineDetailSheet(
             )
         }
         CommentUserCard(userCard, state.comments.reading.threads, onUser, onModerate)
+        CommentReactionUsers(floorReactionUsers, state.comments.reading.threads, onUser)
+        itemReactionUsers?.let { value ->
+            ReactionUsersSheet(reactions, value, onSelect = { itemReactionUsers = it }, onDismiss = { itemReactionUsers = null }, onUserClick = onUser)
+        }
     }
     // 编辑器在详情面板之后登记，盖在它上面；收起后回到详情面板原处
     state.composer.target?.let { target ->
@@ -149,6 +162,7 @@ fun TimelineDetailSheet(
  * 弹出选择器，不能贴时只读列出 [reactions]；右端是「回复」这条动态（与「添加贴贴」同一种按钮）。
  *
  * @param reactions 要画的贴贴（[TimelineDetailState.shownReactions]：在途的已先换上）
+ * @param onShowUsers 长按一颗贴贴：看谁贴了（参数是表情）
  */
 @Composable
 internal fun TimelineReactionRow(
@@ -156,6 +170,7 @@ internal fun TimelineReactionRow(
     reactions: List<CommentReactionBo>,
     onReact: Gated<(TimelineItemBo, Int?) -> Unit>,
     onReply: () -> Unit,
+    onShowUsers: (value: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = item.reactionTarget?.palette.orEmpty()
@@ -164,7 +179,14 @@ internal fun TimelineReactionRow(
     // 选择器按锚点左上角定位，与这一排叠在同一个 Box 里
     Box(modifier.reactionPickerAnchor(picker)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ReactionBar(reactions = reactions, palette = palette, onReact = react, onAdd = react?.let { picker::openOn }, modifier = Modifier.weight(1f))
+            ReactionBar(
+                reactions = reactions,
+                palette = palette,
+                onReact = react,
+                onShowUsers = onShowUsers,
+                onAdd = react?.let { picker::openOn },
+                modifier = Modifier.weight(1f),
+            )
             ReactionRowButton(R.drawable.reply_24, R.string.reply) { onReply() }
         }
         if (react != null) ReactionPicker(picker, palette, reactions, onPick = react)

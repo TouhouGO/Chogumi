@@ -20,7 +20,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.model.COMMON_REACTIONS
-import io.github.touhougo.chogumi.core.model.CommentReactionBo
+import io.github.touhougo.chogumi.core.model.reactionOf
 import io.github.touhougo.chogumi.core.model.withMyReaction
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
 import org.junit.Assert.assertTrue
@@ -46,12 +46,13 @@ class ReactionPopClipTest {
     fun 贴上时弹一下的放大画到这一排之外() {
         composeRule.setContent {
             ChogumiTheme {
-                var reactions by remember { mutableStateOf(listOf(CommentReactionBo(value = 79, count = 1))) }
+                var reactions by remember { mutableStateOf(listOf(reactionOf(value = 79, count = 1))) }
                 Box(Modifier.background(BACKGROUND).padding(24.dp)) {
                     ReactionBar(
                         reactions = reactions,
                         palette = COMMON_REACTIONS,
                         onReact = { value -> reactions = reactions.withMyReaction(value) },
+                        onShowUsers = {},
                         modifier = Modifier.testTag(BAR),
                     )
                 }
@@ -75,11 +76,11 @@ class ReactionPopClipTest {
 
     @Test
     fun 贴贴被别处改成已贴时不弹() {
-        var reactions by mutableStateOf(listOf(CommentReactionBo(value = 79, count = 1)))
+        var reactions by mutableStateOf(listOf(reactionOf(value = 79, count = 1)))
         composeRule.setContent {
             ChogumiTheme {
                 Box(Modifier.background(BACKGROUND).padding(24.dp)) {
-                    ReactionBar(reactions = reactions, palette = COMMON_REACTIONS, onReact = {}, modifier = Modifier.testTag(BAR))
+                    ReactionBar(reactions = reactions, palette = COMMON_REACTIONS, onReact = {}, onShowUsers = {}, modifier = Modifier.testTag(BAR))
                 }
             }
         }

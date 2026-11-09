@@ -4,6 +4,7 @@ import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.model.BlockedUsers
 import io.github.touhougo.chogumi.core.model.CommentReactionBo
+import io.github.touhougo.chogumi.core.model.ReactionUserBo
 import io.github.touhougo.chogumi.core.model.TimelineMode
 import io.github.touhougo.chogumi.core.model.TimelineQuery
 import io.github.touhougo.chogumi.core.network.api.NextApi
@@ -502,8 +503,10 @@ class TimelineRepositoryTest {
             requests.map { "${it.method.value} ${it.url.encodedPath} ${it.body.toByteArray().decodeToString()}".trim() },
         )
         val items = repo.observe(query).value.items.associateBy { it.id }
-        assertEquals(listOf(CommentReactionBo(value = 79, count = 8, selected = true)), items.getValue(1).reactions)
-        assertEquals(listOf(CommentReactionBo(value = 104, count = 1)), items.getValue(2).reactions)
+        // 别人的名单原样留着，我只翻 selected
+        val others = (1..7).map { ReactionUserBo(100 + it, "u$it", "U$it") }
+        assertEquals(listOf(CommentReactionBo(value = 79, others = others, selected = true)), items.getValue(1).reactions)
+        assertEquals(listOf(CommentReactionBo(value = 104, others = others.take(1), selected = false)), items.getValue(2).reactions)
     }
 
     @Test

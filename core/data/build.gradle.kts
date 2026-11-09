@@ -55,6 +55,7 @@ dependencies {
 
     // 网络测试共用生产客户端工厂，只替换传输层。
     testFixturesApi(testFixtures(projects.core.network))
+    testFixturesApi(testFixtures(projects.core.model))
     // FakeDaos 返回 Flow（observeAll/observeCurrent），需要协程类型参与编译
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     // 测试夹具 TestNsfwFilter 要构造真实 PreferencesRepository/NsfwPreferenceRepository 的 DataStore，

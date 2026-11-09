@@ -3,6 +3,7 @@ package io.github.touhougo.chogumi.core.reader.reactionpoll
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeNode
@@ -53,32 +56,35 @@ import kotlin.math.roundToInt
 
 /**
  * 贴贴投票插件：绑着一楼的贴贴（[reactions]、能贴的 [palette]）与贴贴动作（[onVote]，null = 取消；
- * null 时只读），把这楼正文里的投票块画成投票卡。投给谁、几票都从这楼的贴贴来，与下面的贴贴条是同一份数据。
+ * null 时只读），把这楼正文里的投票块画成投票卡。投给谁、几票都从这楼的贴贴来，与下面的贴贴条是同一份数据；
+ * 长按有票的选项看谁投的（[onShowUsers]，参数是选项的表情，与长按贴贴打开同一份名单）。
  */
 data class ReactionPollPlugin(
     val palette: List<Int>,
     val reactions: List<CommentReactionBo>,
     val onVote: ((Int?) -> Unit)?,
+    val onShowUsers: (value: Int) -> Unit,
 ) : BBCodeBlockPlugin {
 
     override fun claim(list: BBCodeNode.ListBlock): BBCodeBlockContent? =
-        reactionPollOf(list, palette)?.let { ReactionPollBlock(it, it.tallyOf(reactions), onVote) }
+        reactionPollOf(list, palette)?.let { ReactionPollBlock(it, it.tallyOf(reactions), onVote, onShowUsers) }
 }
 
 private data class ReactionPollBlock(
     val poll: ReactionPoll,
     val tally: ReactionPollTally,
     val onVote: ((Int?) -> Unit)?,
+    val onShowUsers: (value: Int) -> Unit,
 ) : BBCodeBlockContent {
 
     @Composable
-    override fun Content() = ReactionPollCard(poll, tally, onVote)
+    override fun Content() = ReactionPollCard(poll, tally, onVote, onShowUsers)
 }
 
 /**
  * 投票卡：问题在上，每个选项一整行可点（左边是它的表情，点了就是贴这个表情）；这里贴不了的选项照常列出、显示票数，只是不能点。
  * 没投过默认只列选项，投过默认是结果：每行右侧百分比、下面一条按票数比例的条；标题行起始的切换按钮随时在两者间切换。
- * 我投的那项底色 `primaryContainer`、表情角上带勾；点别的项是改投，点我投的那项是撤票。
+ * 我投的那项底色 `primaryContainer`、表情角上带勾；点别的项是改投，点我投的那项是撤票。长按有票的选项看谁投的（[onShowUsers]）。
  *
  * **卡片的宽高在任何状态下都不变**，变的只有选项里的条与数字：百分比、比例条、勾的位置一直占着（没有时不画），
  * 切换按钮一直在同一处，总票数一直在底部；选中只换颜色不换字重（加粗会让文字折行变化）。
@@ -89,6 +95,7 @@ internal fun ReactionPollCard(
     poll: ReactionPoll,
     tally: ReactionPollTally,
     onVote: ((Int?) -> Unit)?,
+    onShowUsers: (value: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val voted = tally.mine != null
@@ -126,6 +133,7 @@ internal fun ReactionPollCard(
                 onClick = option.reaction?.takeIf { option.votable }?.let { reaction ->
                     onVote?.let { vote -> { vote(voteFor(reaction, tally.mine)) } }
                 },
+                onShowUsers = option.reaction?.takeIf { tally.counts[index] > 0 }?.let { reaction -> { onShowUsers(reaction) } },
             )
         }
         RollingText(
@@ -146,7 +154,7 @@ private val ResultsToggleSaver = listSaver<ResultsToggle?, Boolean>(
 )
 
 /**
- * 一个选项：一整块可点（[onClick] 为 null 时不能点），表情、文字、百分比一行（没写表情时表情格空着，文字仍对齐），下面一条比例条（长度是几何，走空间弹簧）。
+ * 一个选项：一整块可点（[onClick] 为 null 时不能点），有票时长按看谁投的（[onShowUsers]；不能投时点一下也是），表情、文字、百分比一行（没写表情时表情格空着，文字仍对齐），下面一条比例条（长度是几何，走空间弹簧）。
  * 百分比按「100%」的宽度占位、比例条一直占着一行，没显示结果时不画：行高与文字折行在各状态下都一样。
  * 我投的那项底色 `primaryContainer`、条用 `primary`、表情角上一个勾；别的项底色 `surfaceContainerHigh`、条用 `outline`
  * （与轨道 `surfaceContainerHighest` 明暗拉开）。条高 6、与文字间隔 4、表情格 24 是设计决定（not in M3）。
@@ -159,7 +167,9 @@ private fun PollOptionRow(
     selected: Boolean,
     showResults: Boolean,
     onClick: (() -> Unit)?,
+    onShowUsers: (() -> Unit)?,
 ) {
+    val usersLabel = stringResource(R.string.reaction_users_open)
     val colors = MaterialTheme.colorScheme
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
     val container by animateColorAsState(if (selected) colors.primaryContainer else colors.surfaceContainerHigh, effects, label = "pollRow")
@@ -178,7 +188,19 @@ private fun PollOptionRow(
             .clip(MaterialTheme.shapes.medium)
             .background(container)
             .then(
-                if (onClick != null) Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick) else Modifier,
+                when {
+                    onShowUsers != null -> Modifier
+                        .semantics { this.selected = selected }
+                        .combinedClickable(
+                            role = if (onClick != null) Role.RadioButton else null,
+                            onClickLabel = if (onClick != null) null else usersLabel,
+                            onLongClickLabel = usersLabel,
+                            onLongClick = onShowUsers,
+                            onClick = onClick ?: onShowUsers,
+                        )
+                    onClick != null -> Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+                    else -> Modifier
+                },
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),

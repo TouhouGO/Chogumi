@@ -17,6 +17,7 @@
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
 | 富文本、楼层、动态卡片 | core:reader |
+| 名单面板（作品「谁在看」、楼层「谁贴了」） | 框架只有 core:ui `PeopleListSheet`（标题 + 筛选 chip 行 + 人物区）；谁贴了在 core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |
 | 手势引导（只靠长按才找得到的几处，各一页会动的演示） | core:ui 的 `tour` 包：`GestureTour` 是整套页（翻页用 `TabPager`），每页一个演示（`MarkDemo` 封面长按环、`EpisodeDemo` 按住一集、`FloorDemo` 楼层长按、`ArrangeDemo` 整理探索页），都画在 `TourStage` 里（按真实 dp 排、整块缩小，字与色块是 `SkeletonSketch` 的示意图画法）。演示不另编数字：长按环就是真环的 `RingLayers`（给它一个 `RingLook`）与 `MarkBadges`，格子是 `tileFace` 与 `EpisodeTileRows`，整理列表是分段列表的形状与拖动排序的抬起；楼层与整理行读不到 core:reader、feature:explore 的私有常量，照它们写了一份并注明出处。改了长按环、格子、楼层菜单、整理列表的样子，演示跟着看一遍。第一次打开与升级后由外壳（`AppShell`，`ShellState.gestureTour`，偏好 `gestureTourShown`）盖在页面上放一次，设置的「使用技巧」（`Route.GestureTour`）重看 |
 | 界面大小（应用的密度） | core:model `DisplayScale`（档位与收敛）→ core:ui `displayScaleOverride`（Activity 只换 `densityDpi`，dp 处处跟着走）；不在页面里改 `LocalDensity` |
 | 刷新率 | core:model `RefreshRate`（档位从这块屏报的模式来，不写死）→ core:ui `requestRefreshRate`（窗口 `preferredDisplayModeId` 的唯一落点，AppActivity 调） |
@@ -219,6 +220,10 @@ flowchart LR
 - `/p1/persons/{id}/casts` 的 type：1 主役、2 配角、3 客串、4 次要、5 旁白；各选项的数量用各发一个 `limit=1` 的请求取。
   角色、人物的评论不分页。
 - p1 的时间戳是 Unix 秒；目录关联项的 cat 0 = 条目。
+- 贴贴（`reactions`）带完整名单：每个表情的 `users` 是贴了它的每一个人（`id`、`username`、`nickname`，一楼 78 人也全给），不分页、不截断。
+  「谁贴了」的面板就画这份名单（`CommentReactionBo.others`），不另外请求；我从名单里拿出来记成 `selected`。名单里没有头像：
+  头像走 `https://api.bgm.tv/v0/users/{username}/avatar?type=large`，自定义头像 302 到图片，默认头像 404（格子画占位）。
+  这个入口要应用的 UA：okhttp 默认 UA 与空 UA 都回 403。图片加载器对 `api.bgm.tv/v0/` 的请求补上开放接口同一个 UA（app 的 `ApiImageUserAgent`）。
 - 进度页按类别（meta_tags）筛选用本地 subjects 表，不逐作品请求。
 - bgm.tv 的用户页偶发 500 / 502：截图里的失败提示是服务端的事，重拍。
 - 放送时刻来自 bangumi-data，取 GitHub 上 master 的原始文件：`https://raw.githubusercontent.com/bangumi-data/bangumi-data/master/dist/data.json`。

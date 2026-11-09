@@ -84,6 +84,7 @@ data class FloorComments(
  *
  * @param surface 评论所在处：决定能不能回复、分不分两层（[replyStyleOf]）、能不能贴贴（[reactionsOf]；日志、目录没有贴贴接口）。
  * @param onAvatarClick 点了头像（参数是楼 id）：用户卡片在屏幕层，由 [UserCardState] 持有、[CommentUserCard] 画。
+ * @param onReactionUsers 长按了一颗贴贴（参数是楼 id 与表情）：名单面板在屏幕层，由 [ReactionUsersState] 持有、[CommentReactionUsers] 画。
  * @param onReact 贴贴；null 表示这里不能贴（同 [commentFloorItems]）。
  * @param onReply 点楼层开编辑器回复那一层（同 [commentFloorItems]）；null 时点楼层不响应。
  * @param onModerate 长按别人的楼时的报告、加好友、绝交（同 [commentFloorItems]）；null 时菜单里没有这三项。
@@ -98,6 +99,7 @@ fun LazyListScope.floorCommentsSection(
     onToggleOpOnly: () -> Unit,
     onUserClick: (String) -> Unit,
     onAvatarClick: (commentId: Int) -> Unit,
+    onReactionUsers: (commentId: Int, value: Int) -> Unit,
     onRetry: () -> Unit,
     onReact: Gated<(itemId: Int, value: Int?) -> Unit>? = null,
     onReply: Gated<(ReplyTarget) -> Unit>? = null,
@@ -112,7 +114,7 @@ fun LazyListScope.floorCommentsSection(
             containerColor = sortEdge.containerColor,
         )
     }
-    floorCommentsBody(comments, surface, jump, emptyText, onUserClick, onAvatarClick, onRetry, onReact, onReply, onModerate)
+    floorCommentsBody(comments, surface, jump, emptyText, onUserClick, onAvatarClick, onReactionUsers, onRetry, onReact, onReply, onModerate)
 }
 
 /**
@@ -127,6 +129,7 @@ fun LazyListScope.floorCommentsBody(
     @StringRes emptyText: Int,
     onUserClick: (String) -> Unit,
     onAvatarClick: (commentId: Int) -> Unit,
+    onReactionUsers: (commentId: Int, value: Int) -> Unit,
     onRetry: () -> Unit,
     onReact: Gated<(itemId: Int, value: Int?) -> Unit>? = null,
     onReply: Gated<(ReplyTarget) -> Unit>? = null,
@@ -145,6 +148,7 @@ fun LazyListScope.floorCommentsBody(
             surface = surface,
             onUserClick = onUserClick,
             onAvatarClick = onAvatarClick,
+            onReactionUsers = onReactionUsers,
             onReact = onReact,
             onReply = onReply,
             onModerate = onModerate,

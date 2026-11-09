@@ -45,6 +45,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.touhougo.chogumi.core.reader.CommentReactionUsers
+import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.ui.composables.ConfirmDialog
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.failureOrNull
@@ -183,6 +185,7 @@ fun IndexDetailsScreen(
     // 创建者卡片与留言楼层的头像卡片都由屏幕持有（头部与列表行会离开组合、重建后先是骨架）
     val creatorCard = rememberUserCardState()
     val commentCard = rememberUserCardState()
+    val reactionUsers = rememberReactionUsersState()
     // 自己的目录：长按哪一行弹出了菜单（行会滚出列表，由屏幕持有）、删除确认是否开着
     var entryMenuFor by rememberSaveable { mutableStateOf<Int?>(null) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
@@ -332,6 +335,7 @@ fun IndexDetailsScreen(
                                     onToggleOpOnly = viewModel::toggleCommentOpOnly,
                                     onUserClick = onUserClick,
                                     onAvatarClick = commentCard::open,
+                                    onReactionUsers = reactionUsers::open,
                                     onRetry = viewModel::retryComments,
                                     onReply = reply,
                                     onModerate = moderate,
@@ -359,6 +363,7 @@ fun IndexDetailsScreen(
         )
     }
     CommentUserCard(commentCard, state.comments.reading.threads, onUserClick, moderate)
+    CommentReactionUsers(reactionUsers, state.comments.reading.threads, onUserClick)
     ReplyComposerSheet(state.composer, viewModel.composer, surface, loginGate) { postId ->
         jump.jumpToPost(viewModel.uiState.value.comments.reading, postId)
     }

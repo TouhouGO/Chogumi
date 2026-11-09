@@ -226,6 +226,7 @@ fun LazyListScope.commentPostItem(
     surface: CommentSurface,
     onUserClick: (String) -> Unit,
     onAvatarClick: (commentId: Int) -> Unit,
+    onReactionUsers: (commentId: Int, value: Int) -> Unit,
     onReact: Gated<(itemId: Int, value: Int?) -> Unit>? = null,
     onReply: Gated<(ReplyTarget) -> Unit>? = null,
     onEdit: Gated<(EditTarget) -> Unit>? = null,
@@ -233,7 +234,7 @@ fun LazyListScope.commentPostItem(
     onModerate: Gated<(ModerationAction) -> Unit>? = null,
 ) {
     val post = reading.post ?: return
-    item(key = "post") { ReadingFloor(post, reading, jump, surface, onUserClick, onAvatarClick, onReact, onReply, onEdit, onDelete, onModerate, asPost = true) }
+    item(key = "post") { ReadingFloor(post, reading, jump, surface, onUserClick, onAvatarClick, onReactionUsers, onReact, onReply, onEdit, onDelete, onModerate, asPost = true) }
 }
 
 /**
@@ -249,6 +250,7 @@ fun LazyListScope.commentFloorItems(
     surface: CommentSurface,
     onUserClick: (String) -> Unit,
     onAvatarClick: (commentId: Int) -> Unit,
+    onReactionUsers: (commentId: Int, value: Int) -> Unit,
     onReact: Gated<(itemId: Int, value: Int?) -> Unit>? = null,
     onReply: Gated<(ReplyTarget) -> Unit>? = null,
     onEdit: Gated<(EditTarget) -> Unit>? = null,
@@ -261,7 +263,7 @@ fun LazyListScope.commentFloorItems(
     }
     itemsIndexed(reading.replies, key = { _, floor -> floor.thread.anchor.id }) { index, floor ->
         if (index > 0) CommentFloorDivider()
-        ReadingFloor(floor, reading, jump, surface, onUserClick, onAvatarClick, onReact, onReply, onEdit, onDelete, onModerate, asPost = false)
+        ReadingFloor(floor, reading, jump, surface, onUserClick, onAvatarClick, onReactionUsers, onReact, onReply, onEdit, onDelete, onModerate, asPost = false)
     }
     item(key = "floors-end") { ListEndLine(stringResource(R.string.community_list_end)) }
 }
@@ -275,6 +277,7 @@ private fun ReadingFloor(
     surface: CommentSurface,
     onUserClick: (String) -> Unit,
     onAvatarClick: (commentId: Int) -> Unit,
+    onReactionUsers: (commentId: Int, value: Int) -> Unit,
     onReact: Gated<(itemId: Int, value: Int?) -> Unit>?,
     onReply: Gated<(ReplyTarget) -> Unit>?,
     onEdit: Gated<(EditTarget) -> Unit>?,
@@ -286,6 +289,7 @@ private fun ReadingFloor(
         thread = floor.thread,
         floorNumber = if (asPost) "" else "#${floor.number}",
         onAvatarClick = onAvatarClick,
+        onReactionUsers = onReactionUsers,
         onUserClick = onUserClick,
         opCreatorId = reading.opCreatorId,
         quoteTargets = reading.quoteTargets,
