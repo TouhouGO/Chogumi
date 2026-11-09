@@ -532,13 +532,19 @@ class ProfileViewModel(
     /**
      * 本机绝交名单读不读得出：跟随的那条读不出时只是不再出拍，这里把失败报给用户，重试重读一次并接上跟随。只报失败，
      * 读到的值不写进状态（值由跟随带来）；过期一轮的失败不报。
+     *
+     * 读不出时当场停下跟随：它读同一份名单，也读不出了，只是失败还在往下传、它还在跑；留着它，之后读出名单的那一次
+     * （重试、刷新）见它还在跑就不另起一轮，它随后结束，主页从此不再跟着名单。
      */
     private fun checkBlocklist(userId: Int, version: Long = socialWriteVersion) {
         viewModelScope.launch {
             val result = userRepository.isBlocked(userId)
             if (!acceptsSocialRead(version)) return@launch
             when (result) {
-                is Outcome.Failed -> failures.post(result.failure, retry = { checkBlocklist(userId) })
+                is Outcome.Failed -> {
+                    blockedFollow?.cancel()
+                    failures.post(result.failure, retry = { checkBlocklist(userId) })
+                }
                 is Outcome.Success -> followRelations(userId)
             }
         }
