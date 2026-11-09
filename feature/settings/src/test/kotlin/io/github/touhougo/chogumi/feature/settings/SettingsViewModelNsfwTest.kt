@@ -189,7 +189,7 @@ class SettingsViewModelNsfwTest {
         }.also { engines += it }
         val client = testApiClient(engine).also { clients += it }
         val webClient = noWebClient().also { clients += it; engines += it.engine }
-        val tokenClient = createTokenHttpClient(appVersion = "test", engine = engine).also { clients += it }
+        val tokenClient = createTokenHttpClient(appVersion = "test", engine = engine, customizers = emptyList()).also { clients += it }
         fun dataStore(name: String): DataStore<Preferences> = PreferenceDataStoreFactory.create(scope = scope) {
             File(dir, "$name.preferences_pb")
         }
