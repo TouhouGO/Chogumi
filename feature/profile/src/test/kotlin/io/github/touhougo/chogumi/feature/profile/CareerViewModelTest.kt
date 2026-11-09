@@ -197,7 +197,7 @@ class CareerViewModelTest {
         return testUserRepository(resources, UserApi(client), store, dao)
     }
 
-    private fun selfVm(source: FakeStatsSource): CareerViewModel {
+    private fun selfVm(source: CollectionStatsDataSource): CareerViewModel {
         val users = makeUserRepository(userSubjectJson = "")
         return CareerViewModel(null, SubjectType.ANIME, false, source, FakeOtherCareers(), users, appTime = inYear2026)
             .also { viewModels += it }
@@ -216,6 +216,37 @@ class CareerViewModelTest {
     }
 
     // ---- 本人 ----
+
+    @Test
+    fun `同步时刻读取失败仍结束刷新并保留已有内容`() = runBlocking<Unit> {
+        val source = FakeStatsSource()
+        var readFails = false
+        val failed = CompletableDeferred<Unit>()
+        val wrapped = object : CollectionStatsDataSource by source {
+            override suspend fun lastSyncedAt(): Long? {
+                if (readFails) {
+                    failed.complete(Unit)
+                    throw java.io.IOException("同步时刻读失败")
+                }
+                return source.lastSyncedAt()
+            }
+        }
+        val vm = withContext(main.dispatcher) { selfVm(wrapped) }
+        awaitUntil("首次同步完成") { vm.uiState.value.lastSyncedAt != null }
+        source.emit(mapOf(SubjectType.ANIME to SELF_STATS))
+        awaitUntil("统计已显示") { vm.uiState.value.ownStats != null }
+        withContext(main.dispatcher) {
+            readFails = true
+            vm.refresh()
+        }
+        failed.await()
+        withContext(main.dispatcher) {
+            assertEquals(false, vm.uiState.value.refreshing, "时刻读失败仍要结束刷新")
+            assertEquals(SYNCED_AT, vm.uiState.value.lastSyncedAt, "失败保留上次同步时刻")
+            assertEquals(NoticeText.Reason(Failure.Storage), vm.failures.current.value?.text)
+        }
+        assertIs<CareerContent.Ready>(vm.uiState.value.content())
+    }
 
     @Test
     fun `本人打开即请求一次非强制同步，统计到达后画出完整内容`() = runBlocking<Unit> {

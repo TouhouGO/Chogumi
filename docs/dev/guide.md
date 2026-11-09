@@ -15,6 +15,7 @@
 | 进度写入（「+」、章节方格） | core:data 的 `EpTapCoordinator` → `ProgressOrchestrator` |
 | 仓库、缓存、DTO 映射 | core:data 的 `repository/`、`db/mapper/`（写入时刻显式传入） |
 | 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 的会话读取失败由维护边界收住，清理失败仍拒绝新账号读取旧历史，下一次记录搜索或会话变化再清 |
+| 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/` |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
 | 富文本、楼层、动态卡片 | core:reader |

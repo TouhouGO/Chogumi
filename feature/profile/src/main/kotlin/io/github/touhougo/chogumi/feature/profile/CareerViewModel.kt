@@ -7,6 +7,7 @@ import io.github.touhougo.chogumi.core.data.repository.CollectionStatsDataSource
 import io.github.touhougo.chogumi.core.data.repository.OtherCareerDataSource
 import io.github.touhougo.chogumi.core.data.repository.SyncProgress
 import io.github.touhougo.chogumi.core.data.repository.UserRepository
+import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.foundation.AppTime
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.map
@@ -160,9 +161,9 @@ class CareerViewModel(
         updateState { it.copy(refreshing = force) }
         viewModelScope.launch {
             val result = collectionStats.refreshAllUserCollections(force = force)
-            val last = collectionStats.lastSyncedAt()
-            updateState { it.copy(refreshing = false, lastSyncedAt = last) }
-            result.failureOrNull()?.let { failures.post(it, retry = ::refresh) }
+            val last = storageOutcomeOf { collectionStats.lastSyncedAt() }
+            updateState { it.copy(refreshing = false, lastSyncedAt = if (last is Outcome.Success) last.value else it.lastSyncedAt) }
+            (result.failureOrNull() ?: last.failureOrNull())?.let { failures.post(it, retry = ::refresh) }
         }
     }
 
