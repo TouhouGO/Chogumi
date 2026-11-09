@@ -6,6 +6,7 @@ import io.github.touhougo.chogumi.core.netroute.BuiltinEdgeAddresses
 import io.github.touhougo.chogumi.core.netroute.DirectRouteHint
 import io.github.touhougo.chogumi.core.netroute.DirectRouting
 import io.github.touhougo.chogumi.core.netroute.EdgeAddresses
+import io.github.touhougo.chogumi.core.netroute.GoDirectCore
 import io.github.touhougo.chogumi.core.netroute.NetRoute
 import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.network.OkHttpCustomizer
@@ -22,11 +23,12 @@ val netRouteModule = module {
             get(named("appScope")),
             get(),
             directRouteSupported,
+            GoDirectCore,
         )
     }
     single<OkHttpCustomizer> {
         val route = get<NetRoute>()
-        DirectRouting { route.endpoint() }
+        DirectRouting { route.route() }
     }
     single<DirectRouteHint> {
         val route = get<NetRoute>()

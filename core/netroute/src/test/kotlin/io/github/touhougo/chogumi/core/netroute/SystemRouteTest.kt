@@ -29,11 +29,12 @@ class SystemRouteTest {
             scope,
             BuiltinEdgeAddresses,
             supported = true,
+            core = NoCore,
         )
         scope.launch { route.run() }
         val end = RecordingEnd()
         val client = OkHttpClient.Builder().apply {
-            DirectRouting { route.endpoint() }.customize(this)
+            DirectRouting { route.route() }.customize(this)
             end.customize(this)
         }.build()
 

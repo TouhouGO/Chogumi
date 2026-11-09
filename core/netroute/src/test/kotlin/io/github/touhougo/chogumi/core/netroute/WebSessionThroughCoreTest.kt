@@ -16,7 +16,7 @@ import org.junit.Test
  * 网页会话的 Cookie 是调用方按 bgm.tv 存、按 bgm.tv 带的（没有 OkHttp CookieJar），改写只发生在 OkHttp 里，调用方看不见。
  */
 class WebSessionThroughCoreTest {
-    private val core = CoreEndpoint(4242, "secret")
+    private val core = CoreRoute.Core(CoreEndpoint(4242, "secret"))
 
     @Test
     fun `网页会话的 Cookie 与跳转经核心原样往返`() = runTest {
