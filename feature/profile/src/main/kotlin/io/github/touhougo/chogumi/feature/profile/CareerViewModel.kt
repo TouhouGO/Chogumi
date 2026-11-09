@@ -7,6 +7,7 @@ import io.github.touhougo.chogumi.core.data.repository.CollectionStatsDataSource
 import io.github.touhougo.chogumi.core.data.repository.OtherCareerDataSource
 import io.github.touhougo.chogumi.core.data.repository.SyncProgress
 import io.github.touhougo.chogumi.core.data.repository.UserRepository
+import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.foundation.AppTime
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.map
@@ -22,6 +23,7 @@ import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.UserBo
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -106,6 +108,9 @@ class CareerViewModel(
     /** 逐年序列画到哪一年（业务日 [AppTime.today] 的年份），只在跨年时变。 */
     private val currentYear: Flow<Int> = appTime.today.map { it.year }.distinctUntilChanged()
 
+    /** 在途的合并：再合一次时取消它，先开始的一次晚到不覆盖后一次的结果。 */
+    private var overallJob: Job? = null
+
     private val isSelf: Boolean get() = currentState.isSelf
 
     /** 本人：同步失败（自动同步与下拉都算），内容留在原地。 */
@@ -160,9 +165,9 @@ class CareerViewModel(
         updateState { it.copy(refreshing = force) }
         viewModelScope.launch {
             val result = collectionStats.refreshAllUserCollections(force = force)
-            val last = collectionStats.lastSyncedAt()
-            updateState { it.copy(refreshing = false, lastSyncedAt = last) }
-            result.failureOrNull()?.let { failures.post(it, retry = ::refresh) }
+            val last = storageOutcomeOf { collectionStats.lastSyncedAt() }
+            updateState { it.copy(refreshing = false, lastSyncedAt = if (last is Outcome.Success) last.value else it.lastSyncedAt) }
+            (result.failureOrNull() ?: last.failureOrNull())?.let { failures.post(it, retry = ::refresh) }
         }
     }
 
@@ -231,14 +236,15 @@ class CareerViewModel(
 
     /**
      * 他人：没有一类还在汇总时，把汇总成的各类合起来算一份（读同一份会话缓存，不重拉）。
-     * 之后再汇总一类（点「汇总」、跨年重算）会重新合一次。
+     * 之后再汇总一类（点「汇总」、跨年重算）会重新合一次，只有最后一次的结果落下。
      */
     private fun refreshOverall() {
         val name = username ?: return
         val summaries = currentState.summaries
         if (summaries.values.any { it is OtherSummary.Running }) return
         val loaded = summaries.filterValues { it is OtherSummary.Loaded }.keys
-        viewModelScope.launch {
+        overallJob?.cancel()
+        overallJob = viewModelScope.launch {
             val overall = if (loaded.isEmpty()) null else otherCareers.overallStatisticsFor(name, loaded, appTime.today.value.year).valueOrNull()
             updateState {
                 it.copy(otherOverall = overall ?: CollectionStatistics(), otherCovers = firstCovers(it.otherCovers, overall?.coverPicks.orEmpty()))
