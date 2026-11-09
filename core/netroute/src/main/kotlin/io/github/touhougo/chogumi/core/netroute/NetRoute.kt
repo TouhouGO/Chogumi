@@ -143,7 +143,7 @@ class NetRoute internal constructor(
     suspend fun setMode(mode: RouteMode): Outcome<Unit> = transition(mode, persist = true)
 
     internal fun route(): CoreRoute {
-        decided.await(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        if (!decided.await(READY_TIMEOUT_SECONDS, TimeUnit.SECONDS)) decided.countDown()
         return state.value
     }
 

@@ -110,6 +110,30 @@ class RouteFailureTest {
     }
 
     @Test
+    fun `初始化等满预算后后续请求立即失败_设置到达后仍恢复`() = runBlocking {
+        val ready = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val store = dataStore()
+        val delayed = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow {
+                ready.await()
+                emitAll(store.data)
+            }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
+        }
+        val route = NetRoute(delayed, scope, BuiltinEdgeAddresses, supported = true, core = NoCore)
+        scope.launch { route.run() }
+        assertEquals(CoreRoute.Undecided, route.route())
+
+        val started = System.nanoTime()
+        assertEquals(CoreRoute.Undecided, route.route())
+        val elapsedMillis = (System.nanoTime() - started) / 1_000_000
+        assertTrue("后续请求又等了初始化预算：${elapsedMillis}ms", elapsedMillis < 1_000)
+
+        ready.complete(Unit)
+        awaitUntil("设置到达后恢复系统线路") { route.route() == CoreRoute.System }
+    }
+
+    @Test
     fun `冷启动时设置是直连就走核心_关掉后停核心走系统网络`() = runBlocking {
         val store = dataStore()
         store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
