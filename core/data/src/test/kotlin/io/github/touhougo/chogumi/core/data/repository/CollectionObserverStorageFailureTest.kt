@@ -23,6 +23,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -164,6 +165,44 @@ class CollectionObserverStorageFailureTest {
         val result = withTimeoutOrNull(WAIT_BUDGET_MS) { observer(tokenStore, collections, watches).progressSnapshot() }
 
         assertEquals(Load.Failed(Failure.Storage), result)
+    }
+
+    @Test
+    fun `快照拿到值后收藏表在收尾时报错 返回读到的这一拍不抛出`() = runTest {
+        // 收藏这一路最后到：它把值交给组合之后停在组合的 yield 里，快照收下值、取消上游时它还在往下游交值；
+        // 这时收藏表才报错，catch 算子见下游已经抛了取消，不再把它收成 Load.Failed，而是原样抛出。
+        // 调用方在 Unconfined 上：组合交出值的同一拍里快照就收下并取消，这个窗口每次都在。
+        val tokenStore = testTokenStore(backgroundScope)
+        tokenStore.completeSession(tokenStore.beginSession("fixture"), ACCOUNT, "fixture_user")
+        val subjectDao = FakeSubjectDao().apply { upsert(subject(SUBJECT)) }
+        val collectionsEntered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val collections = ScriptedUserCollectionDao {
+            flow {
+                collectionsEntered.complete(Unit)
+                release.await()
+                emit(listOf(collection(ACCOUNT, SUBJECT)))
+                try {
+                    awaitCancellation()
+                } catch (e: CancellationException) {
+                    throw IOException("collections failed while closing", e)
+                }
+            }
+        }
+        val observer = observer(
+            tokenStore,
+            collections,
+            subjectDao = subjectDao,
+            computationDispatcher = StandardTestDispatcher(testScheduler),
+        )
+        val snapshot = async(Dispatchers.Unconfined) { observer.progressSnapshot() }
+
+        testScheduler.runCurrent()
+        assertTrue(collectionsEntered.isCompleted, "收藏这一路没有进入闸门")
+        release.complete(Unit)
+
+        val ready = assertIs<Load.Ready<CollectionProgressSnapshot>>(snapshot.await())
+        assertEquals(listOf(SUBJECT), ready.value.collections.map { it.subjectId })
     }
 
     @Test

@@ -19,7 +19,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -238,7 +238,14 @@ private fun SubjectDao.observeByIdsChunked(ids: List<Int>): Flow<List<SubjectEnt
     return combine(chunks.map { observeByIds(it) }) { it.toList().flatten() }
 }
 
-/** 内层流抛出的取消不是本协程自己被取消（本协程仍活着）：关掉 [channel] 把它交给收集方，不当成这一账号正常结束。 */
+/**
+ * 内层流漏出 `storageAsLoad` 的异常在这里收口，两种都不当成这一账号的结果：
+ * - 本协程已被取消（快照拿到值后收工、换号取消上一账号）时，内层收尾抛出的异常随这次取消结束。上游正往下游交值时被取消，
+ *   `catch` 算子见下游已抛出取消，不再把随后的本机读取失败收成 [Load.Failed]、而是原样抛出；放它出去，读到了值的快照会抛异常、
+ *   长期观察会带着收集方一起结束。
+ * - 本协程仍活着时，内层抛出的取消不是本协程被取消：关掉 [channel] 把它交给收集方，不当成这一账号正常结束。
+ */
 private fun <T> Flow<T>.closeOnStrayCancellation(channel: ProducerScope<*>): Flow<T> = catch { error ->
-    if (error is CancellationException && currentCoroutineContext().isActive) channel.close(error) else throw error
+    if (error is Exception) currentCoroutineContext().ensureActive()
+    if (error is CancellationException) channel.close(error) else throw error
 }

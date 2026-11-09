@@ -58,7 +58,7 @@ import kotlinx.coroutines.launch
  *   注意 [catch] 只能**防止未捕获异常崩溃**，并不能让观察继续 —— 它捕获后该 flow
  *   即告完成，观察随之结束。这是已知边界：真要恢复得重建整个 flow，而 DataStore
  *   读失败属极罕见故障，不值得为此加一层重建循环。**兜底**：进入设置页时会再刷新
- *   一次（`SettingsViewModel.loadNsfw()`），用户仍能拿到最新值。
+ *   一次（`ContentSettingsViewModel.loadNsfw()`），用户仍能拿到最新值。
  */
 class NsfwPreferenceSynchronizer(
     private val tokenStore: TokenStore,
