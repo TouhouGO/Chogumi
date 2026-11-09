@@ -78,16 +78,34 @@ internal fun interface CoreRoutes {
 }
 
 /**
- * 每个边缘地址的拨号加握手预算：客户端一次请求的超时（core:network [REQUEST_TIMEOUT_MILLIS]）分成「地址数 + 1」份，
- * TCP 通了而 TLS 卡住的地址轮流让过去之后还剩一份给请求本身，能用的地址总能在客户端放弃之前轮到。
+ * 每个边缘地址的拨号加握手预算：客户端一次请求的超时（core:network [REQUEST_TIMEOUT_MILLIS]）分成「地址数 + 1」份。
+ * 核心把地址错开依次起拨，间隔按实测握手耗时算、至多半份预算（core/netroute/go/proxy/edges.go），最坏要 [coreWorstCaseMillis]
+ * 才知道全都不行，比客户端一次请求的超时短：能用的地址总能在客户端放弃之前轮到。
  */
 internal fun edgeBudgetMillis(edges: Int): Long = REQUEST_TIMEOUT_MILLIS / (edges + 1)
 
-/** 直连核心的起停（生产是 Go 核心 [GoDirectCore]）。[start] 起不来就抛异常。 */
+/** 核心最坏要多久才知道 [edges] 个地址全都连不上：最后一个地址在 (地址数-1) 个最长的错开（半份预算）之后起拨，再用满一份预算。 */
+internal fun coreWorstCaseMillis(edges: Int): Long = edgeBudgetMillis(edges).let { budget -> (edges - 1) * (budget / 2) + budget }
+
+/** 直连核心的起停（生产是 Go 核心 [GoDirectCore]）。[start] 起不来就抛异常。[log] 收核心的运行记录（每次握手一行），可以没有。 */
 internal interface DirectCore {
-    fun start(addresses: List<String>, config: ByteArray, edgeBudgetMillis: Long, onConfig: (ByteArray) -> Unit): CoreEndpoint
+    fun start(
+        addresses: List<String>,
+        config: ByteArray,
+        edgeBudgetMillis: Long,
+        onConfig: (ByteArray) -> Unit,
+        log: ((String) -> Unit)?,
+    ): CoreEndpoint
+
+    /** 设备换了网络：核心忘掉各地址的好坏、关掉旧网络上的空闲连接。 */
+    fun resetNetwork()
 
     fun stop()
+}
+
+/** 设备默认网络的变化（换 Wi-Fi、换移动网络）；[observe] 注册之后每次变化调一次 onChange。 */
+fun interface NetworkChanges {
+    fun observe(onChange: () -> Unit)
 }
 
 /**
@@ -110,6 +128,8 @@ class NetRoute internal constructor(
     private val edges: EdgeAddresses,
     private val supported: Boolean,
     private val core: DirectCore,
+    private val networkChanges: NetworkChanges,
+    private val log: ((String) -> Unit)?,
 ) {
     private val prefs = ObservedPreferences(dataStore)
     private val decided = CountDownLatch(1)
@@ -134,8 +154,9 @@ class NetRoute internal constructor(
     /** 设置是直连、核心却没起来。 */
     val directUnavailable: Flow<Boolean> = state.map { it == CoreRoute.Unavailable }.distinctUntilChanged()
 
-    /** 跟着设置起停核心；应用启动时在应用作用域里调一次，一直跑。 */
+    /** 跟着设置起停核心、设备换网络时让核心重新看地址好坏；应用启动时在应用作用域里调一次，一直跑。 */
     suspend fun run() {
+        networkChanges.observe { scope.launch { transitions.withLock { if (running != null) core.resetNetwork() } } }
         mode.collect { transition(it, persist = false) }
     }
 
@@ -185,7 +206,7 @@ class NetRoute internal constructor(
             is Outcome.Failed -> null
         }
         val addresses = edges.addresses()
-        outcomeOf { core.start(addresses, stored ?: ByteArray(0), edgeBudgetMillis(addresses.size), ::saveConfig) }
+        outcomeOf { core.start(addresses, stored ?: ByteArray(0), edgeBudgetMillis(addresses.size), ::saveConfig, log) }
             .also { if (it is Outcome.Success) running = it.value }
     }
 

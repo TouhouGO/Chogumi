@@ -8,11 +8,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -20,8 +17,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -44,12 +39,13 @@ type Options struct {
 	Addrs []string
 	// ECHConfig 是初始 ECHConfigList（上次存下的那份）；空着用 BuiltinECHConfig。
 	ECHConfig []byte
-	// EdgeTimeout 是一个边缘地址的拨号加 ECH 握手的预算：TCP 通了而 TLS 卡住的地址最多耽误这么久就换下一个。
-	// 几个地址的预算加起来要小于调用方一次请求的超时，否则还没轮到能用的地址请求就被调用方取消了。空着用 DefaultEdgeTimeout。
+	// EdgeTimeout 是一个边缘地址的拨号加 ECH 握手的预算；地址错开 EdgeTimeout/4 依次起拨（见 edges.go 的规则），
+	// 最坏要 (地址数-1)×EdgeTimeout/4 + EdgeTimeout 才知道全都不行，这要小于调用方一次请求的超时。空着用 DefaultEdgeTimeout。
 	EdgeTimeout time.Duration
 	// OnECHConfig 在服务端给出新配置（握手被拒时附带的重试配置）时调用，调用方把它存起来，下次 Start 时传回。
 	OnECHConfig func(config []byte)
-	Logf        func(format string, args ...any)
+	// Logf 收运行记录：每次上游握手一行 handshake host= edge= ms= result=，见 edges.go。
+	Logf func(format string, args ...any)
 
 	rootCAs *x509.CertPool // 验证上游证书用的根；nil 是系统的根（只有本包的测试换成自签的）
 }
@@ -69,13 +65,19 @@ func Start(o Options) (*Server, error) {
 	if len(addrs) == 0 {
 		addrs = BuiltinAddrs
 	}
-	cfg := o.ECHConfig
-	if len(cfg) == 0 {
-		cfg = BuiltinECHConfig
-	}
 	logf := o.Logf
 	if logf == nil {
 		logf = func(string, ...any) {}
+	}
+	// 自己留一份：调用方的切片之后可能被改或被收回（经 gomobile 从 Java 传进来的字节只在那一次调用里有效）
+	cfg := append([]byte(nil), o.ECHConfig...)
+	switch {
+	case len(cfg) == 0:
+		cfg = BuiltinECHConfig
+	case !validECHConfigList(cfg):
+		// 存下的配置坏了（外部输入）：用内置的那份起步，被拒时换上服务端给的，不让直连从此一直失败
+		logf("ech-config-invalid bytes=%d", len(cfg))
+		cfg = BuiltinECHConfig
 	}
 	edgeTimeout := o.EdgeTimeout
 	if edgeTimeout <= 0 {
@@ -89,18 +91,24 @@ func Start(o Options) (*Server, error) {
 	if _, err := rand.Read(tok); err != nil {
 		return nil, err
 	}
+	list := withPort(addrs)
 	up := &upstream{
-		addrs:       withPort(addrs),
+		addrs:       list,
 		dialer:      net.Dialer{},
 		edgeTimeout: edgeTimeout,
+		health:      newHealth(len(list), time.Now),
+		slots:       map[string]chan struct{}{},
 		roots:       o.rootCAs,
 		onConfig:    onConfig,
 		logf:        logf,
 	}
 	up.ech.Store(&cfg)
 	up.transport = &http.Transport{
-		DialTLSContext:        up.dialTLS,
-		MaxIdleConnsPerHost:   8,
+		DialTLSContext:    up.dialTLS,
+		ForceAttemptHTTP2: true,
+		MaxConnsPerHost:   1, // 每个主机一条连接，h2 上并发（edges.go 的规则）
+		// 那一条连接悄悄不通了要尽快发现（edges.go 的规则）：edgeTimeout 没收到任何帧就发 ping，再过 edgeTimeout/2 没回就断开
+		HTTP2:                 &http.HTTP2Config{SendPingTimeout: edgeTimeout, PingTimeout: edgeTimeout / 2},
 		IdleConnTimeout:       90 * time.Second,
 		ExpectContinueTimeout: time.Second,
 		DisableCompression:    true, // Accept-Encoding 原样转发，解压留给 OkHttp
@@ -133,6 +141,12 @@ func Start(o Options) (*Server, error) {
 func (s *Server) Port() int     { return s.ln.Addr().(*net.TCPAddr).Port }
 func (s *Server) Token() string { return string(s.token) }
 func (s *Server) Close() error  { s.up.transport.CloseIdleConnections(); return s.srv.Close() }
+
+// ResetNetwork 在设备换了网络时调：健康表清空（换了网络，哪个地址好坏要重新看），空闲连接关掉（属于旧网络）。
+func (s *Server) ResetNetwork() {
+	s.up.health.reset()
+	s.up.transport.CloseIdleConnections()
+}
 
 // AllowedHost 是核心肯转发的主机：bgm.tv 与它的子域名。
 func AllowedHost(h string) bool { return h == "bgm.tv" || strings.HasSuffix(h, ".bgm.tv") }
@@ -204,106 +218,6 @@ func withPort(addrs []string) []string {
 	return out
 }
 
-// ---------- 上游 ----------
-
-type upstream struct {
-	addrs       []string
-	mu          sync.Mutex
-	preferred   int
-	ech         atomic.Pointer[[]byte]
-	dialer      net.Dialer
-	edgeTimeout time.Duration
-	roots       *x509.CertPool
-	transport   *http.Transport
-	onConfig    func([]byte)
-	logf        func(string, ...any)
-}
-
-type addrConn struct {
-	*tls.Conn
-	addr string
-}
-
-func (u *upstream) pick() int {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	return u.preferred
-}
-
-func (u *upstream) prefer(i int) {
-	u.mu.Lock()
-	u.preferred = i
-	u.mu.Unlock()
-}
-
-// yield 把首选让给下一个地址（[i] 正是首选时）。
-func (u *upstream) yield(i int) {
-	u.mu.Lock()
-	if u.preferred == i {
-		u.preferred = (i + 1) % len(u.addrs)
-	}
-	u.mu.Unlock()
-}
-
-// 地址按优先的那个起轮换，每个最多 edgeTimeout；成功的成为下一次的首选，失败的若是首选就让给下一个
-// （调用方在轮完之前取消了，下一次请求也从别的地址开始）。
-func (u *upstream) dialTLS(ctx context.Context, _, addr string) (net.Conn, error) {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, err
-	}
-	start := u.pick()
-	var errs []error
-	for i := range u.addrs {
-		idx := (start + i) % len(u.addrs)
-		c, err := u.handshake(ctx, host, u.addrs[idx])
-		if err == nil {
-			u.prefer(idx)
-			return c, nil
-		}
-		u.logf("dial %s via %s: %v", host, u.addrs[idx], err)
-		u.yield(idx)
-		errs = append(errs, fmt.Errorf("%s: %w", u.addrs[idx], err))
-		if ctx.Err() != nil {
-			break
-		}
-	}
-	return nil, errors.Join(errs...)
-}
-
-// 一个地址上的 ECH 握手：被拒时换上服务端给的重试配置再握一次；新配置留在内存给之后的连接用，并交给 onConfig 存起来。
-func (u *upstream) handshake(ctx context.Context, host, addr string) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, u.edgeTimeout)
-	defer cancel()
-	for retried := false; ; retried = true {
-		raw, err := u.dialer.DialContext(ctx, "tcp", addr)
-		if err != nil {
-			return nil, err
-		}
-		tc := tls.Client(raw, &tls.Config{
-			ServerName:                     host,
-			RootCAs:                        u.roots,
-			EncryptedClientHelloConfigList: *u.ech.Load(),
-			MinVersion:                     tls.VersionTLS13,
-			NextProtos:                     []string{"http/1.1"},
-		})
-		err = tc.HandshakeContext(ctx)
-		if err == nil {
-			return &addrConn{tc, addr}, nil
-		}
-		raw.Close()
-		var rej *tls.ECHRejectionError
-		if !retried && errors.As(err, &rej) && len(rej.RetryConfigList) > 0 {
-			u.logf("ech rejected by %s, taking retry config (%d bytes)", addr, len(rej.RetryConfigList))
-			cfg := append([]byte(nil), rej.RetryConfigList...)
-			u.ech.Store(&cfg)
-			u.onConfig(cfg)
-			continue
-		}
-		return nil, err
-	}
-}
-
 // RoundTrip 转给连接池；Cloudflare 回「error code: 1034」（这个边缘地址不服务这个站）时降级该地址，
 // 请求能重放（没有请求体）就换下一个地址再发。
 func (u *upstream) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -311,16 +225,14 @@ func (u *upstream) RoundTrip(req *http.Request) (*http.Response, error) {
 	for attempt := 0; ; attempt++ {
 		var addr string
 		trace := &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
-			if c, ok := info.Conn.(*addrConn); ok {
-				addr = c.addr
-			}
+			addr = info.Conn.RemoteAddr().String()
 		}}
 		resp, err := u.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), trace)))
 		if err != nil || !edgeRestricted(resp) {
 			return resp, err
 		}
-		u.logf("edge address %s refused %s (1034)", addr, req.URL.Host)
-		u.demote(addr)
+		u.logf("edge-restricted host=%s edge=%s", req.URL.Host, addr)
+		u.restricted(addr)
 		if !replayable || attempt+1 >= len(u.addrs) {
 			return resp, nil
 		}
@@ -337,13 +249,4 @@ func edgeRestricted(resp *http.Response) bool {
 	resp.Body.Close()
 	resp.Body = io.NopCloser(bytes.NewReader(b))
 	return bytes.HasPrefix(b, []byte("error code: 1034"))
-}
-
-func (u *upstream) demote(addr string) {
-	for i, a := range u.addrs {
-		if a == addr {
-			u.yield(i)
-		}
-	}
-	u.transport.CloseIdleConnections()
 }

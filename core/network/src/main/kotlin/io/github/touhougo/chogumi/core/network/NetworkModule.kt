@@ -260,6 +260,7 @@ fun createHttpClient(
             engine {
                 config {
                     dispatcher(apiOkHttpDispatcher())
+                    requestTimeouts()
                     customizedBy(customizers)
                 }
             }
@@ -297,7 +298,12 @@ fun createTokenHttpClient(
 
 /** 在 OkHttp 引擎上套上 [customizers]。 */
 private fun HttpClientConfig<OkHttpConfig>.customizedEngine(customizers: List<OkHttpCustomizer>) {
-    engine { config { customizedBy(customizers) } }
+    engine {
+        config {
+            requestTimeouts()
+            customizedBy(customizers)
+        }
+    }
 }
 
 /** 网页请求：不跟随跳转、不缓存、不带 OAuth，状态与 Cookie 都由调用方处理。 */

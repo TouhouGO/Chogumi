@@ -2,6 +2,7 @@
 package echcore
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,11 @@ type ConfigSink interface {
 	Save(config []byte)
 }
 
+// Logger 收核心的运行记录（每次上游握手一行），由 Kotlin 实现；只在调试包里传，正式包传 nil。
+type Logger interface {
+	Log(line string)
+}
+
 // TokenHeader 是令牌头的名字。
 const TokenHeader = proxy.TokenHeader
 
@@ -29,8 +35,9 @@ var (
 )
 
 // Start 起核心；已经在跑就返回同一个。addrs 是逗号分隔的边缘地址（"ip" 或 "ip:端口"），config 是上次存下的 ECH 配置
-// （没有就传空，用内置的），edgeTimeoutMillis 是每个地址的拨号加握手预算（见 proxy.Options.EdgeTimeout），sink 收之后服务端给的新配置。
-func Start(addrs string, config []byte, edgeTimeoutMillis int, sink ConfigSink) (*Endpoint, error) {
+// （没有就传空，用内置的），edgeTimeoutMillis 是每个地址的拨号加握手预算（见 proxy.Options.EdgeTimeout），sink 收之后服务端给的新配置，
+// log 收运行记录（可以是 nil）。
+func Start(addrs string, config []byte, edgeTimeoutMillis int, sink ConfigSink, log Logger) (*Endpoint, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if cur == nil {
@@ -40,11 +47,16 @@ func Start(addrs string, config []byte, edgeTimeoutMillis int, sink ConfigSink) 
 				list = append(list, a)
 			}
 		}
+		var logf func(string, ...any)
+		if log != nil {
+			logf = func(f string, a ...any) { log.Log(fmt.Sprintf(f, a...)) }
+		}
 		s, err := proxy.Start(proxy.Options{
 			Addrs:       list,
 			ECHConfig:   config,
 			EdgeTimeout: time.Duration(edgeTimeoutMillis) * time.Millisecond,
 			OnECHConfig: sink.Save,
+			Logf:        logf,
 		})
 		if err != nil {
 			return nil, err
@@ -52,6 +64,15 @@ func Start(addrs string, config []byte, edgeTimeoutMillis int, sink ConfigSink) 
 		cur = s
 	}
 	return &Endpoint{Port: cur.Port(), Token: cur.Token()}, nil
+}
+
+// ResetNetwork 在设备换了网络时调：忘掉各边缘地址的好坏、关掉旧网络上的空闲连接。没在跑什么也不做。
+func ResetNetwork() {
+	mu.Lock()
+	defer mu.Unlock()
+	if cur != nil {
+		cur.ResetNetwork()
+	}
 }
 
 // Stop 关掉核心；没在跑什么也不做。

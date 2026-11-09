@@ -19,7 +19,7 @@ import io.github.touhougo.chogumi.core.netroute.NetRoute
 import io.github.touhougo.chogumi.core.netroute.di.netRouteModule
 import io.github.touhougo.chogumi.core.network.AuthConfig
 import io.github.touhougo.chogumi.core.network.OkHttpCustomizer
-import io.github.touhougo.chogumi.core.network.customizedBy
+import io.github.touhougo.chogumi.core.network.createImageOkHttpClient
 import io.github.touhougo.chogumi.core.network.networkModule
 import io.github.touhougo.chogumi.core.network.userAgent
 import io.github.touhougo.chogumi.core.ui.image.CoverSizeInterceptor
@@ -40,7 +40,6 @@ import io.github.touhougo.chogumi.feature.timeline.di.timelineModule
 import io.github.touhougo.chogumi.shell.resetWebViewDataOnAccountDeparture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 import org.koin.android.ext.android.get
 import org.koin.android.ext.android.getKoin
 import org.koin.android.ext.koin.androidContext
@@ -106,15 +105,15 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * 图片加载：缓存用 Coil 默认值（内存约 1/4、磁盘上限 250MB），网络是 coil-network-okhttp，OkHttp 客户端套上与接口客户端
-     * 同样的调整（[OkHttpCustomizer]：网络线路）。
+     * 图片加载：缓存用 Coil 默认值（内存约 1/4、磁盘上限 250MB），网络是 coil-network-okhttp，OkHttp 客户端由 core:network
+     * [createImageOkHttpClient] 建（超时同接口客户端、网络瞬断重发一次、套上与接口客户端同样的调整 [OkHttpCustomizer]：网络线路）。
      * 额外注册：封面按画出来的宽取图床的缩放档（[CoverSizeInterceptor]，不为一张小海报下载、解码原图）；
      * 发往 `api.bgm.tv` 的头像请求带 App 的 User-Agent（[ApiImageUserAgent]）；动图解码（Bangumi 表情多是 GIF，不注册的话只显示第一帧）。
      */
     override fun newImageLoader(context: PlatformContext) =
         ImageLoader.Builder(context)
             .components {
-                add(OkHttpNetworkFetcherFactory(callFactory = { OkHttpClient.Builder().customizedBy(getKoin().getAll<OkHttpCustomizer>()).build() }))
+                add(OkHttpNetworkFetcherFactory(callFactory = { createImageOkHttpClient(getKoin().getAll<OkHttpCustomizer>()) }))
                 add(CoverSizeInterceptor)
                 add(ApiImageUserAgent(userAgent(BuildConfig.VERSION_NAME)))
                 add(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) AnimatedImageDecoder.Factory() else GifDecoder.Factory())
