@@ -1,6 +1,6 @@
 package io.github.touhougo.chogumi.core.ui.tour
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +37,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.navigation.PageTransitionKind
+import io.github.touhougo.chogumi.core.ui.common.navigation.chogumiTransition
 import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
 import io.github.touhougo.chogumi.core.ui.composables.ContainedSearchEntry
 import io.github.touhougo.chogumi.core.ui.composables.CoverStack
@@ -50,6 +52,7 @@ import io.github.touhougo.chogumi.core.ui.composables.SkeletonText
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPosterSkeletonBox
 import io.github.touhougo.chogumi.core.ui.composables.reorderRowColor
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
+import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -131,7 +134,13 @@ internal fun ArrangeDemo(playing: Boolean, modifier: Modifier = Modifier) {
             }
         }
 
-        Crossfade(arranging, animationSpec = motion.defaultEffectsSpec(), label = "tour_arrange") { listShown ->
+        // 与探索页进出整理同一个转场：先淡出再淡入，两层不同时半透明
+        val pageMotion = LocalAppMotion.current.page
+        AnimatedContent(
+            targetState = arranging,
+            transitionSpec = { chogumiTransition(PageTransitionKind.TopLevel, pageMotion, 1).using(null) },
+            label = "tour_arrange",
+        ) { listShown ->
             Column(Modifier.fillMaxSize()) {
                 if (listShown) {
                     ArrangeBar(onAdd = {}, onDone = {})
