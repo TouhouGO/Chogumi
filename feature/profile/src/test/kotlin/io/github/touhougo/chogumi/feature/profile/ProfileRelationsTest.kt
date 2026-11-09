@@ -52,6 +52,7 @@ import io.ktor.http.headersOf
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -122,13 +123,21 @@ class ProfileRelationsTest {
         var readFinished = CompletableDeferred<Unit>()
         /** 拦在这之后开始的读取：每一拍读到值之后等它放行；之前已经在读的（主页跟着名单走的那条）不受影响。 */
         var readGate: CompletableDeferred<Unit>? = null
+        /** 拦住已经在读的那些读取的后续拍（名单写入带来的那一拍）：放行之前它们停在旧值上；新开始的读取的第一拍不受影响。 */
+        var updateGate: CompletableDeferred<Unit>? = null
+        /** 放过 [readGate] 的拍数。 */
+        val delivered = AtomicInteger(0)
         override val data: Flow<Preferences> = flow {
             val gate = readGate
+            var first = true
             emitAll(
                 delegate.data.map {
                     readFinished.complete(Unit)
                     gate?.await()
+                    if (!first) updateGate?.await()
+                    first = false
                     if (failed.get()) throw IOException("绝交名单缓存不可读")
+                    delivered.incrementAndGet()
                     it
                 },
             )
@@ -155,6 +164,8 @@ class ProfileRelationsTest {
         staleProfileFriend: Boolean = false,
         friendWriteGate: CompletableDeferred<Unit>? = null,
         username: String? = "bob",
+        blockWriteGate: CompletableDeferred<Unit>? = null,
+        relationReadGate: CompletableDeferred<Unit>? = null,
     ): Harness {
         val dir = File(System.getProperty("java.io.tmpdir"), "profile-relations-${System.nanoTime()}").apply { mkdirs(); directories += this }
         fun dataStore(name: String) = PreferenceDataStoreFactory.create(scope = scope) { File(dir, "$name.preferences_pb") }
@@ -192,7 +203,10 @@ class ProfileRelationsTest {
                 } else {
                     """{"data":[],"total":0}"""
                 }
-                request.url.encodedPath == "/p1/blocklist/bob" && request.method == HttpMethod.Put -> """{"blocklist":[99]}"""
+                request.url.encodedPath == "/p1/blocklist/bob" && request.method == HttpMethod.Put -> {
+                    blockWriteGate?.await()
+                    """{"blocklist":[99]}"""
+                }
                 request.url.encodedPath == "/p1/blocklist/bob" && request.method == HttpMethod.Delete -> """{"blocklist":[]}"""
                 else -> error("未预期的请求 ${request.method} ${request.url.encodedPath}")
             }
@@ -206,6 +220,7 @@ class ProfileRelationsTest {
         val blocked = BlocklistRepository(fault, UserApi(client), store, webSessions, clock, scope)
         blocked.record(session, emptyList())
         fault.failed.set(failRead)
+        fault.readGate = relationReadGate
         val friends = FriendsRepository(dataStore("friends"), UserApi(client), store, clock, scope)
         val users = UserRepository(UserApi(client), store, object : UserDao {
             override suspend fun get(id: Int): UserEntity? = null
@@ -341,6 +356,33 @@ class ProfileRelationsTest {
         h.friends.confirmWrite(h.session)
         awaitUntil("取消好友后我关注的去掉 bob") { h.viewModel.uiState.value.social.following.items.isEmpty() }
         awaitUntil("取消好友后好友数跟上") { (h.viewModel.uiState.value.userLoad as? Load.Ready)?.value?.friendCount == 0 }
+    }
+
+    /**
+     * 写在途时主页跟随读到的是写入之前的名单；写记下的新名单那一拍晚于写的结束才到。写完的那一刻主页仍是写成的关系，
+     * 不被在途时读到的旧名单盖回去。
+     */
+    @Test
+    fun `写在途时读到写入之前的名单_写完不盖掉写成的关系`() = runBlocking {
+        val reads = CompletableDeferred<Unit>()
+        val put = CompletableDeferred<Unit>()
+        val h = harness(blockWriteGate = put, relationReadGate = reads)
+        h.viewModel.awaitProfile()
+        withTimeout(WAIT_BUDGET_MS) { h.faultStore.readFinished.await() }
+        h.faultStore.readGate = null
+        val updates = CompletableDeferred<Unit>()
+        h.faultStore.updateGate = updates
+        val write = h.viewModel.actionJob { h.viewModel.blockUser() }
+        reads.complete(Unit)
+        awaitUntil("写入之前的名单交到主页跟随") { h.faultStore.delivered.get() > 0 }
+        repeat(2) { withContext(Dispatchers.Main) { } }
+        put.complete(Unit)
+        withTimeout(WAIT_BUDGET_MS) { write.join() }
+        assertTrue(h.viewModel.uiState.value.socialOps.isBlocked, "写完时主页是写成的已绝交，不是在途时读到的旧名单")
+        updates.complete(Unit)
+        awaitUntil("名单带来写成的那一拍之后仍是已绝交") { h.faultStore.delivered.get() > 1 }
+        withContext(Dispatchers.Main) { }
+        assertTrue(h.viewModel.uiState.value.socialOps.isBlocked)
     }
 
     @Test

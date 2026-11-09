@@ -498,27 +498,34 @@ class ProfileViewModel(
 
     /** 关系只由这两条跟随写进 [SocialOpsState]（写操作的乐观值除外）：同一个值没有第二个写入方，晚到的一次性读取盖不掉它。 */
     private fun followRelations(userId: Int) {
-        blockedFollow = followRelation(blockedFollow, BLOCKED, userRepository.blockedChanges(userId)) { copy(isBlocked = it) }
-        friendFollow = followRelation(friendFollow, FRIEND, userRepository.friendChanges(userId)) { copy(isFriend = it) }
+        blockedFollow = followRelation(blockedFollow, userRepository.blockedChanges(userId)) { copy(isBlocked = it) }
+        friendFollow = followRelation(friendFollow, userRepository.friendChanges(userId)) { copy(isFriend = it) }
     }
 
-    /** 写在途期间名单带来的关系（按关系记最后一拍）：写结束时盖在成功或回滚的结果上，不丢。 */
-    private val heldRelations = mutableMapOf<String, SocialOpsState.() -> SocialOpsState>()
+    /**
+     * 写结束时重新接上两条跟随：新的一轮先读一次写之后的名单，写成的结果、写的同时别处改的都由它带回。
+     * 写在途时旧的一轮读到的那一拍不能留到写完再落：它可能是写入之前的名单，而写记下的新名单那一拍不保证在写结束之前到。
+     */
+    private fun refollowRelations() {
+        val userId = currentState.user?.id ?: return
+        blockedFollow?.cancel()
+        friendFollow?.cancel()
+        blockedFollow = null
+        friendFollow = null
+        followRelations(userId)
+    }
 
     /**
      * 关系跟着本机名单走：名单在别处改了（设置页的屏蔽列表、另一页的绝交与加好友、网页端）也跟上。写在途时不覆盖乐观值，
-     * 这期间来的那一拍先记在 [heldRelations]，写结束时再落上去：写完的结果、写的同时别处改的，都由名单本身带回。
-     * [current] 还在跟就不另起一轮。
+     * 这期间的拍不记（写结束时 [refollowRelations] 重读）。[current] 还在跟就不另起一轮。
      */
     private fun followRelation(
         current: Job?,
-        key: String,
         changes: Flow<Boolean>,
         apply: SocialOpsState.(Boolean) -> SocialOpsState,
     ): Job = current?.takeIf { it.isActive } ?: viewModelScope.launch {
         changes.collect { value ->
-            if (currentState.socialOps.pending) heldRelations[key] = { apply(value) }
-            else updateState { it.copy(socialOps = it.socialOps.apply(value)) }
+            if (!currentState.socialOps.pending) updateState { it.copy(socialOps = it.socialOps.apply(value)) }
         }
     }
 
@@ -548,15 +555,15 @@ class ProfileViewModel(
         updateState { it.copy(socialOps = snapshot.started(optimistic)) }
         viewModelScope.launch {
             val result = request()
-            val held = heldRelations.values.toList()
-            heldRelations.clear()
             updateState { state ->
-                val ended = when (result) {
-                    is Outcome.Failed -> state.socialOps.restored(snapshot)
-                    is Outcome.Success -> state.socialOps.settled()
-                }
-                state.copy(socialOps = held.fold(ended) { ops, relation -> ops.relation() })
+                state.copy(
+                    socialOps = when (result) {
+                        is Outcome.Failed -> state.socialOps.restored(snapshot)
+                        is Outcome.Success -> state.socialOps.settled()
+                    },
+                )
             }
+            refollowRelations()
             if (result is Outcome.Failed) failures.post(result.failure)
         }
     }
@@ -605,7 +612,3 @@ class ProfileViewModel(
 
 /** 还没有目标用户名（看自己而资料未到）时的取页结果；界面只在资料到了之后才打开收藏、好友 tab。 */
 private fun noTarget(): Outcome.Failed = Outcome.Failed(Failure.NotLoggedIn)
-
-/** [ProfileViewModel] 跟随的两种关系，记在途期间收到的那一拍时按它区分。 */
-private const val BLOCKED = "blocked"
-private const val FRIEND = "friend"
