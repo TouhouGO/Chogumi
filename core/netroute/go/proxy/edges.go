@@ -31,6 +31,9 @@ import (
 //     成功一次清零。被我们中止的（别的地址先胜出、调用方放弃）不算失败。Cloudflare 回 1034（这个地址不服务这个站）直接按最长冷却。
 //   - 每个主机同时进行的拨号加握手最多 maxHandshakesPerHost 个，其余排队。
 //   - 换了网络（ResetNetwork）：健康表清空（耗时、失败计数、冷却都忘掉）。
+//   - 换地址（1034）与换网络都让当前的连接池退役（retire）：换上一个新池，旧池不再接请求，新请求与重放重新拨号、按健康顺序选地址；
+//     旧池里在途的流照常跑完，之后连接空闲，按 IdleConnTimeout 关掉。h2 的一条连接只要还有流在跑就不算空闲，只关空闲连接挡不住
+//     新请求接着复用它。冷却不用退役：冷却只来自拨号失败与 1034，拨号失败时这个主机没有连接。
 const (
 	failThreshold        = 2
 	maxHandshakesPerHost = 3
@@ -50,7 +53,7 @@ type upstream struct {
 	slots       map[string]chan struct{}
 	ech         atomic.Pointer[[]byte]
 	roots       *x509.CertPool
-	transport   *http.Transport
+	pool        atomic.Pointer[http.Transport]
 	onConfig    func([]byte)
 	logf        func(string, ...any)
 }
@@ -151,13 +154,35 @@ func (h *health) reset() {
 	}
 }
 
-func (u *upstream) restricted(addr string) {
+// restricted 记下 [addr] 回了 1034，并让送出那个回答的连接池 [served] 退役。
+func (u *upstream) restricted(addr string, served *http.Transport) {
 	for i, a := range u.addrs {
 		if a == addr {
 			u.health.restricted(i)
 		}
 	}
-	u.transport.CloseIdleConnections()
+	u.retire(served)
+}
+
+// newPool 是一个新的连接池（规则见上）。
+func (u *upstream) newPool() *http.Transport {
+	return &http.Transport{
+		DialTLSContext:    u.dialTLS,
+		ForceAttemptHTTP2: true,
+		MaxConnsPerHost:   1, // 每个主机一条连接，h2 上并发
+		// 那一条连接悄悄不通了要尽快发现：edgeTimeout 没收到任何帧就发 ping，再过 edgeTimeout/2 没回就断开
+		HTTP2:                 &http.HTTP2Config{SendPingTimeout: u.edgeTimeout, PingTimeout: u.edgeTimeout / 2},
+		IdleConnTimeout:       90 * time.Second,
+		ExpectContinueTimeout: time.Second,
+		DisableCompression:    true, // Accept-Encoding 原样转发，解压留给 OkHttp
+	}
+}
+
+// retire 让 [old] 退役：它还是当前的池就换上新池、关掉它的空闲连接。同时几个请求都要它退役时只换一次。
+func (u *upstream) retire(old *http.Transport) {
+	if u.pool.CompareAndSwap(old, u.newPool()) {
+		old.CloseIdleConnections()
+	}
 }
 
 // ---------- 拨号 ----------

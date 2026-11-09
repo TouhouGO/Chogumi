@@ -89,6 +89,11 @@ type upstreamServer struct {
 
 // echServer 是本机的一个支持 ECH 的 HTTPS 上游：ALPN 谈 [protos]，请求交给 [handler]。
 func echServer(t *testing.T, protos []string, handler http.Handler) upstreamServer {
+	return echEdges(t, protos, handler)[0]
+}
+
+// echEdges 是本机的几个边缘地址：同一份 ECH 配置与证书（同一个站的几个 Cloudflare 地址），每个的请求交给各自的 handler。
+func echEdges(t *testing.T, protos []string, handlers ...http.Handler) []upstreamServer {
 	t.Helper()
 	key, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
@@ -96,23 +101,27 @@ func echServer(t *testing.T, protos []string, handler http.Handler) upstreamServ
 	}
 	cfg := echConfig(1, key.PublicKey().Bytes(), "cloudflare-ech.com")
 	cert, roots := selfSigned(t)
-	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
-		Certificates:             []tls.Certificate{cert},
-		EncryptedClientHelloKeys: []tls.EncryptedClientHelloKey{{Config: cfg, PrivateKey: key.Bytes(), SendAsRetry: true}},
-		NextProtos:               protos,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var conns atomic.Int32
-	srv := &http.Server{Handler: handler, ConnState: func(_ net.Conn, st http.ConnState) {
-		if st == http.StateNew {
-			conns.Add(1)
+	var edges []upstreamServer
+	for _, handler := range handlers {
+		ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+			Certificates:             []tls.Certificate{cert},
+			EncryptedClientHelloKeys: []tls.EncryptedClientHelloKey{{Config: cfg, PrivateKey: key.Bytes(), SendAsRetry: true}},
+			NextProtos:               protos,
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}}
-	go srv.Serve(ln)
-	t.Cleanup(func() { srv.Close() })
-	return upstreamServer{ln.Addr().String(), echList(cfg), roots, &conns}
+		conns := &atomic.Int32{}
+		srv := &http.Server{Handler: handler, ConnState: func(_ net.Conn, st http.ConnState) {
+			if st == http.StateNew {
+				conns.Add(1)
+			}
+		}}
+		go srv.Serve(ln)
+		t.Cleanup(func() { srv.Close() })
+		edges = append(edges, upstreamServer{ln.Addr().String(), echList(cfg), roots, conns})
+	}
+	return edges
 }
 
 func get(t *testing.T, s *Server, path string, token string) *http.Response {
@@ -769,5 +778,96 @@ func TestValidECHConfigList(t *testing.T) {
 		if validECHConfigList(bad) {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// heldStream 是一个挂着的请求：/held 在上游停住，直到 release；started 在上游收到它时关上。
+type heldStream struct {
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func newHeldStream() *heldStream {
+	return &heldStream{started: make(chan struct{}), release: make(chan struct{})}
+}
+
+// serve 接住 /held 并返回 true；别的路径返回 false。
+func (h *heldStream) serve(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path != "/held" {
+		return false
+	}
+	h.once.Do(func() { close(h.started) })
+	<-h.release
+	io.WriteString(w, "held")
+	return true
+}
+
+// open 经核心发 /held，等上游收到它；返回它最后的状态码。
+func (h *heldStream) open(t *testing.T, s *Server) <-chan int {
+	t.Helper()
+	done := make(chan int, 1)
+	go func() {
+		code, _ := getProxied(context.Background(), s, "/api.bgm.tv/held")
+		done <- code
+	}()
+	select {
+	case <-h.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("held stream never reached the upstream")
+	}
+	return done
+}
+
+func restrictedPage(w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(len("error code: 1034")))
+	w.WriteHeader(http.StatusForbidden)
+	io.WriteString(w, "error code: 1034")
+}
+
+func TestRestrictedEdgeIsLeftEvenWhileItsConnectionCarriesOtherStreams(t *testing.T) {
+	held := newHeldStream()
+	edges := echEdges(t, []string{"h2", "http/1.1"},
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !held.serve(w, r) {
+				restrictedPage(w)
+			}
+		}),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }),
+	)
+	s := start(t, Options{Addrs: []string{edges[0].addr, edges[1].addr}, ECHConfig: edges[0].config, rootCAs: edges[0].roots, EdgeTimeout: 2 * time.Second})
+	inFlight := held.open(t, s) // 首选地址的那条 h2 连接上有一条流还在跑
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if code, err := getProxied(ctx, s, "/api.bgm.tv/a"); err != nil || code != 200 {
+		t.Fatalf("code %d err %v, want 200 from the other edge after a 1034 (other edge saw %d connections)", code, err, edges[1].conns.Load())
+	}
+	close(held.release)
+	if code := <-inFlight; code != 200 {
+		t.Fatalf("stream in flight on the restricted connection ended %d, want it to finish normally", code)
+	}
+}
+
+func TestNetworkChangeStopsReusingConnectionsThatCarryStreams(t *testing.T) {
+	held := newHeldStream()
+	up := echServer(t, []string{"h2", "http/1.1"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !held.serve(w, r) {
+			io.WriteString(w, "ok")
+		}
+	}))
+	s := start(t, Options{Addrs: []string{up.addr}, ECHConfig: up.config, rootCAs: up.roots, EdgeTimeout: 2 * time.Second})
+	inFlight := held.open(t, s) // 旧网络上的那条 h2 连接还有一条流在跑
+
+	s.ResetNetwork()
+	if code, err := getProxied(context.Background(), s, "/api.bgm.tv/a"); err != nil || code != 200 {
+		t.Fatalf("code %d err %v, want 200", code, err)
+	}
+	if got := up.conns.Load(); got != 2 {
+		t.Fatalf("%d connections, want a fresh one after a network change (the old one still carries a stream)", got)
+	}
+	close(held.release)
+	if code := <-inFlight; code != 200 {
+		t.Fatalf("stream in flight on the old connection ended %d, want it to finish normally", code)
 	}
 }
