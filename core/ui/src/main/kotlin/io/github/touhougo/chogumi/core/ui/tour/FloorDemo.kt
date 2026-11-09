@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -150,12 +151,13 @@ internal fun DemoFloor(modifier: Modifier = Modifier, pressed: Boolean = false) 
 
 /**
  * 长按菜单的示意：分组菜单的各组（[MenuGroups]，与弹出的菜单同一个画法），上面一组是贴贴的表情格子（[ReactionGridGeometry]，
- * 表情是色块），下面一组是楼层内容的菜单项（[AppMenuItem]）。
+ * 表情是色块），下面一组是楼层内容的菜单项（[AppMenuItem]）。宽度与弹出的菜单一样按最宽的一组定：菜单项填满所在的宽，
+ * 不定宽就会伸到演示台外面。
  */
 @Composable
 private fun DemoFloorMenu(modifier: Modifier) {
     val columns = ReactionGridGeometry.columnsOf(COMMON_REACTIONS.size)
-    Column(modifier) {
+    Column(modifier.width(IntrinsicSize.Max)) {
         MenuGroups(
             listOf(
                 {
