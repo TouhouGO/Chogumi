@@ -277,6 +277,7 @@ flowchart LR
   15 秒被客户端超时取消。关开一次 Wi‑Fi（默认网络换了）之后核心丢掉旧连接、重新握手，页面照常。
 - 所有 OkHttp 客户端（三个接口客户端的引擎、图片加载）的读写超时都是一次请求的超时（core:network `requestTimeouts`），
   不再是 OkHttp 默认的 10 秒；图片对只读请求的网络瞬断重发一次（同接口客户端的读重试判定；调用方取消了——图片滚出屏幕——不算，不再发）。
+  图片的跳转在线路之上跟随（外站图片跳到 bgm.tv 的图床时那一跳也走直连），不交给 OkHttp：OkHttp 自己跟随的后几跳不经过应用拦截器。
 - 调试包里核心每次握手记一行到 logcat：`adb logcat -s ChogumiDirect`，
   `handshake host=… edge=… ms=… result=ok proto=h2|h1` 或 `result=reset|timeout|ech-rejected|refused|error|canceled`（canceled 是别的地址先胜出，不算失败），
   另有 `ech-retry`（换上服务端给的配置）、`ech-config-invalid`（存下的配置坏了，改用内置的）与 `edge-restricted`（1034）。

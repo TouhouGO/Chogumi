@@ -1,9 +1,11 @@
 package io.github.touhougo.chogumi.core.network
 
 import java.io.IOException
+import java.net.ProtocolException
 import java.util.concurrent.TimeUnit
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.Response
 
 /**
@@ -29,13 +31,48 @@ internal fun OkHttpClient.Builder.requestTimeouts(): OkHttpClient.Builder = appl
 
 /**
  * 图片加载用的 OkHttp 客户端：超时同接口客户端（[requestTimeouts]），只读请求遇网络瞬断（超时、传输中被断开，判定同接口客户端的读重试）
- * 重发一次，再套上 [customizers]（网络线路）。
+ * 重发一次，跳转在 [customizers]（网络线路）之上跟随（[FollowRedirects]），再套上 [customizers]。
  */
 fun createImageOkHttpClient(customizers: List<OkHttpCustomizer>): OkHttpClient = OkHttpClient.Builder()
     .requestTimeouts()
+    .followRedirects(false)
+    .followSslRedirects(false)
     .addInterceptor(RetryTransientOnce)
+    .addInterceptor(FollowRedirects)
     .customizedBy(customizers)
     .build()
+
+/**
+ * 图片的跳转在这里跟随，不交给 OkHttp：OkHttp 自己跟随时，后面几跳在应用拦截器之下生成，不再经过 [OkHttpCustomizer] 装上的线路
+ * （外站图片跳到 bgm.tv 的图床时，那一跳会走系统网络）。这里每一跳都从线路之上重新进链。只跟随读（GET、HEAD，图片只有读），
+ * 最多 [MAX_REDIRECTS] 跳；换了主机不带 Authorization。接口与网页客户端由 Ktor 跟随或不跟随，每一跳本来就是一次新请求，不需要它。
+ */
+private object FollowRedirects : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        var request = chain.request()
+        var response = chain.proceed(request)
+        var hops = 0
+        while (true) {
+            val next = redirectOf(request, response) ?: return response
+            response.close()
+            if (++hops > MAX_REDIRECTS) throw ProtocolException("too many redirects: ${chain.request().url}")
+            request = next
+            response = chain.proceed(request)
+        }
+    }
+
+    private fun redirectOf(request: Request, response: Response): Request? {
+        if (response.code !in REDIRECT_CODES || request.method != "GET" && request.method != "HEAD") return null
+        val target = response.header("Location")?.let(request.url::resolve) ?: return null
+        return request.newBuilder().url(target).apply {
+            if (target.host != request.url.host) removeHeader("Authorization")
+        }.build()
+    }
+}
+
+/** OkHttp 自己跟随时的跳数上限与跳转状态码。 */
+private const val MAX_REDIRECTS = 20
+private val REDIRECT_CODES = setOf(300, 301, 302, 303, 307, 308)
 
 private object RetryTransientOnce : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
