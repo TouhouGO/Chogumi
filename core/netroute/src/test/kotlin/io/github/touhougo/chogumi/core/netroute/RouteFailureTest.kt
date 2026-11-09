@@ -196,4 +196,40 @@ class RouteFailureTest {
 
         assertEquals(CoreRoute.Core(CoreEndpoint(4242, "secret")), route.route())
     }
+
+    @Test
+    fun `界面那样的订阅者在读失败_存储恢复后也跟上设置`() = runBlocking {
+        val store = dataStore()
+        store.edit { it[stringPreferencesKey("route_mode")] = RouteMode.DIRECT.name }
+        val reads = AtomicInteger()
+        val flaky = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow {
+                if (reads.incrementAndGet() == 1) throw IOException("disk")
+                emitAll(store.data)
+            }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
+        }
+        val route = NetRoute(flaky, scope, BuiltinEdgeAddresses, supported = true, core = CountingCore())
+        val seenMode = mutableListOf<RouteMode>()
+        val seenHint = mutableListOf<Boolean>()
+        // 设置页跟 mode，登录页跟 directAvailable：都不经 run()
+        scope.launch { route.mode.collect { synchronized(seenMode) { seenMode += it } } }
+        scope.launch { route.directAvailable.collect { synchronized(seenHint) { seenHint += it } } }
+
+        awaitUntil("设置页看到存储恢复后的直连") { synchronized(seenMode) { seenMode.lastOrNull() == RouteMode.DIRECT } }
+        awaitUntil("登录页的提示条件跟着变") { synchronized(seenHint) { seenHint.lastOrNull() == false } }
+    }
+
+    @Test
+    fun `界面那样的订阅者跟着开关走`() = runBlocking {
+        val route = NetRoute(dataStore(), scope, BuiltinEdgeAddresses, supported = true, core = CountingCore())
+        scope.launch { route.run() }
+        val seen = mutableListOf<RouteMode>()
+        scope.launch { route.mode.collect { synchronized(seen) { seen += it } } }
+        awaitUntil("先看到系统网络") { synchronized(seen) { seen.lastOrNull() == RouteMode.SYSTEM } }
+
+        assertTrue(route.setMode(RouteMode.DIRECT) is Outcome.Success)
+
+        awaitUntil("开了之后看到直连") { synchronized(seen) { seen.lastOrNull() == RouteMode.DIRECT } }
+    }
 }

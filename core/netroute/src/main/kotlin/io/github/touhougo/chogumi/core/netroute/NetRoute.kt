@@ -16,10 +16,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -92,7 +92,8 @@ internal interface DirectCore {
  *   一样，请求失败——直连失败绝不退回普通连接。
  * - **状态只由 [transition] 改**：开直连、关直连、应用存着的设置，都经它，在同一把锁里起核心、存设置、停旧核心，全部成了才换状态。
  *   用户动手（[setMode]）失败时留在原状态、返回失败；应用存着的设置（[run]）时核心起不来就是 [CoreRoute.Unavailable]。
- * - **观察设置的循环不结束**（[run]）：读失败按系统网络应用一次，隔一会儿重新订阅；每次应用都放行等着的请求。
+ * - **设置只有一条流** [mode]，线路与界面都订它：读失败时发一拍系统网络，退避一会儿重新订阅，永不结束——存储恢复后所有订阅者
+ *   一起跟上，界面显示的与实际线路始终是同一个值。[run] 照这条流应用，每次应用都放行等着的请求。
  *
  * 服务端给的 ECH 配置存在同一个 DataStore 里，下次起核心时直接用；失效时核心照旧被拒、换上新给的那份、再存一次。
  */
@@ -109,10 +110,15 @@ class NetRoute internal constructor(
     private val state = MutableStateFlow<CoreRoute>(CoreRoute.Undecided)
     private var running: CoreEndpoint? = null
 
-    /** 设置里存的线路（给界面）；读不出来时是系统网络。 */
+    /** 设置里存的线路，线路与界面共用；读不出来时是系统网络，之后退避重新订阅（见类注释）。 */
     val mode: Flow<RouteMode> = prefs.data
         .map(::modeOf)
-        .catch { e -> if (e is IOException) emit(RouteMode.SYSTEM) else throw e }
+        .retryWhen { cause, attempt ->
+            if (cause !is IOException) return@retryWhen false
+            emit(RouteMode.SYSTEM)
+            delay(resubscribeDelayMillis(attempt))
+            true
+        }
         .distinctUntilChanged()
 
     /** 设备支持直连、且现在走系统网络。 */
@@ -121,12 +127,9 @@ class NetRoute internal constructor(
     /** 设置是直连、核心却没起来。 */
     val directUnavailable: Flow<Boolean> = state.map { it == CoreRoute.Unavailable }.distinctUntilChanged()
 
-    /** 跟着设置起停核心；应用启动时在应用作用域里调一次，一直跑（读失败之后重新订阅）。 */
+    /** 跟着设置起停核心；应用启动时在应用作用域里调一次，一直跑。 */
     suspend fun run() {
-        while (true) {
-            mode.collect { transition(it, persist = false) }
-            delay(RESUBSCRIBE_DELAY_MILLIS)
-        }
+        mode.collect { transition(it, persist = false) }
     }
 
     /** 用户换线路：成了才换（失败时留在原线路）。设置是直连而核心没起来时，再开一次就是「重试」。 */
@@ -187,7 +190,12 @@ class NetRoute internal constructor(
         val MODE_KEY = stringPreferencesKey("route_mode")
         val ECH_CONFIG_KEY = byteArrayPreferencesKey("ech_config")
         const val READY_TIMEOUT_SECONDS = 5L
-        const val RESUBSCRIBE_DELAY_MILLIS = 1_000L
+        const val RESUBSCRIBE_FIRST_DELAY_MILLIS = 1_000L
+        const val RESUBSCRIBE_MAX_DELAY_MILLIS = 60_000L
+
+        /** 第 [attempt] 次重新订阅前等多久：1 秒起翻倍，至多 1 分钟（存储一直坏着时不忙等）。 */
+        fun resubscribeDelayMillis(attempt: Long): Long =
+            (RESUBSCRIBE_FIRST_DELAY_MILLIS shl attempt.coerceAtMost(6).toInt()).coerceAtMost(RESUBSCRIBE_MAX_DELAY_MILLIS)
 
         fun modeOf(prefs: Preferences): RouteMode =
             RouteMode.entries.firstOrNull { it.name == prefs[MODE_KEY] } ?: RouteMode.SYSTEM
