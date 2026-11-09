@@ -44,7 +44,8 @@ private object RetryTransientOnce : Interceptor {
         return try {
             chain.proceed(request)
         } catch (e: IOException) {
-            if (!e.isRetryableNetworkFailure()) throw e
+            // 调用方取消了（图片滚出屏幕）也是 IOException：那不是网络瞬断，不再发
+            if (chain.call().isCanceled() || !e.isRetryableNetworkFailure()) throw e
             chain.proceed(request)
         }
     }

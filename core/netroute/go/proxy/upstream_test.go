@@ -74,8 +74,21 @@ func selfSigned(t *testing.T) (tls.Certificate, *x509.CertPool) {
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, pool
 }
 
-// echUpstream 是本机的一个支持 ECH 的 HTTPS 上游，回 200「ok」。返回它的地址、它真正的配置列表、只信任它证书的根。
+// echUpstream 是本机的一个支持 ECH 的 HTTPS 上游（只谈 http/1.1），回 200「ok」。返回它的地址、它真正的配置列表、只信任它证书的根。
 func echUpstream(t *testing.T) (addr string, config []byte, roots *x509.CertPool) {
+	u := echServer(t, []string{"http/1.1"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
+	return u.addr, u.config, u.roots
+}
+
+type upstreamServer struct {
+	addr   string
+	config []byte
+	roots  *x509.CertPool
+	conns  *atomic.Int32 // 接受过几条 TLS 连接
+}
+
+// echServer 是本机的一个支持 ECH 的 HTTPS 上游：ALPN 谈 [protos]，请求交给 [handler]。
+func echServer(t *testing.T, protos []string, handler http.Handler) upstreamServer {
 	t.Helper()
 	key, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
@@ -86,15 +99,20 @@ func echUpstream(t *testing.T) (addr string, config []byte, roots *x509.CertPool
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
 		Certificates:             []tls.Certificate{cert},
 		EncryptedClientHelloKeys: []tls.EncryptedClientHelloKey{{Config: cfg, PrivateKey: key.Bytes(), SendAsRetry: true}},
-		NextProtos:               []string{"http/1.1"},
+		NextProtos:               protos,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") })}
+	var conns atomic.Int32
+	srv := &http.Server{Handler: handler, ConnState: func(_ net.Conn, st http.ConnState) {
+		if st == http.StateNew {
+			conns.Add(1)
+		}
+	}}
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
-	return ln.Addr().String(), echList(cfg), roots
+	return upstreamServer{ln.Addr().String(), echList(cfg), roots, &conns}
 }
 
 func get(t *testing.T, s *Server, path string, token string) *http.Response {
@@ -223,6 +241,11 @@ func stallingEdge(t *testing.T) (string, *atomic.Int32) {
 // front 是挡在一个正常上游前面的 TCP 转发：第 n 条连接（从 1 数）在 fail(n) 为真时一接上就断开（握手被重置），其余原样转发。
 // 返回它的地址与它接受过几条连接。
 func front(t *testing.T, target string, fail func(n int32) bool) (string, *atomic.Int32) {
+	return slowFront(t, target, fail, 0)
+}
+
+// slowFront 同 front，每条转发的连接先等 [delay] 再接通上游（握手因此慢这么多）。
+func slowFront(t *testing.T, target string, fail func(n int32) bool, delay time.Duration) (string, *atomic.Int32) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -242,6 +265,7 @@ func front(t *testing.T, target string, fail func(n int32) bool) (string, *atomi
 				continue
 			}
 			go func() {
+				time.Sleep(delay)
 				up, err := net.Dial("tcp", target)
 				if err != nil {
 					c.Close()
@@ -328,11 +352,9 @@ func TestStalledFirstEdgeOnlyCostsOneStagger(t *testing.T) {
 
 func TestOneFailureDoesNotMoveThePreferredEdge(t *testing.T) {
 	up1, cfg, roots := echUpstream(t)
-	up2, _, _ := echUpstream(t)
-	// 两个上游用同一份 ECH 配置不行，这里让第二个地址也指向第一个上游，只经不同的转发
-	_ = up2
-	flaky, _ := front(t, up1, func(n int32) bool { return n == 2 }) // 第二条连接被重置
-	other, otherAccepted := front(t, up1, never)
+	flaky, _ := front(t, up1, func(n int32) bool { return n == 2 })        // 第二条连接被重置
+	other, otherAccepted := slowFront(t, up1, never, 100*time.Millisecond) // 能用、但握手慢
+
 	s := start(t, Options{Addrs: []string{flaky, other}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
 
 	if err := dial(t, s, 3*time.Second); err != nil { // 首选定为第一个地址
@@ -341,8 +363,8 @@ func TestOneFailureDoesNotMoveThePreferredEdge(t *testing.T) {
 	if err := dial(t, s, 3*time.Second); err != nil { // 第一个地址断了一次，第二个接上
 		t.Fatal(err)
 	}
-	if got := s.up.health.preferredIndex(); got != 0 {
-		t.Fatalf("preferred is %d after one failure, want it to stay 0", got)
+	if got := s.up.health.order()[0]; got != 0 {
+		t.Fatalf("first edge is %d after one failure, want it to stay 0", got)
 	}
 	before := otherAccepted.Load()
 	if err := dial(t, s, 3*time.Second); err != nil {
@@ -357,7 +379,7 @@ func TestAnEdgeThatKeepsFailingCoolsDown(t *testing.T) {
 	up, cfg, roots := echUpstream(t)
 	// 先是首选，之后一直断开
 	broken, brokenAccepted := front(t, up, func(n int32) bool { return n >= 2 })
-	good, _ := front(t, up, never)
+	good, _ := slowFront(t, up, never, 100*time.Millisecond) // 能用、但握手慢：坏的那个在冷却之前一直排第一
 	s := start(t, Options{Addrs: []string{broken, good}, ECHConfig: cfg, rootCAs: roots, EdgeTimeout: 2 * time.Second})
 
 	for i := 0; i < 1+failThreshold; i++ { // 一次成功（成为首选），再连续失败 failThreshold 次
@@ -390,8 +412,8 @@ func TestResetNetworkForgetsEdgeHealth(t *testing.T) {
 
 	s.ResetNetwork()
 
-	if order := s.up.health.order(); order[0] != 0 || s.up.health.preferredIndex() != -1 {
-		t.Fatalf("order %v preferred %d after a network change, want a clean table", order, s.up.health.preferredIndex())
+	if order := s.up.health.order(); order[0] != 0 || s.up.health.ewma[1] != 0 {
+		t.Fatalf("order %v ewma %v after a network change, want a clean table", order, s.up.health.ewma)
 	}
 }
 
@@ -470,5 +492,228 @@ func TestStalledEdgeIsLoggedAsTimeout(t *testing.T) {
 	defer mu.Unlock()
 	if joined := strings.Join(lines, "\n"); !strings.Contains(joined, "result=timeout") {
 		t.Fatalf("log missing result=timeout:\n%s", joined)
+	}
+}
+
+// getProxied 经核心发一个请求，客户端最多等 [limit]；返回状态码。
+func getProxied(ctx context.Context, s *Server, path string) (int, error) {
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://"+net.JoinHostPort("127.0.0.1", strconv.Itoa(s.Port()))+path, nil)
+	req.Header.Set(TokenHeader, s.Token())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	return resp.StatusCode, nil
+}
+
+func TestConcurrentRequestsShareOneHTTP2Connection(t *testing.T) {
+	var h2 atomic.Int32
+	up := echServer(t, []string{"h2", "http/1.1"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor == 2 {
+			h2.Add(1)
+		}
+		time.Sleep(50 * time.Millisecond)
+		io.WriteString(w, "ok")
+	}))
+	s := start(t, Options{Addrs: []string{up.addr}, ECHConfig: up.config, rootCAs: up.roots, EdgeTimeout: 2 * time.Second})
+
+	var wg sync.WaitGroup
+	var failed atomic.Int32
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if code, err := getProxied(context.Background(), s, "/api.bgm.tv/a"); err != nil || code != 200 {
+				failed.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if failed.Load() != 0 {
+		t.Fatalf("%d of 20 requests failed", failed.Load())
+	}
+	if got := up.conns.Load(); got != 1 {
+		t.Fatalf("%d connections for 20 concurrent requests, want 1", got)
+	}
+	if got := h2.Load(); got != 20 {
+		t.Fatalf("%d of 20 requests reached the upstream over HTTP/2", got)
+	}
+}
+
+func TestCancellingOneRequestKeepsTheConnectionForTheOthers(t *testing.T) {
+	release := make(chan struct{})
+	up := echServer(t, []string{"h2", "http/1.1"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		io.WriteString(w, "ok")
+	}))
+	s := start(t, Options{Addrs: []string{up.addr}, ECHConfig: up.config, rootCAs: up.roots, EdgeTimeout: 2 * time.Second})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	var ok atomic.Int32
+	cancelled := make(chan error, 1)
+	go func() {
+		_, err := getProxied(ctx, s, "/api.bgm.tv/cancelled")
+		cancelled <- err
+	}()
+	time.Sleep(150 * time.Millisecond) // 被取消的那个先占上连接，正在等回应
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if code, err := getProxied(context.Background(), s, "/api.bgm.tv/kept"); err == nil && code == 200 {
+				ok.Add(1)
+			}
+		}()
+	}
+	time.Sleep(150 * time.Millisecond) // 其余五个也在等
+	cancel()
+	if err := <-cancelled; err == nil {
+		t.Fatal("cancelled request should fail")
+	}
+	close(release)
+	wg.Wait()
+
+	if ok.Load() != 5 {
+		t.Fatalf("%d of 5 remaining requests completed after one was cancelled", ok.Load())
+	}
+	if got := up.conns.Load(); got != 1 {
+		t.Fatalf("%d connections, want the one connection kept", got)
+	}
+}
+
+// fakeClock 是测试推进的时钟。
+type fakeClock struct{ t time.Time }
+
+func (c *fakeClock) now() time.Time          { return c.t }
+func (c *fakeClock) advance(d time.Duration) { c.t = c.t.Add(d) }
+
+func TestCoolDownGrowsWithEachStrikeAndResetsOnSuccess(t *testing.T) {
+	clock := &fakeClock{t: time.Unix(0, 0)}
+	h := newHealth(2, clock.now)
+	coolFor := func() time.Duration { return h.coolUntil[0].Sub(clock.t) }
+	strike := func() {
+		for i := 0; i < failThreshold; i++ {
+			h.failure(0)
+		}
+	}
+
+	for _, want := range []time.Duration{30 * time.Second, 2 * time.Minute, 10 * time.Minute, 10 * time.Minute} {
+		strike()
+		if got := coolFor(); got != want {
+			t.Fatalf("cool down %v, want %v", got, want)
+		}
+		clock.advance(want)
+	}
+	h.success(0, 100*time.Millisecond)
+	strike()
+	if got := coolFor(); got != 30*time.Second {
+		t.Fatalf("after a success the cool down is %v, want back to 30s", got)
+	}
+}
+
+func TestEquallyHealthyEdgesAreOrderedByHandshakeTime(t *testing.T) {
+	h := newHealth(3, time.Now)
+	h.success(0, 900*time.Millisecond)
+	h.success(1, 300*time.Millisecond)
+	// 2 还没量过：排在量过的后面
+
+	if got := h.order(); got[0] != 1 || got[1] != 0 || got[2] != 2 {
+		t.Fatalf("order %v, want [1 0 2] (fastest first, unmeasured last)", got)
+	}
+	h.failure(1) // 一次失败不改顺序
+	if got := h.order(); got[0] != 1 {
+		t.Fatalf("order %v after one failure, want the fast edge still first", got)
+	}
+}
+
+func TestStaggerFollowsMeasuredHandshakeTime(t *testing.T) {
+	budget := 4 * time.Second
+	h := newHealth(1, time.Now)
+	if got := h.staggerFor(0, budget); got != budget/4 {
+		t.Fatalf("unmeasured stagger %v, want %v", got, budget/4)
+	}
+	h.success(0, 400*time.Millisecond)
+	if got := h.staggerFor(0, budget); got != 600*time.Millisecond {
+		t.Fatalf("stagger %v, want 1.5×400ms", got)
+	}
+	h.reset()
+	h.success(0, 50*time.Millisecond)
+	if got := h.staggerFor(0, budget); got != minStagger {
+		t.Fatalf("stagger %v, want clamped to %v", got, minStagger)
+	}
+	h.reset()
+	h.success(0, 3*time.Second)
+	if got := h.staggerFor(0, budget); got != budget/2 {
+		t.Fatalf("stagger %v, want clamped to %v", got, budget/2)
+	}
+}
+
+// silencingFront 转发到 [target]；[silent] 置上之后，两个方向的字节都吞掉（连接还开着，只是不再回包：中途被掐的样子）。
+func silencingFront(t *testing.T, target string, silent *atomic.Bool) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipe := func(dst, src net.Conn) {
+		buf := make([]byte, 32*1024)
+		for {
+			n, err := src.Read(buf)
+			if n > 0 && !silent.Load() {
+				dst.Write(buf[:n])
+			}
+			if err != nil {
+				dst.Close()
+				return
+			}
+		}
+	}
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				up, err := net.Dial("tcp", target)
+				if err != nil {
+					c.Close()
+					return
+				}
+				go pipe(up, c)
+				pipe(c, up)
+			}()
+		}
+	}()
+	t.Cleanup(func() { ln.Close() })
+	return ln.Addr().String()
+}
+
+func TestASilentHTTP2ConnectionIsDroppedQuickly(t *testing.T) {
+	up := echServer(t, []string{"h2", "http/1.1"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") }))
+	var silent atomic.Bool
+	edge := silencingFront(t, up.addr, &silent)
+	s := start(t, Options{Addrs: []string{edge}, ECHConfig: up.config, rootCAs: up.roots, EdgeTimeout: 300 * time.Millisecond})
+	if code, err := getProxied(context.Background(), s, "/api.bgm.tv/a"); err != nil || code != 200 {
+		t.Fatalf("first request: code %d err %v", code, err)
+	}
+
+	silent.Store(true) // 已经开着的那条连接从此不回包
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	began := time.Now()
+	code, err := getProxied(ctx, s, "/api.bgm.tv/b")
+
+	// ping 在 300ms 没收到帧时发出、150ms 没回就断：远早于调用方的 5 秒
+	if took := time.Since(began); err != nil || code != http.StatusBadGateway || took > 2*time.Second {
+		t.Fatalf("code %d err %v after %v, want a quick 502 once the silent connection is detected", code, err, took)
 	}
 }

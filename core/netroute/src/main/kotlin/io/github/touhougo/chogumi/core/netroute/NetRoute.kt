@@ -79,13 +79,13 @@ internal fun interface CoreRoutes {
 
 /**
  * 每个边缘地址的拨号加握手预算：客户端一次请求的超时（core:network [REQUEST_TIMEOUT_MILLIS]）分成「地址数 + 1」份。
- * 核心把地址错开预算的四分之一依次起拨（core/netroute/go/proxy/edges.go），最坏要 [coreWorstCaseMillis] 才知道全都不行，
- * 比客户端一次请求的超时短：能用的地址总能在客户端放弃之前轮到。
+ * 核心把地址错开依次起拨，间隔按实测握手耗时算、至多半份预算（core/netroute/go/proxy/edges.go），最坏要 [coreWorstCaseMillis]
+ * 才知道全都不行，比客户端一次请求的超时短：能用的地址总能在客户端放弃之前轮到。
  */
 internal fun edgeBudgetMillis(edges: Int): Long = REQUEST_TIMEOUT_MILLIS / (edges + 1)
 
-/** 核心最坏要多久才知道 [edges] 个地址全都连不上：最后一个地址在 (地址数-1) 个错开之后起拨，再用满一份预算。 */
-internal fun coreWorstCaseMillis(edges: Int): Long = edgeBudgetMillis(edges).let { budget -> (edges - 1) * (budget / 4) + budget }
+/** 核心最坏要多久才知道 [edges] 个地址全都连不上：最后一个地址在 (地址数-1) 个最长的错开（半份预算）之后起拨，再用满一份预算。 */
+internal fun coreWorstCaseMillis(edges: Int): Long = edgeBudgetMillis(edges).let { budget -> (edges - 1) * (budget / 2) + budget }
 
 /** 直连核心的起停（生产是 Go 核心 [GoDirectCore]）。[start] 起不来就抛异常。[log] 收核心的运行记录（每次握手一行），可以没有。 */
 internal interface DirectCore {

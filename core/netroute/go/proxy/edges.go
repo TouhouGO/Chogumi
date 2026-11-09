@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -17,26 +18,33 @@ import (
 
 // 连上游边缘地址的规则（只在这里）：
 //
-//   - 错开并行：一次拨号按健康顺序先起第一个地址，之后每隔 stagger（= 每个地址的预算 / 4）再起一个，前一个失败了就立刻起下一个；
-//     先握手成功的那条胜出，其余中止。每个地址的拨号加握手最多 edgeTimeout。
-//   - 健康顺序：首选（最近成功、没在冷却的那个）排第一，其余没在冷却的按列表顺序，冷却中的排最后（仍会试，只是不先试）。
-//   - 一次失败不改变首选：失败只计数，同一地址连续失败 failThreshold 次才冷却 coolDown；成功清零、解除冷却。首选只在没有首选或
-//     首选在冷却时才换成这次成功的地址。被我们中止的（别的地址先胜出、调用方放弃）不算失败。
-//   - Cloudflare 回 1034（这个地址不服务这个站）的地址直接冷却 restrictedCoolDown。
-//   - 每个主机同时进行的拨号加握手最多 maxHandshakesPerHost 个，其余排队（一页几十张图不会一下子起几十个握手）。
-//   - 换了网络（ResetNetwork）：健康表清空。
+//   - 协议：ALPN 先 h2、再 http/1.1。每个主机只开一条连接（Transport.MaxConnsPerHost = 1）：h2 时所有请求在这一条上并发，
+//     取消一个请求只重置它那一条流；万一只谈到 http/1.1，请求在这一条上排队（日志的 proto= 看得见）。
+//     这一条连接悄悄不通了（中途被掐、不再回包）：edgeTimeout 收不到任何帧就发 ping，再过 edgeTimeout/2 没回就断开，
+//     在途的请求失败、下一个请求重新拨号，不会一直挂到调用方超时。
+//   - 错开并行：一次拨号按健康顺序先起第一个地址，之后每隔 stagger 再起一个，前一个失败了就立刻起下一个；先握手成功的胜出，
+//     其余中止。stagger 是排第一的地址实测握手耗时（EWMA）的 1.5 倍，夹在 [minStagger, edgeTimeout/2]；还没量过时是 edgeTimeout/4。
+//     每个地址的拨号加握手最多 edgeTimeout。
+//   - 健康顺序：没在冷却的按实测握手耗时（EWMA，只由成功更新）从快到慢，没量过的排在量过的后面、按列表顺序；冷却中的排最后
+//     （仍会试，只是不先试）。所以一次失败不改变顺序。
+//   - 冷却：同一地址连续失败 failThreshold 次进入冷却，冷却时长按它累计进冷却的次数逐次加长（coolDowns：30 秒、2 分钟、10 分钟封顶）；
+//     成功一次清零。被我们中止的（别的地址先胜出、调用方放弃）不算失败。Cloudflare 回 1034（这个地址不服务这个站）直接按最长冷却。
+//   - 每个主机同时进行的拨号加握手最多 maxHandshakesPerHost 个，其余排队。
+//   - 换了网络（ResetNetwork）：健康表清空（耗时、失败计数、冷却都忘掉）。
 const (
 	failThreshold        = 2
-	coolDown             = 30 * time.Second
-	restrictedCoolDown   = 10 * time.Minute
 	maxHandshakesPerHost = 3
+	minStagger           = 250 * time.Millisecond
+	ewmaWeight           = 0.3 // 新一次握手耗时在 EWMA 里的权重
 )
+
+// coolDowns 是第 1、2、3 次及以后进冷却的时长。
+var coolDowns = []time.Duration{30 * time.Second, 2 * time.Minute, 10 * time.Minute}
 
 type upstream struct {
 	addrs       []string
 	dialer      net.Dialer
 	edgeTimeout time.Duration
-	stagger     time.Duration
 	health      *health
 	slotsMu     sync.Mutex
 	slots       map[string]chan struct{}
@@ -47,23 +55,19 @@ type upstream struct {
 	logf        func(string, ...any)
 }
 
-type addrConn struct {
-	*tls.Conn
-	addr string
-}
-
 // ---------- 健康表 ----------
 
 type health struct {
 	mu        sync.Mutex
 	now       func() time.Time
-	preferred int
-	fails     []int
+	ewma      []time.Duration // 实测握手耗时；0 是还没量过
+	fails     []int           // 连续失败次数
+	strikes   []int           // 累计进冷却的次数
 	coolUntil []time.Time
 }
 
 func newHealth(n int, now func() time.Time) *health {
-	return &health{now: now, preferred: -1, fails: make([]int, n), coolUntil: make([]time.Time, n)}
+	return &health{now: now, ewma: make([]time.Duration, n), fails: make([]int, n), strikes: make([]int, n), coolUntil: make([]time.Time, n)}
 }
 
 func (h *health) coolingLocked(i int) bool { return h.now().Before(h.coolUntil[i]) }
@@ -72,27 +76,51 @@ func (h *health) coolingLocked(i int) bool { return h.now().Before(h.coolUntil[i
 func (h *health) order() []int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var first, rest, cooling []int
-	for i := range h.fails {
+	idx := make([]int, len(h.fails))
+	for i := range idx {
+		idx[i] = i
+	}
+	rank := func(i int) (int, time.Duration) {
 		switch {
 		case h.coolingLocked(i):
-			cooling = append(cooling, i)
-		case i == h.preferred:
-			first = append(first, i)
-		default:
-			rest = append(rest, i)
+			return 2, 0
+		case h.ewma[i] == 0:
+			return 1, 0
 		}
+		return 0, h.ewma[i]
 	}
-	return append(append(first, rest...), cooling...)
+	sort.SliceStable(idx, func(a, b int) bool {
+		ga, ea := rank(idx[a])
+		gb, eb := rank(idx[b])
+		if ga != gb {
+			return ga < gb
+		}
+		return ea < eb
+	})
+	return idx
 }
 
-func (h *health) success(i int) {
+// staggerFor 是起下一个地址之前等多久：排第一的地址实测耗时的 1.5 倍，夹在 [minStagger, edgeTimeout/2]；没量过时 edgeTimeout/4。
+func (h *health) staggerFor(first int, edgeTimeout time.Duration) time.Duration {
+	h.mu.Lock()
+	measured := h.ewma[first]
+	h.mu.Unlock()
+	if measured == 0 {
+		return edgeTimeout / 4
+	}
+	return min(max(measured*3/2, minStagger), edgeTimeout/2)
+}
+
+func (h *health) success(i int, took time.Duration) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.fails[i] = 0
+	h.strikes[i] = 0
 	h.coolUntil[i] = time.Time{}
-	if h.preferred < 0 || h.coolingLocked(h.preferred) {
-		h.preferred = i
+	if h.ewma[i] == 0 {
+		h.ewma[i] = took
+	} else {
+		h.ewma[i] = time.Duration(float64(h.ewma[i])*(1-ewmaWeight) + float64(took)*ewmaWeight)
 	}
 }
 
@@ -102,30 +130,25 @@ func (h *health) failure(i int) {
 	h.fails[i]++
 	if h.fails[i] >= failThreshold {
 		h.fails[i] = 0
-		h.coolUntil[i] = h.now().Add(coolDown)
+		h.coolLocked(i, coolDowns[min(h.strikes[i], len(coolDowns)-1)])
+		h.strikes[i]++
 	}
 }
+
+func (h *health) coolLocked(i int, d time.Duration) { h.coolUntil[i] = h.now().Add(d) }
 
 func (h *health) restricted(i int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.coolUntil[i] = h.now().Add(restrictedCoolDown)
+	h.coolLocked(i, coolDowns[len(coolDowns)-1])
 }
 
 func (h *health) reset() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.preferred = -1
 	for i := range h.fails {
-		h.fails[i] = 0
-		h.coolUntil[i] = time.Time{}
+		h.ewma[i], h.fails[i], h.strikes[i], h.coolUntil[i] = 0, 0, 0, time.Time{}
 	}
-}
-
-func (h *health) preferredIndex() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.preferred
 }
 
 func (u *upstream) restricted(addr string) {
@@ -176,7 +199,8 @@ func (u *upstream) dialTLS(ctx context.Context, _, hostport string) (net.Conn, e
 		}()
 	}
 	launch()
-	stagger := time.NewTimer(u.stagger)
+	step := u.health.staggerFor(order[0], u.edgeTimeout)
+	stagger := time.NewTimer(step)
 	defer stagger.Stop()
 	var errs []error
 	for finished < len(order) {
@@ -191,12 +215,12 @@ func (u *upstream) dialTLS(ctx context.Context, _, hostport string) (net.Conn, e
 			errs = append(errs, fmt.Errorf("%s: %w", u.addrs[r.idx], r.err))
 			if launched < len(order) {
 				launch()
-				stagger.Reset(u.stagger)
+				stagger.Reset(step)
 			}
 		case <-stagger.C:
 			if launched < len(order) {
 				launch()
-				stagger.Reset(u.stagger)
+				stagger.Reset(step)
 			}
 		case <-ctx.Done():
 			cancel()
@@ -219,17 +243,19 @@ func (u *upstream) attempt(race context.Context, host string, i int) (net.Conn, 
 	defer cancel()
 	start := time.Now()
 	c, err := u.handshake(ctx, host, addr)
+	took := time.Since(start)
 	result := "ok"
 	switch {
 	case err == nil:
-		u.health.success(i)
+		u.health.success(i, took)
+		result = "ok proto=" + protoOf(c)
 	case race.Err() != nil:
 		result = "canceled" // 别的地址先胜出，或调用方放弃：不算这个地址的失败
 	default:
 		result = classify(ctx, err)
 		u.health.failure(i)
 	}
-	u.logf("handshake host=%s edge=%s ms=%d result=%s", host, addr, time.Since(start).Milliseconds(), result)
+	u.logf("handshake host=%s edge=%s ms=%d result=%s", host, addr, took.Milliseconds(), result)
 	return c, err
 }
 
@@ -247,6 +273,14 @@ func (u *upstream) acquire(ctx context.Context, host string) (func(), error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// protoOf 是谈下来的协议：h2 或 h1。
+func protoOf(c net.Conn) string {
+	if tc, ok := c.(*tls.Conn); ok && tc.ConnectionState().NegotiatedProtocol == "h2" {
+		return "h2"
+	}
+	return "h1"
 }
 
 // classify 把一次握手失败归成日志里的一类。
@@ -278,11 +312,11 @@ func (u *upstream) handshake(ctx context.Context, host, addr string) (net.Conn, 
 			RootCAs:                        u.roots,
 			EncryptedClientHelloConfigList: *u.ech.Load(),
 			MinVersion:                     tls.VersionTLS13,
-			NextProtos:                     []string{"http/1.1"},
+			NextProtos:                     []string{"h2", "http/1.1"},
 		})
 		err = tc.HandshakeContext(ctx)
 		if err == nil {
-			return &addrConn{tc, addr}, nil
+			return tc, nil // 原样的 *tls.Conn：net/http 只对它谈 h2
 		}
 		raw.Close()
 		var rej *tls.ECHRejectionError

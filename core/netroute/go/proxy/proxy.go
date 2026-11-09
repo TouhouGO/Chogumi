@@ -90,7 +90,6 @@ func Start(o Options) (*Server, error) {
 		addrs:       list,
 		dialer:      net.Dialer{},
 		edgeTimeout: edgeTimeout,
-		stagger:     edgeTimeout / 4,
 		health:      newHealth(len(list), time.Now),
 		slots:       map[string]chan struct{}{},
 		roots:       o.rootCAs,
@@ -99,8 +98,11 @@ func Start(o Options) (*Server, error) {
 	}
 	up.ech.Store(&cfg)
 	up.transport = &http.Transport{
-		DialTLSContext:        up.dialTLS,
-		MaxIdleConnsPerHost:   16, // HTTP/1.1：一页几十张图，留够空闲连接复用，少握手
+		DialTLSContext:    up.dialTLS,
+		ForceAttemptHTTP2: true,
+		MaxConnsPerHost:   1, // 每个主机一条连接，h2 上并发（edges.go 的规则）
+		// 那一条连接悄悄不通了要尽快发现（edges.go 的规则）：edgeTimeout 没收到任何帧就发 ping，再过 edgeTimeout/2 没回就断开
+		HTTP2:                 &http.HTTP2Config{SendPingTimeout: edgeTimeout, PingTimeout: edgeTimeout / 2},
 		IdleConnTimeout:       90 * time.Second,
 		ExpectContinueTimeout: time.Second,
 		DisableCompression:    true, // Accept-Encoding 原样转发，解压留给 OkHttp
@@ -217,9 +219,7 @@ func (u *upstream) RoundTrip(req *http.Request) (*http.Response, error) {
 	for attempt := 0; ; attempt++ {
 		var addr string
 		trace := &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
-			if c, ok := info.Conn.(*addrConn); ok {
-				addr = c.addr
-			}
+			addr = info.Conn.RemoteAddr().String()
 		}}
 		resp, err := u.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), trace)))
 		if err != nil || !edgeRestricted(resp) {
