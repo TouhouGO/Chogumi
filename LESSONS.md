@@ -75,6 +75,11 @@ Chogumi 的代码由 agent 写、审、合、发。每批合入之后复盘一�
 - 修好：#13（06b6c35，`upstream.retire`；两条测试在一条连接上挂一个流再触发 1034 / 换网络，修之前分别红 `code 403 err <nil>, want 200 from the other edge after a 1034 (other edge saw 0 connections)` 与 `1 connections, want a fresh one after a network change`）。
 - Seen 1×（2026-11-09）。
 
+**只拦首个请求的拦截器管不到跳转的后几跳。** OkHttp 自己跟随跳转时，后几跳在应用拦截器之下生成，不再经过装在应用层的改写（线路、令牌）。一条规则要管住每一跳，就让它所在的客户端不由 OkHttp 跟随：在那条规则之上跟随（每一跳重新进链），或交给 Ktor 这种每一跳都是新请求的上层。
+- 出事：#13 的 Codex 意见（`DirectRouting.kt`）：图片客户端由 OkHttp 跟随，外站图片跳到 `https://lain.bgm.tv/…` 的那一跳不经过直连，走系统网络、用普通 SNI。
+- 修好：#13（ed2b5a3，图片客户端关掉 OkHttp 的跟随，core:network `FollowRedirects` 在线路之上跟随；测试用本机的两个 HTTP 服务器当外站与核心、不经代理、域名解析只记不解，修之前红 `这一跳不能走系统网络（不能有要解析的域名） expected:<[]> but was:<[lain.bgm.tv]>`）。
+- Seen 1×（2026-11-09）。
+
 **超时是预算：下一层每一步的超时加起来短于上一层。** 每个边缘地址的握手等 15 秒、客户端一次请求也等 15 秒，卡住的首选地址吃掉整份，换地址永远来不及，用户看到的就是一次超时。下层的预算由上层推出，最坏耗时由一个函数算、测试守着它短于请求超时。
 - 出事：#13 的 Codex 意见（`proxy.go`，首选地址接受 TCP 但握手卡住时整个请求超时）。
 - 修好：#13（e9550c3，`edgeBudgetMillis` 把请求超时分成「地址数 + 1」份，`coreWorstCaseMillis` 有测试）。

@@ -26,8 +26,9 @@ internal fun isBgmHost(host: String) = host == "bgm.tv" || host.endsWith(".bgm.t
  * 只有线路确认是系统网络时请求原样发出；还没定下来、选了直连而核心没起来时请求直接失败，不退回系统网络（[NetRoute] 的模型）。
  * 核心连上游失败（连接被重置、TLS 失败、超时）时回一个带 [PROXY_ERROR_HEADER] 的 502：这里把它换回 [IOException]，与不经核心时
  * 同一类失败（读请求照样重试，「5xx 才走网页」的写不会在结果不明时误走）；上游真的回了 5xx 就原样交出去。
- * 响应里核心改成本机形式的跳转，换回它带回来的原样地址：Ktor 自己跟随跳转、网页登录读跳转地址都看到原样；OkHttp 自己跟随
- * 跳转时（图片加载）不再经过这里，用的是本机形式，照样回到核心。
+ * 响应里核心改成本机形式的跳转，换回它带回来的原样地址：Ktor 自己跟随跳转、网页登录读跳转地址、图片加载在线路之上跟随跳转
+ * （core:network `createImageOkHttpClient`）都看到原样，下一跳照样经过这里。OkHttp 自己跟随的后几跳不经过应用拦截器，所以
+ * 套上它的客户端都不让 OkHttp 自己跟随（Ktor 的引擎本来就关着）。
  */
 internal class DirectRouting(private val routes: CoreRoutes) : OkHttpCustomizer {
     override fun customize(builder: OkHttpClient.Builder) {
