@@ -192,6 +192,7 @@
     <string name="network_proxy_connect">Connect</string>
     <string name="network_proxy_connecting">Connecting…</string>
     <string name="network_proxy_unreachable">Can\'t connect. Check the address, port and proxy app</string>
+    <string name="network_proxy_no_local_network">No permission to access the local network</string>
     <string name="network_proxy_connected">Connected</string>
     <string name="network_proxy_changed">Changes not applied yet. Tap Connect to switch</string>
     <string name="network_proxy_fill">Fill in the address and port, then tap Connect</string>

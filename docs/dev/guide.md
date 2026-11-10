@@ -313,12 +313,18 @@ flowchart LR
   SOCKS5 收域名原样，本机 DNS 不经手 bgm.tv。
 - 应用里的 WebView（回帖的人机验证页）经 androidx.webkit 的 `ProxyController` 用同一个代理（WebView 太旧、不支持代理覆盖时跟系统）；
   浏览器授权与「在浏览器打开」由浏览器自己联网，不经过它。
-- 「连接」先经填好的那一组对 `https://bgm.tv/` 发一次 HEAD，收到任何 HTTP 响应算连上；连上了才换过去，并把类型、主机、端口存进
+- 「连接」先经填好的那一组对 `https://bgm.tv/` 发一次 HEAD，收到第一个 HTTP 响应就算连上（跳转也算，不跟着走）；试连期间换过线路
+  （关掉代理、开直连再回来），那一次的结果不用。连上了才换过去，并把类型、主机、端口存进
   core:netroute 的 DataStore。连不上时旧的那一组照用。关掉开关后存下的那一组留着，再打开时带出来并自动连一次；冷启动时设置是代理，
   直接用存下的那一组。
 - 开关开着而还没连上时，所有请求失败，不改走系统网络；关掉开关回到系统网络。
+- 局域网里的代理（192.168.x.x、10.x、proxy.lan 这类主机名）：应用 targetSdk 37，Android 17 起连局域网地址要运行时权限
+  `ACCESS_LOCAL_NETWORK`（「附近的设备」权限组，声明在 core:netroute 的清单里），没有时 TCP 连接超时。哪些地址算局域网只在
+  `ProxyServer.needsLocalNetwork`（本机回环不算，私有与链路本地的 IP 算，主机名按算）。点「连接」时缺权限就先请求；拒绝了状态行写
+  「没有访问局域网的权限」，再点「连接」再请求一次，系统不再弹框时去系统设置里本应用的那一页。重新打开开关时的自动连接缺权限就不试连。
+  WebView 跟着应用的权限走。（推断：按 Android 文档写的，没在 Android 17 设备上实测；模拟器的 10.0.2.2 算不算局域网也没量过。）
 - 换了线路，开着的连接不再接新请求（`ProxyRouting` 每个请求比一次连接走的代理），换之前的连接上还在跑的请求跑完。
-- 「检查连接」按现在的线路对 bgm.tv、api、next、lain 四个主机各发一次 HEAD，量从发出到收到响应头的毫秒数，含拨号与握手
+- 「检查连接」按现在的线路对 bgm.tv、api、next、lain 四个主机各发一次 HEAD，量从发出到收到第一个响应头的毫秒数（不跟随跳转），含拨号与握手
   （自己的连接池，每轮开始前清空）；线路换了，上一轮的结果清掉。
 
 ## 2. 排版框架级的坑
@@ -529,7 +535,9 @@ cp <主工作目录>/{local,oauth-app}.properties <worktree>/
 ### 4.2 模拟器
 
 - 本机有一个模拟器池（两台同配置的 Android Studio 模拟器），设备名、AVD 名、锁路径只写在 `tools/device/device.sh`，
-  `tools/device/device.sh status` 列出每台在不在线、谁占着。几条会话可以同时上真机，每条占一台：
+  `tools/device/device.sh status` 列出每台在不在线、谁占着。它不光认序列号，还核对这台自报的 AVD 名（`ro.boot.qemu.avd_name`）：
+  别的模拟器（MuMu 之类）占了池里 AVD 的默认端口时序列号一样，`status` 写明「不是那台 AVD（型号 …）」，`claim` 不发它，`start` 报占用。
+  几条会话可以同时上真机，每条占一台：
   - 拿设备：`SERIAL=$(tools/device/device.sh claim "<线程>，<分支>")`，打出一台在线且空闲的设备并上锁；
     退出码 1 是都被占着，先做不碰设备的活，过会儿再拿。要指定某台就把设备名加在最后。
   - 整个设备步骤（装包、adb、仪器测试、截图、录屏、logcat）每条命令都带 `ANDROID_SERIAL=$SERIAL`，

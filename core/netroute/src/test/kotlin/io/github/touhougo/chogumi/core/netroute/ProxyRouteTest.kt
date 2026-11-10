@@ -195,4 +195,28 @@ class ProxyRouteTest {
 
         assertEquals("还没试连，不能用存下的那一组", CoreRoute.ProxyUnavailable, route.route())
     }
+
+    @Test
+    fun `试连在途时换到直连再回到代理_旧的那一次不用`() = runBlocking {
+        val probing = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val route = netRoute(
+            probe = {
+                probing.complete(Unit)
+                release.await()
+                Outcome.Success(Unit)
+            },
+            core = CountingCore(),
+        )
+        route.setMode(RouteMode.PROXY)
+        val connecting = scope.async { route.connectProxy(server) }
+        probing.await()
+        route.setMode(RouteMode.DIRECT)
+        route.setMode(RouteMode.PROXY)
+        release.complete(Unit)
+
+        assertEquals(ProxyConnect.Withdrawn, connecting.await())
+        assertEquals("重新打开之后还没试连", CoreRoute.ProxyUnavailable, route.route())
+        assertEquals("旧的那一组不存", null, route.proxy.first())
+    }
 }

@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
+import io.github.touhougo.chogumi.core.netroute.AndroidLocalNetworkAccess
 import io.github.touhougo.chogumi.core.netroute.AndroidNetworkChanges
 import io.github.touhougo.chogumi.core.netroute.AndroidWebViewProxy
 import io.github.touhougo.chogumi.core.netroute.BuiltinEdgeAddresses
@@ -12,6 +13,7 @@ import io.github.touhougo.chogumi.core.netroute.CoreRoutes
 import io.github.touhougo.chogumi.core.netroute.DirectRouteHint
 import io.github.touhougo.chogumi.core.netroute.DirectRouting
 import io.github.touhougo.chogumi.core.netroute.EdgeAddresses
+import io.github.touhougo.chogumi.core.netroute.LocalNetworkAccess
 import io.github.touhougo.chogumi.core.netroute.GoDirectCore
 import io.github.touhougo.chogumi.core.netroute.NetRoute
 import io.github.touhougo.chogumi.core.netroute.OkHttpProxyProbe
@@ -59,6 +61,7 @@ val netRouteModule = module {
         }
     }
     single { RouteCheck(getAll()) }
+    single<LocalNetworkAccess> { AndroidLocalNetworkAccess(androidContext()) }
     single<DirectRouteHint> {
         val route = get<NetRoute>()
         DirectRouteHint { route.directAvailable }

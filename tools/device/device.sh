@@ -54,6 +54,15 @@ online() {
         [[ "$("$ADB" -s "$1" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]
 }
 
+# 读一项系统属性；没有这一项（不是模拟器就没有 AVD 名）或读不到时为空。
+prop() { { "$ADB" -s "$1" shell getprop "$2" 2>/dev/null || true; } | tr -d '\r'; }
+
+# 在线的这一台是不是池里登记的那个 AVD（模拟器自报 ro.boot.qemu.avd_name）。别的模拟器（MuMu 之类）占了池里 AVD 的
+# 默认端口时序列号相同，只认序列号会把它当成池里那台：装错包、测错系统版本。
+is_pool_avd() { [[ "$(prop "$1" ro.boot.qemu.avd_name)" == "$(avd_of "$1")" ]]; }
+
+ready() { online "$1" && is_pool_avd "$1"; }
+
 holder() {
     local dir
     dir="$(lock_dir "$1")"
@@ -74,7 +83,13 @@ cmd_status() {
     local s avd state who
     for s in $(serials); do
         avd="$(avd_of "$s")"
-        if online "$s"; then state="在线"; else state="离线"; fi
+        if ! online "$s"; then
+            state="离线"
+        elif is_pool_avd "$s"; then
+            state="在线"
+        else
+            state="在线，但不是 ${avd}（型号 $(prop "$s" ro.product.model)），不发"
+        fi
         if who="$(holder "$s")"; then :; else who="空闲"; fi
         printf '%s\t%s\t%s\t%s\n' "$s" "$avd" "$state" "$who"
     done
@@ -90,7 +105,7 @@ cmd_claim() {
         candidates="$(serials)"
     fi
     for s in $candidates; do
-        online "$s" || continue
+        ready "$s" || continue
         if try_lock "$s" "$owner"; then echo "$s"; return 0; fi
     done
     echo "没有在线且空闲的设备：" >&2
@@ -116,7 +131,11 @@ cmd_start() {
     local serial="${1:-}" avd waited=0
     [[ -n "$serial" ]] || die "用法：$0 start <设备>"
     avd="$(avd_of "$serial")" || die "$serial 不在设备池里"
-    if online "$serial"; then echo "$serial 已在线"; return 0; fi
+    if online "$serial"; then
+        is_pool_avd "$serial" || die "$serial 被别的设备占着（型号 $(prop "$serial" ro.product.model)），${avd} 起不来：先关掉它"
+        echo "$serial 已在线"
+        return 0
+    fi
     # 在 bash 里放到后台：zsh 默认的 BG_NICE 会让后台的 qemu 降优先级，宿主一忙它就分不到 CPU，adb 全挂。
     # 不给 -dns-server：模拟器用宿主的解析，查询跟着宿主的代理走；指定外部 DNS 会绕开代理，解析被篡改。
     # 每次冷启动（-no-snapshot-load）：从快照恢复会沿用快照里的网络状态与解析缓存，启动参数改了也不生效。

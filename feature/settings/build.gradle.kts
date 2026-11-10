@@ -12,4 +12,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     // 页面面板只能画在导航项里：面板测试用 core:ui 测试夹具的宿主
     testImplementation(testFixtures(projects.core.ui))
+    // 「网络」页的 ViewModel 测试接真的 NetRoute（不起核心、试连可控）
+    testImplementation(testFixtures(projects.core.netroute))
 }

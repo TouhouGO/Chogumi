@@ -6,6 +6,10 @@ plugins {
 
 android {
     defaultConfig.consumerProguardFiles("consumer-rules.pro")
+    // 测试夹具：feature 模块的 ViewModel 测试用它造一个不起核心、试连可控的 NetRoute（src/testFixtures）
+    testFixtures {
+        enable = true
+    }
 }
 
 dependencies {
@@ -24,6 +28,10 @@ dependencies {
     implementation(files("libs/echcore.aar"))
 
     testImplementation(testFixtures(projects.core.data))
+    testFixturesImplementation(projects.core.foundation)
+    testFixturesImplementation(projects.core.network)
+    testFixturesImplementation(libs.androidx.datastore.preferences)
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
     // 网页会话经核心的测试用生产工厂 createWebHttpClient（Ktor）
     testImplementation(libs.ktor.client.core)

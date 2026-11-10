@@ -14,13 +14,17 @@ TOOLS = SCRIPT.parent.parent
 # "「$owner」" 读成变量 owner\xe3，set -u 下报未定义，错误信息里还夹着半个字符。
 BARE_VAR_BEFORE_NON_ASCII = re.compile(r"\$[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7f]")
 
-# 假 adb：FAKE_ONLINE 里列出的设备在线且开机完成，其余离线。
+# 假 adb：FAKE_ONLINE 里列出的设备在线且开机完成，其余离线。FAKE_AVDS 里「序列号=AVD名」是每台自报的 AVD 名
+# （模拟器的 ro.boot.qemu.avd_name；别的设备没有这一项、为空），FAKE_MODELS 里「序列号=型号」是 ro.product.model。
 FAKE_ADB = """#!/usr/bin/env bash
 serial="$2"; shift 2
 case " $FAKE_ONLINE " in *" $serial "*) ;; *) exit 1 ;; esac
+lookup() { for pair in $1; do [[ "${pair%%=*}" == "$serial" ]] && echo "${pair#*=}"; done; }
 case "$*" in
     get-state) echo device ;;
     "shell getprop sys.boot_completed") echo 1 ;;
+    "shell getprop ro.boot.qemu.avd_name") lookup "$FAKE_AVDS" ;;
+    "shell getprop ro.product.model") lookup "$FAKE_MODELS" ;;
 esac
 """
 
@@ -39,6 +43,8 @@ class DeviceScriptTest(unittest.TestCase):
             "CHOGUMI_ADB": str(adb),
             "CHOGUMI_LOCK_ROOT": str(self.locks),
             "FAKE_ONLINE": "emulator-5554 emulator-5556",
+            "FAKE_AVDS": "emulator-5554=Pixel_10_Pro_XL emulator-5556=Pixel_10_Pro_XL_2",
+            "FAKE_MODELS": "emulator-5554=sdk_gphone16k_arm64 emulator-5556=sdk_gphone16k_arm64",
         }
 
     def run_script(self, *args: str) -> subprocess.CompletedProcess:
@@ -98,6 +104,17 @@ class DeviceScriptTest(unittest.TestCase):
         self.assertEqual("emulator-5556", self.run_script("claim", "线程甲", "emulator-5556").stdout.strip())
         busy = self.run_script("claim", "线程乙", "emulator-5556")
         self.assertEqual(1, busy.returncode)
+        self.assertEqual({"chogumi-device-emulator-5556.lock"}, self.lock_names())
+
+    def test_序列号被别的设备占着时不发_状态写明是哪台(self):
+        # 别的模拟器（MuMu 之类）占了池里 AVD 的默认端口，序列号相同，自报的不是那个 AVD
+        self.env["FAKE_AVDS"] = "emulator-5554= emulator-5556=Pixel_10_Pro_XL_2"
+        self.env["FAKE_MODELS"] = "emulator-5554=GKWS6 emulator-5556=sdk_gphone16k_arm64"
+        self.assertEqual("emulator-5556", self.run_script("claim", "线程甲").stdout.strip())
+        self.assertEqual(1, self.run_script("claim", "线程乙", "emulator-5554").returncode)
+        status = self.run_script("status").stdout
+        self.assertIn("不是 Pixel_10_Pro_XL", status)
+        self.assertIn("GKWS6", status)
         self.assertEqual({"chogumi-device-emulator-5556.lock"}, self.lock_names())
 
     def test_池外设备与缺占用者都拒绝(self):
