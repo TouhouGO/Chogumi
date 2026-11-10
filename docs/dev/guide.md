@@ -325,7 +325,8 @@ flowchart LR
   WebView 跟着应用的权限走。（推断：按 Android 文档写的，没在 Android 17 设备上实测；模拟器的 10.0.2.2 算不算局域网也没量过。）
 - 换了线路，开着的连接不再接新请求（`ProxyRouting` 每个请求比一次连接走的代理），换之前的连接上还在跑的请求跑完。
 - 「检查连接」按现在的线路对 bgm.tv、api、next、lain 四个主机各发一次 HEAD，量从发出到收到第一个响应头的毫秒数（不跟随跳转），含拨号与握手
-  （自己的连接池，每轮开始前清空）；线路换了，上一轮的结果清掉。
+  （自己的连接池，每轮开始前清空）；线路换了，上一轮的结果清掉。清连接池在 IO 线程上、响应在 OkHttp 回调的线程上关：关一条 TLS
+  连接要写出 close_notify，在主线程上写套接字抛 `NetworkOnMainThreadException`（不是 `IOException`，OkHttp 的 `closeQuietly` 不接），进程崩。
 
 ## 2. 排版框架级的坑
 
