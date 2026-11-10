@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.network.OkHttpCustomizer
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
+import okhttp3.Response
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,5 +30,16 @@ class RouteCheckTest {
         val check = RouteCheck(listOf(refusing))
 
         assertTrue(check.measure(CheckSite.WEB) is Outcome.Failed)
+    }
+
+    @Test
+    fun `站点回跳转也算连上_不跟着跳转走`() = runBlocking {
+        val end = RecordingEnd { Response.Builder().code(302).message("Found").header("Location", "https://unreachable.example.invalid/") }
+        val check = RouteCheck(listOf(end))
+
+        val result = check.measure(CheckSite.WEB)
+
+        assertTrue("收到第一个响应就是连上：$result", result is Outcome.Success)
+        assertEquals("只发到站点本身", listOf("https://bgm.tv/"), end.requests.map { it.url.toString() })
     }
 }

@@ -50,17 +50,19 @@ class NetworkSettingsTest {
         override fun onProxyConnect() {
             connects++
         }
+        override fun localNetworkMissing() = false
+        override fun onLocalNetworkDenied() = Unit
         override fun onCheck() = Unit
     }
 
     private fun show(state: NetworkSettingsUiState, actions: NetworkSettingsActions = RecordingActions()) {
-        compose.setContent { MaterialTheme { NetworkSettingsContent(state, actions, FailureNotices(), onBack = {}) } }
+        compose.setContent { MaterialTheme { NetworkSettingsContent(state, actions, FailureNotices(), onBack = {}, onConnect = actions::onProxyConnect) } }
     }
 
     @Test
     fun `代理关着时只有开关_打开后才有类型地址端口与连接`() {
         var state by mutableStateOf(NetworkSettingsUiState(directSupported = true))
-        compose.setContent { MaterialTheme { NetworkSettingsContent(state, RecordingActions(), FailureNotices(), onBack = {}) } }
+        compose.setContent { MaterialTheme { NetworkSettingsContent(state, RecordingActions(), FailureNotices(), onBack = {}, onConnect = {}) } }
         compose.onNodeWithTag(ProxySwitchTag).assertExists()
         compose.onNodeWithText("地址").assertDoesNotExist()
 
@@ -109,7 +111,7 @@ class NetworkSettingsTest {
     fun `连接按钮跟着能不能点`() {
         val actions = RecordingActions()
         var state by mutableStateOf(NetworkSettingsUiState(mode = RouteMode.PROXY, draft = draft))
-        compose.setContent { MaterialTheme { NetworkSettingsContent(state, actions, FailureNotices(), onBack = {}) } }
+        compose.setContent { MaterialTheme { NetworkSettingsContent(state, actions, FailureNotices(), onBack = {}, onConnect = actions::onProxyConnect) } }
         compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText("连接"))
         compose.onNodeWithText("连接").assertIsEnabled().performClick()
         assertEquals(1, actions.connects)
@@ -123,7 +125,7 @@ class NetworkSettingsTest {
     @Test
     fun `检查连接的四格_没测是横线_测完是毫秒数或连不上`() {
         var state by mutableStateOf(NetworkSettingsUiState(directSupported = true))
-        compose.setContent { MaterialTheme { NetworkSettingsContent(state, RecordingActions(), FailureNotices(), onBack = {}) } }
+        compose.setContent { MaterialTheme { NetworkSettingsContent(state, RecordingActions(), FailureNotices(), onBack = {}, onConnect = {}) } }
         compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText("lain.bgm.tv"))
         compose.onNodeWithText("用现在的线路（系统网络）连一次 bgm.tv 的几个站点").assertExists()
         compose.onNodeWithText("开始").assertExists()
@@ -140,5 +142,17 @@ class NetworkSettingsTest {
         compose.onNodeWithText("312 ms").assertExists()
         compose.onNodeWithText("连不上").assertExists()
         compose.onNodeWithText("再测一次").assertExists()
+    }
+
+    @Test
+    fun `没给局域网权限时状态行说缺权限_连接仍能点`() {
+        // 连上之后权限在系统设置里被收回：草稿就是正在用的那一组，只有缺权限这一条让「连接」能点
+        val denied = NetworkSettingsUiState(mode = RouteMode.PROXY, draft = draft, active = server, connecting = ProxyConnecting.NO_LOCAL_NETWORK)
+        assertEquals(ProxyStatus.NO_LOCAL_NETWORK, denied.proxyStatus)
+        assertTrue("再点一次去请求权限或系统设置", denied.canConnect)
+        show(denied)
+
+        compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText("没有访问局域网的权限"))
+        compose.onNodeWithText("连接").assertIsEnabled()
     }
 }

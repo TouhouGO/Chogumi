@@ -200,6 +200,7 @@
     <string name="network_proxy_connect">连接</string>
     <string name="network_proxy_connecting">正在连接…</string>
     <string name="network_proxy_unreachable">连不上，检查地址、端口和代理软件</string>
+    <string name="network_proxy_no_local_network">没有访问局域网的权限</string>
     <string name="network_proxy_connected">已连上</string>
     <string name="network_proxy_changed">改动还没生效，点「连接」换过去</string>
     <string name="network_proxy_fill">填好地址和端口后点「连接」</string>
