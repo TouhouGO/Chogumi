@@ -226,14 +226,18 @@ class NetRoute internal constructor(
      */
     suspend fun setMode(mode: RouteMode): Outcome<Unit> = transition(mode, persist = true)
 
-    /** 「连接」：先经 [server] 试连 bgm.tv，连上了才换过去并存下；期间关掉了代理则不用这个结果。 */
+    /** 用户每换一次线路加一：试连开始以后换过线路（关掉代理、开直连再回到代理），那次试连的结果不用。 */
+    @Volatile private var userSwitches = 0L
+
+    /** 「连接」：先经 [server] 试连 bgm.tv，连上了才换过去并存下；期间换过线路则不用这个结果。 */
     suspend fun connectProxy(server: ProxyServer): ProxyConnect {
+        val switchesAtStart = userSwitches
         when (val reached = probe.reach(server)) {
             is Outcome.Failed -> return ProxyConnect.Unreachable(reached.failure)
             is Outcome.Success -> Unit
         }
         return transitions.withLock {
-            if (mode.first() != RouteMode.PROXY) return@withLock ProxyConnect.Withdrawn
+            if (userSwitches != switchesAtStart) return@withLock ProxyConnect.Withdrawn
             when (val saved = outcomeOf { prefs.edit { writeProxy(it, server) } }) {
                 is Outcome.Failed -> ProxyConnect.NotSaved(saved.failure)
                 is Outcome.Success -> {
@@ -251,6 +255,7 @@ class NetRoute internal constructor(
 
     /** 唯一改 [state] 的地方。[persist] 为 true 是用户动手（要存设置、失败留原状），false 是应用存着的设置。 */
     private suspend fun transition(requestedMode: RouteMode, persist: Boolean): Outcome<Unit> = transitions.withLock {
+        if (persist) userSwitches++
         // 观察者收到的拍可能早于等待锁期间用户存下的线路：锁内重读当前快照，不用迟到的拍停掉新核心。
         val mode = if (persist) requestedMode else this.mode.first()
         val wasRunning = running != null

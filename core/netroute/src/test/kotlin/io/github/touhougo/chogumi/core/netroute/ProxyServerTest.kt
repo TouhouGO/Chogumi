@@ -41,4 +41,22 @@ class ProxyServerTest {
         assertEquals("socks://proxy.lan:1080", ruleOf(ProxyServer(ProxyType.SOCKS5, "proxy.lan", 1080)))
         assertEquals("socks://[::1]:1080", ruleOf(ProxyServer(ProxyType.SOCKS5, "::1", 1080)))
     }
+
+    @Test
+    fun `局域网与主机名要局域网权限_本机回环与公网 IP 不要`() {
+        fun needs(host: String) = ProxyServer(ProxyType.SOCKS5, host, 1080).needsLocalNetwork()
+        listOf("192.168.1.5", "10.0.2.2", "172.16.0.1", "172.31.255.1", "169.254.1.1", "100.64.0.1", "fd00::1", "fe80::1", "proxy.lan", "nas.local")
+            .forEach { assertEquals("$it 算局域网", true, needs(it)) }
+        listOf("127.0.0.1", "127.8.8.8", "localhost", "::1", "8.8.8.8", "172.32.0.1", "100.128.0.1", "2001:db8::1")
+            .forEach { assertEquals("$it 不算局域网", false, needs(it)) }
+    }
+
+    @Test
+    fun `IPv4 映射的 IPv6 按里面的 IPv4 判`() {
+        fun needs(host: String) = proxyServerOf(ProxyType.SOCKS5, host, "1080")!!.needsLocalNetwork()
+        listOf("::ffff:192.168.1.5", "::ffff:c0a8:105", "[::ffff:192.168.1.5]", "0:0:0:0:0:ffff:c0a8:105", "::ffff:10.0.0.1")
+            .forEach { assertEquals("$it 算局域网", true, needs(it)) }
+        listOf("::ffff:127.0.0.1", "::ffff:8.8.8.8", "0:0:0:0:0:0:0:1")
+            .forEach { assertEquals("$it 不算局域网", false, needs(it)) }
+    }
 }
