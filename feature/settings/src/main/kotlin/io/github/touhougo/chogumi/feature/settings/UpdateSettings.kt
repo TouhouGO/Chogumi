@@ -79,6 +79,7 @@ fun UpdateSettingsContent(
                                 title = stringResource(R.string.settings_update_auto_check),
                                 checked = state.autoCheck,
                                 onCheckedChange = actions::onAutoCheckChange,
+                                details = { Text(stringResource(R.string.settings_update_auto_check_details)) },
                             )
                         },
                         if (state.autoCheck) {

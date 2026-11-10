@@ -190,6 +190,7 @@
     <string name="settings_update_up_to_date">Up to date</string>
     <string name="settings_update_prerelease">Get pre-releases</string>
     <string name="settings_update_auto_check">Check for updates automatically</string>
+    <string name="settings_update_auto_check_details">Needs access to GitHub. The app\'s built-in Direct connection feature only connects to bgm.tv and doesn\'t cover checking for or downloading updates.</string>
     <string name="settings_update_interval">Check interval</string>
     <string name="settings_update_interval_every_launch">Every launch</string>
     <string name="settings_update_interval_daily">Daily</string>

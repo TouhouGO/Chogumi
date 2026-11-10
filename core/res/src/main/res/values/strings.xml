@@ -198,6 +198,7 @@
     <string name="settings_update_up_to_date">已是最新</string>
     <string name="settings_update_prerelease">接收预发布版</string>
     <string name="settings_update_auto_check">自动检查更新</string>
+    <string name="settings_update_auto_check_details">需要能访问 GitHub。软件内置的「直连」功能只连 bgm.tv，不包括检查和下载更新。</string>
     <string name="settings_update_interval">检查间隔</string>
     <string name="settings_update_interval_every_launch">每次打开</string>
     <string name="settings_update_interval_daily">每天</string>
