@@ -179,7 +179,7 @@
     <string name="network_direct">Direct connection</string>
     <string name="network_direct_details">Hides the site you\'re visiting with an encrypted handshake (ECH), so it can\'t be recognized and blocked.</string>
     <string name="network_direct_confirm_title">Turn on direct connection?</string>
-    <string name="network_direct_confirm_text">Direct connection is experimental and may be unstable.</string>
+    <string name="network_direct_confirm_text">Encrypts the name of the site you\'re visiting (ECH) and connects to bgm.tv directly through Cloudflare.\nExperimental: may be slow at peak hours. The verification page for replies and pages opened in the browser don\'t use it.</string>
     <string name="network_direct_confirm">Turn on</string>
     <string name="network_direct_failed">Couldn\'t start direct connection</string>
     <string name="login_unreachable">Can\'t reach bgm.tv</string>

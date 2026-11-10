@@ -187,7 +187,7 @@
     <string name="network_direct">直连</string>
     <string name="network_direct_details">用加密握手（ECH）藏起要访问的网站名，不会被识别拦截。</string>
     <string name="network_direct_confirm_title">打开直连？</string>
-    <string name="network_direct_confirm_text">直连是实验性功能，可能不稳定。</string>
+    <string name="network_direct_confirm_text">把要访问的网站名加密（ECH），经 Cloudflare 直接连上 bgm.tv。\n实验性功能，晚高峰可能变慢；回帖的人机验证页和浏览器里打开的网页不走直连。</string>
     <string name="network_direct_confirm">打开</string>
     <string name="network_direct_failed">直连没有启动</string>
     <string name="login_unreachable">连不上 bgm.tv</string>
