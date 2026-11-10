@@ -332,6 +332,12 @@ flowchart LR
 
 ### 2.6 桌面小组件（Glance）
 
+- 一次读取与整帧（文字、进度、位图）固定同一个 `AccountSession`：来源末尾与发布前校验归属，通知与小组件共享
+  `WidgetCalendarSource` / `WidgetWorksSource`，换号期间取到的混合结果不交出去；小组件整帧换号时重新取当前账号。
+- 小组件配色、两类通知设置的持续读取经 core:data `recoverStorageReads`：读失败后按 1、2、4……秒退避，最多等 30 秒再订阅，
+  取消仍结束，不把一次故障当作永久关闭。单部作品配置 `chooseSubject` 返回 `Outcome<Boolean>`：小组件已不存在时取消配置，
+  保存失败留在配置页、经 `FailureNotices` 给重试，只有成功才回 `RESULT_OK`。
+
 - 一层 `Row` / `Column` 最多放 10 个子项，多的被截掉、不报错：热力图一个月的格子按 10 个一组再套一层（`HeatWidget.kt`）。
 - 会话还开着时（Glance 在最后一次更新后留它一会儿）`updateAll` 不重跑 `provideGlance`，只重读 Glance 自己的状态：
   要重读的数据挂在 `WidgetUpdates.revision` 上（`provideLiveContent`），不靠 `updateAll` 重新进 `provideGlance`。
@@ -367,6 +373,12 @@ flowchart LR
   （`SystemNotices.openBackgroundSettings`，找不到就打开应用信息）。
   多数国产系统从最近任务里划掉 App、一键清理等于强行停止：排着的检查与闹钟全被取消，用户下次打开 App 时 `watch` 才重新排上（被清理后第一次打开时
   马上跑的那一轮 App 在前台，只记不发）。没开自启动的，到点也拉不起进程。App 没有接口申请或读取自启动，只能带用户去那一页；常驻进程同样会被清掉，不做。
+- 社区完整快照固定操作起点的会话，提醒与短信读同一个账号；提交通知和账本前经 `withUnreadSnapshot` 再校验归属与社区访问。
+  `/p1/notify` 没有分页，快照保留 `total`：最多 40 条的一页不完整时，不用缺席证明旧通知已读。
+- `SystemNotices.post` 返回是否已交给系统；总权限或类别关闭时为 false。提醒与汇总只有构造好、成功提交后才记已发，
+  空汇总不占当天记录。社区把未交给系统的提醒 id 按账号记在 `SystemNoticeLedger`，其他类别仍可发，下一轮只补这些；
+  短信被系统阻止时不推进上一轮条数。首轮与 App 前台主动不推仍推进基线，和发送被阻止是两回事。
+
 - 通知栏里还挂着哪些只从系统读（`NotificationManager.activeNotifications`，按 tag + id）：用户划掉的、点开的不用另记，下一轮看不见就不撤。
 - Android 12 起不许通知点开先进广播再开页面（trampoline）：点开的意图直接是 `AppActivity`，由它标已读、跳页（`EXTRA_NOTICE_ID`、`EXTRA_INBOX`）；
   只有不开页面的按钮（「标为已读」「看过了」）是广播，挂起到写完再结束（`goAsync`，同小组件的 +1，§2.6）。
@@ -378,7 +390,7 @@ flowchart LR
   `adb shell am broadcast -n io.github.touhougo.chogumi.debug/io.github.touhougo.chogumi.debug.NoticeSampleReceiver --es kind <kind>`，
   kind 是 `community`（最近 3 条提醒，已读的也算）、`message`（未读短信，`--ei count` 定条数）、`airing`（在追作品每部一条）、`digest`（每日汇总）。
   发的是真的数据，照真的样子发（`CommunityNotices.postSamples`、`AiringReminders.postSamples`），点开与按钮和真的同一条路；不看设置里的开关。
-  测整条链路用 `check`（立刻跑一轮真的社区提醒检查）、`run`（立刻跑一次真的放送提醒）：照真的规矩，开关关着、刚打开的第一轮、App 在前台都不发。
+  测整条链路用 `check`（立刻跑一轮真的社区提醒检查）、`run`（立刻跑一次真的放送提醒）：照真的规矩，社区检查开关关着、刚打开的第一轮、App 在前台都不发；放送提醒按开关、时刻和已发记录决定。
 - 每天定时的「上一次」「下一次」按设备时区的日历日子算（`lastDailyMillisOf` / `nextDailyMillisOf`），不加减 24 小时：夏令时切换那天是 23 或 25 小时。
 - Android 13 起发通知要用户允许（`POST_NOTIFICATIONS`）：第一次打开任一提醒时问；拒绝过、系统不再弹的，打开系统的通知设置页。
   系统里关掉通知时开关显示为关、写原因，设置本身不改：回来打开系统通知就接着发。
