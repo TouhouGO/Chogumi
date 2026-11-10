@@ -96,7 +96,8 @@ fun StatsLine(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
         fun x(i: Int) = 16.dp.toPx() + i * (widthPx - 32.dp.toPx()) / (points.size - 1).coerceAtLeast(1)
         fun y(v: Double) = 16.dp.toPx() + ((hi - v) / (hi - lo)).toFloat() * (bottom - 16.dp.toPx())
         val path = Path().apply { points.forEachIndexed { i, p -> if (i == 0) moveTo(x(i), y(p.value)) else lineTo(x(i), y(p.value)) } }
-        ChartLayout(points.mapIndexed { i, p -> ChartMark(Rect(x(i) - 16.dp.toPx(), 0f, x(i) + 16.dp.toPx(), heightPx), p.tip,
+        val hits = lineHitBounds(points.indices.map(::x), widthPx, heightPx)
+        ChartLayout(points.mapIndexed { i, p -> ChartMark(hits[i], p.tip,
             Rect(x(i) - 5.dp.toPx(), y(p.value) - 5.dp.toPx(), x(i) + 5.dp.toPx(), y(p.value) + 5.dp.toPx())) }) {
             reference?.let {
                 drawLine(muted, Offset(0f, y(it)), Offset(widthPx, y(it)), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())))
@@ -110,6 +111,13 @@ fun StatsLine(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
             }
         }
     }
+}
+
+/** 折线每个点的命中区：横向在与左右邻点的中线处分开（首尾到画布边），纵向占满。点再密，点到的也是离手指最近的那一点。 */
+internal fun lineHitBounds(xs: List<Float>, widthPx: Float, heightPx: Float): List<Rect> = xs.mapIndexed { i, x ->
+    val left = if (i == 0) 0f else (xs[i - 1] + x) / 2
+    val right = if (i == xs.lastIndex) widthPx else (x + xs[i + 1]) / 2
+    Rect(left, 0f, right, heightPx)
 }
 
 /** 相同点列的色带，以全站均分为中心显出正负差值。 */
