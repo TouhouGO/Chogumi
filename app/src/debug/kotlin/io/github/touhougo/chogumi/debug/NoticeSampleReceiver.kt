@@ -22,7 +22,7 @@ import org.koin.core.qualifier.named
  * ```
  *
  * kind：`community` 最近 3 条提醒（已读的也算），`message` 未读短信（`--ei count 5` 定条数，默认 3），
- * `airing` 在追作品每部一条开播提醒，`digest` 一条每日汇总。命令行的 `data=` 写发了几条。
+ * `airing` 在追作品每部一条开播提醒，`digest` 一条每日汇总。命令行的 `data=` 写发了几条（`digest` 写汇总里有几部）。
  */
 class NoticeSampleReceiver : BroadcastReceiver(), KoinComponent {
     private val community: CommunityNotices by inject()
