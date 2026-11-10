@@ -344,7 +344,8 @@
     <string name="sort_air_date">放送日期</string>
     <string name="sort_release_date">发售日期</string>
     <string name="sort_title">名称</string>
-    <string name="sort_rating">评分</string>
+    <string name="sort_public_rating">公共评分</string>
+    <string name="sort_my_rating">个人评分</string>
     <!-- 排序菜单分隔线下的两种顺序：时间、评分、名称各一对，默认的在前 -->
     <string name="sort_new_to_old">新到旧</string>
     <string name="sort_old_to_new">旧到新</string>

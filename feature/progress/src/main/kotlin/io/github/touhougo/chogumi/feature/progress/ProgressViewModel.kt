@@ -12,6 +12,7 @@ import io.github.touhougo.chogumi.core.data.repository.CollectionStore
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository
 import io.github.touhougo.chogumi.core.data.repository.WatchStateStore
+import io.github.touhougo.chogumi.core.data.util.storageAsLoad
 import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.foundation.AppTime
 import io.github.touhougo.chogumi.core.foundation.Failure
@@ -57,7 +58,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -78,10 +81,13 @@ data class ProgressUiState(
     val query: String = "",
     val collectionStatus: CollectionType = CollectionType.DOING,
     /**
-     * 用户在排序菜单里选的档位与方向（**不持久化**）。某一页没有这一档时（书籍没有「最近更新」）那一页按
-     * [ProgressOrder.on] 换成最近操作，这里仍记着用户的选择，翻回有这一档的页又按它排。菜单读 [pageOrder]。
+     * 用户在排序菜单里选的档位与方向（**不持久化**）。某一页没有这一档时（书籍没有「最近更新」、关掉公共评分时没有
+     * 「公共评分」）那一页按 [ProgressOrder.on] 换成最近操作，这里仍记着用户的选择，翻回有这一档的页（或再打开公共评分）
+     * 又按它排。菜单读 [pageOrder]。
      */
     val order: ProgressOrder = ProgressOrder(),
+    /** 公共评分开着没有（`AppFeatures.publicRatings`，跟着设置变）：关掉时排序菜单里没有「公共评分」档。 */
+    val publicRatings: Boolean = true,
     val selectedSubjectType: Int = 0,
     /**
      * 第一次入口请求处理完了（[selectedSubjectType] 已是该开的那页）。初始请求要先读设置里的默认分类，
@@ -177,7 +183,7 @@ data class ProgressUiState(
         watchStates[subjectId] ?: emptyMap<Int, EpisodeStatus>().takeIf { subjectId in emptyWatchStates }
 
     /** 选中页实际按什么排（排序菜单显示它）：见 [order]。 */
-    val pageOrder: ProgressOrder get() = order.on(PROGRESS_TYPES[selectedSubjectType])
+    val pageOrder: ProgressOrder get() = order.on(PROGRESS_TYPES[selectedSubjectType], publicRatings)
 
     /** 生效的筛选有几项（标签与分类，已按这一页收敛）：筛选入口上的数字徽标。排序不算筛选。 */
     val activeFilterCount: Int get() = selectedTags.size + selectedCategories.size
@@ -275,6 +281,20 @@ class ProgressViewModel(
                 it.copy(watchStates = snapshot.episodes.statesBySubject, latestWatchedAt = snapshot.episodes.latestWatchedAtBySubject)
             }
             applyFilter()
+        }
+        viewModelScope.launch {
+            // 页面打开之后才跟公共评分开关：打开之前排序用不上它，而偏好读不出时打开要读的默认分类也读不出，
+            // 提示条只留最新一条，这一路的提示会顶掉默认分类那条，点「重试」就打不开页面。
+            uiState.first { it.opened }
+            follow(failures, { preferencesRepository.appFeatures.map { it.publicRatings }.distinctUntilChanged().storageAsLoad() }) { publicRatings ->
+                if (publicRatings == currentState.publicRatings) return@follow
+                updateState { it.copy(publicRatings = publicRatings) }
+                // 只有选着「公共评分」时各页实际的排序跟着变：关掉时按最近操作排，再打开又按公共评分排。
+                if (currentState.order.sort == ProgressSort.PUBLIC_RATING) {
+                    reorderAll()
+                    applyFilter()
+                }
+            }
         }
         viewModelScope.launch {
             epTapCoordinator.pending.collect { map ->
@@ -688,7 +708,7 @@ private suspend fun progressPagesOf(
         coroutineContext.ensureActive()
         progressPageOf(
             type, collections, state.collectionStatus, state.query, state.selectedTags,
-            state.selectedCategories, state.order, state.latestWatchedAt, state.episodesMap, state.today,
+            state.selectedCategories, state.order.on(type, state.publicRatings), state.latestWatchedAt, state.episodesMap, state.today,
         )
     }
     return results to results.mapIndexed { page, result -> stableOrder(orders[page], result.items) { it.subjectId } }
@@ -709,7 +729,7 @@ internal class ProgressPage(
 /**
  * 一页（[type]，null = 全部）在当前条件下的样子，选中页与邻页都经这里：按收藏状态取一批，
  * 「标签」「分类」按这一页的可选项收敛后筛（标签并集 [matchesTagFilter]，分类同维并集、跨维交集
- * [matchesCategoryFilter]），再按搜索词筛、按这一页实际的排序（[ProgressOrder.on]）经 [sortProgress] 排。
+ * [matchesCategoryFilter]），再按搜索词筛、按 [order]（这一页实际的排序，调用方经 [ProgressOrder.on] 取）经 [sortProgress] 排。
  * 一个判定都不在这里重写。
  */
 internal fun progressPageOf(
@@ -737,7 +757,7 @@ internal fun progressPageOf(
             matchesCategoryFilter(item.subject?.metaTags.orEmpty(), categories) &&
             (keyword.isEmpty() || item.subject?.let { it.nameCn.contains(keyword, true) || it.name.contains(keyword, true) } == true)
     }
-    val items = sortProgress(filtered, order.on(type), today, latestWatchedAt, episodes)
+    val items = sortProgress(filtered, order, today, latestWatchedAt, episodes)
     return ProgressPage(matching, tagOptions, categoryGroups, tags, categories, items)
 }
 

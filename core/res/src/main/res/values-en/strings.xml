@@ -335,7 +335,8 @@
     <string name="sort_air_date">Air date</string>
     <string name="sort_release_date">Release date</string>
     <string name="sort_title">Title</string>
-    <string name="sort_rating">Rating</string>
+    <string name="sort_public_rating">Public rating</string>
+    <string name="sort_my_rating">My rating</string>
     <!-- The two directions below the divider in the sort menu: one pair each for time, rating and title, default first -->
     <string name="sort_new_to_old">Newest first</string>
     <string name="sort_old_to_new">Oldest first</string>
