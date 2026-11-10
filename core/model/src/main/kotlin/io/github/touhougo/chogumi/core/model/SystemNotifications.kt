@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 
 /**
  * 系统通知的两类提醒（设置 › 通知）。bgm.tv 没有推送，两类都在本机算：
@@ -191,11 +192,15 @@ fun airingScheduleOf(reminders: List<AiringReminder>, date: LocalDate, posted: S
     )
 }
 
-/** 每天定时汇总的上一次时刻：不晚于 [nowMillis] 的最后一次（[nextDailyMillisOf] 的反方向）。 */
-fun lastDailyMillisOf(nowMillis: Long, minuteOfDay: Int, zone: ZoneId): Long =
-    nextDailyMillisOf(nowMillis - DAY_MILLIS, minuteOfDay, zone)
-
-private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
+/**
+ * 每天定时汇总的上一次时刻：不晚于 [nowMillis] 的最后一次（[nextDailyMillisOf] 的反方向）。按日历的日子往回退，不减 24 小时：
+ * 夏令时切换的那天不是 24 小时。
+ */
+fun lastDailyMillisOf(nowMillis: Long, minuteOfDay: Int, zone: ZoneId): Long {
+    val now = Instant.ofEpochMilli(nowMillis).atZone(zone)
+    val today = dailyAt(now.toLocalDate(), minuteOfDay, zone)
+    return (if (today.isAfter(now)) dailyAt(now.toLocalDate().minusDays(1), minuteOfDay, zone) else today).toInstant().toEpochMilli()
+}
 
 /**
  * 每天定时汇总的下一次时刻（epoch 毫秒）：[minuteOfDay] 是设备时区 [zone] 里从 0 点起的分钟数；严格晚于 [nowMillis] 的第一次。
@@ -203,8 +208,10 @@ private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
  */
 fun nextDailyMillisOf(nowMillis: Long, minuteOfDay: Int, zone: ZoneId): Long {
     val now = Instant.ofEpochMilli(nowMillis).atZone(zone)
-    val time = LocalTime.of(minuteOfDay / 60, minuteOfDay % 60)
-    val today = now.toLocalDate().atTime(time).atZone(zone)
-    val next = if (today.isAfter(now)) today else now.toLocalDate().plusDays(1).atTime(time).atZone(zone)
-    return next.toInstant().toEpochMilli()
+    val today = dailyAt(now.toLocalDate(), minuteOfDay, zone)
+    return (if (today.isAfter(now)) today else dailyAt(now.toLocalDate().plusDays(1), minuteOfDay, zone)).toInstant().toEpochMilli()
 }
+
+/** 设备时区 [zone] 里 [date] 那天的 [minuteOfDay]（夏令时跳过的那段按系统的规则往后挪）。 */
+private fun dailyAt(date: LocalDate, minuteOfDay: Int, zone: ZoneId): ZonedDateTime =
+    date.atTime(LocalTime.of(minuteOfDay / 60, minuteOfDay % 60)).atZone(zone)

@@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -52,6 +54,7 @@ import org.koin.core.component.inject
  *   `messageRoundOf` 决定发什么、撤什么；通知栏里还挂着哪些只从系统读。App 在前台时只记基线、不发（角标已经在）。
  * - 跟着谁：[watch] 跟着开关、专注模式与账号。开着、不在专注模式、登录着就排上；否则取消、撤掉已发的社区提醒。
  *   关掉开关、登出、换号时连基线一起清掉：再打开时打开那一刻已有的未读不推。
+ * - 一轮与一次撤一个接一个（[lock]）：撤的时候在途的那一轮（正在取头像）先结束，撤完之后它不会把通知与基线写回来。
  */
 class CommunityNotices(
     private val context: Context,
@@ -61,6 +64,8 @@ class CommunityNotices(
     private val authRepository: AuthRepository,
     private val foreground: Flow<Boolean>,
 ) {
+    private val lock = Mutex()
+
     /** 应用级：一直跟着开关、专注模式与账号（App 启动时开始，进程在就在）。 */
     suspend fun watch() {
         authRepository.ensureInitialized()
@@ -93,16 +98,16 @@ class CommunityNotices(
      * 一轮检查（后台，App 可能不在）。读不出来（断网、服务端出错、本机存储）就这一轮什么都不动，下一轮再来；
      * 访问关着（专注模式、没登录、读的期间换了号）撤掉社区提醒。
      */
-    suspend fun check() {
+    suspend fun check(): Unit = lock.withLock {
         val settings = outcomeOf { preferences.notificationSettings.first() }
-        if (settings !is Outcome.Success || !settings.value.community) return
+        if (settings !is Outcome.Success || !settings.value.community) return@withLock
         val snapshot = when (val read = notificationRepository.unreadSnapshot()) {
             is Outcome.Success -> read.value
-            is Outcome.Failed -> return
+            is Outcome.Failed -> return@withLock
         }
         if (snapshot == null) {
             cancelShown()
-            return
+            return@withLock
         }
         outcomeOf { post(snapshot) }
     }
@@ -174,10 +179,13 @@ class CommunityNotices(
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
+    /** 先取消排着的检查（在跑的那一轮随之取消），等它结束再撤通知、清基线。 */
     private suspend fun stop() {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
-        cancelShown()
-        outcomeOf { ledger.forgetCommunity() }
+        lock.withLock {
+            cancelShown()
+            outcomeOf { ledger.forgetCommunity() }
+        }
     }
 
     private fun cancelShown() {
