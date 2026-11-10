@@ -11,8 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.bbcode.BBCodeParser
+import io.github.touhougo.chogumi.core.common.bbcode.copyTextOf
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.ReaderTypography
+import io.github.touhougo.chogumi.core.ui.common.copyOnLongPress
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonText
 
 /** 简介区块的 testTag：真实简介与骨架共用。 */
@@ -29,7 +31,8 @@ private val SynopsisTogglePadding = PaddingValues(horizontal = 0.dp)
  *
  * 文案经 [BBCodeText] 渲染（目录简介里也带 BBCode），**只解析一次**（[remember]）；
  * 「有没有超出 3 行」和「要不要画按钮」交给楼层正文同一份 [FoldableText]，不无条件画按钮。
- * 纯文本简介的排版：`bodyMedium` + `onSurfaceVariant`。
+ * 纯文本简介的排版：`bodyMedium` + `onSurfaceVariant`。点正文与按钮一样切换折叠；长按正文复制整段简介
+ * （[copyOnLongPress]，去掉标记的纯文字 [copyTextOf]，折叠着也复制全文）。
  *
  * [text] 为 null 时画骨架：同样行数的 [SkeletonText]，下面放 [FoldTogglePlaceholder] 占住按钮的高度。
  * 骨架按最大高度预留，简介不足 3 行时按钮不画，下面的内容只会上收、不会被顶下去。
@@ -50,6 +53,7 @@ fun CollapsibleSynopsis(
     ) {
         if (text != null) {
             val ast = remember(text) { BBCodeParser.parse(text) }
+            val copyText = remember(text) { copyTextOf(text) }
             FoldableText(
                 ast = ast,
                 expanded = expanded,
@@ -59,7 +63,7 @@ fun CollapsibleSynopsis(
                 collapseLabel = R.string.detail_collapse,
                 style = textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                 toggleContentPadding = SynopsisTogglePadding,
-                onContentClick = onToggle,
+                contentGestures = Modifier.copyOnLongPress(copyText, onClick = onToggle),
             )
         } else {
             SkeletonText(textStyle, Modifier.fillMaxWidth(), lines = SYNOPSIS_COLLAPSED_LINES)

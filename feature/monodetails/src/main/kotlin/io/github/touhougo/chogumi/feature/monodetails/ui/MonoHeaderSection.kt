@@ -37,6 +37,7 @@ import io.github.touhougo.chogumi.core.model.MonoFactKind
 import io.github.touhougo.chogumi.core.model.MonoPersonRefBo
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.Gated
+import io.github.touhougo.chogumi.core.ui.common.copyOnLongPress
 import io.github.touhougo.chogumi.core.ui.composables.CircleAvatar
 import io.github.touhougo.chogumi.core.ui.composables.CollectCountButton
 import io.github.touhougo.chogumi.core.ui.composables.FactChip
@@ -64,7 +65,7 @@ private val HEADER_WASH_LENGTH = 300.dp
 
 /**
  * 角色 / 人物页头部（原型 `.mhead`，截图 28、30）：`secondaryContainer` → `surface` 的渐变底，拱形立绘 + 右侧一列
- * （名字 / 原名 / 身份行 + 事实 chip 与 CV chip，贴立绘底边）。
+ * （名字 / 原名 / 身份行 + 事实 chip 与 CV chip，贴立绘底边）。名字与原名各自长按复制全文（[copyOnLongPress]）。
  *
  * 收藏在顶栏右上角（[MonoTopBarActions]），CV 与「ⓘ 资料」是 chip、并进右列（资料 chip 与作品页头部同一个 [HeaderChip]，点了打开全部资料），
  * 立绘下方不另起操作行——事实、CV、操作三行排在立绘下会留出大片空白。
@@ -99,6 +100,7 @@ internal fun MonoHeader(
     ) {
         Text(
             text = title,
+            modifier = Modifier.copyOnLongPress(title),
             style = MaterialTheme.typography.headlineSmallEmphasized,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -106,6 +108,7 @@ internal fun MonoHeader(
         if (originalName != null) {
             Text(
                 text = originalName,
+                modifier = Modifier.copyOnLongPress(originalName),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

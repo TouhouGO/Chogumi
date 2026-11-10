@@ -129,11 +129,14 @@ fun BBCodeNode.plainText(): String = when (this) {
 }
 
 /**
- * 一层楼的正文 → 「复制」拿到的纯文字（全仓唯一）：开头的引用块不要（那是被回复的人的话），其余标签去掉、只留文字，
- * 换行原样保留；剧透照出原文（复制是自己要看的）；图片留地址、表情留代码（贴回 bgm.tv 仍是这个表情）。
+ * 一段 BBCode → 「复制」拿到的纯文字（全仓唯一，简介长按复制用它）：标签去掉、只留文字，换行原样保留；
+ * 剧透照出原文（复制是自己要看的）；图片留地址、表情留代码（贴回 bgm.tv 仍是这个表情）。
  */
-fun floorCopyTextOf(content: String): String =
-    BBCodeParser.parse(splitLeadingQuote(content).body).nodes.joinToString("") { it.plainText() }.trim()
+fun copyTextOf(content: String): String =
+    BBCodeParser.parse(content).nodes.joinToString("") { it.plainText() }.trim()
+
+/** 一层楼的正文 → 「复制」拿到的纯文字：开头的引用块不要（那是被回复的人的话），其余同 [copyTextOf]。 */
+fun floorCopyTextOf(content: String): String = copyTextOf(splitLeadingQuote(content).body)
 
 /**
  * 服务端截好的 BBCode 摘要（日志摘要）→ 列表里的一行纯文字：标签去掉（方言之外但成对的也去掉）；剧透换成占位块，绝不泄漏；
