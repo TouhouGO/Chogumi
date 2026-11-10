@@ -37,6 +37,7 @@ import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCard
 import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCell
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
+import io.github.touhougo.chogumi.core.ui.arrange.StatsModuleLead
 import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
 import io.github.touhougo.chogumi.core.ui.testing.PageSheetTestHost
 import io.github.touhougo.chogumi.core.ui.testing.VisualCapture

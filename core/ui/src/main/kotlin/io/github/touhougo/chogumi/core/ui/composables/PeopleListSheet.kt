@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 
@@ -33,16 +34,26 @@ fun PeopleListSheet(
     ScrollableModalSheet(
         onDismiss = onDismiss,
         contentKey = contentKey,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = peopleListSheetColor,
     ) {
-        SheetTitleRow(title)
-        Row(
-            modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = ChogumiDimens.ScreenPadding, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            content = filters,
-        )
+        PeopleListHead(title, filters)
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter, content = content)
     }
+}
+
+/** 名单面板的底色；手势引导里名单面板的示意也是它。 */
+internal val peopleListSheetColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceContainer
+
+/** 名单面板人物区上面的部分：标题一行，下面一排横滑的筛选 chip。手势引导里名单面板的示意也画它。 */
+@Composable
+internal fun PeopleListHead(title: String, filters: @Composable RowScope.() -> Unit) {
+    SheetTitleRow(title)
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = ChogumiDimens.ScreenPadding, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = filters,
+    )
 }

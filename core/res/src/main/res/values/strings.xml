@@ -927,8 +927,12 @@
     <string name="gesture_tour_episode_text">点格子标到这一集；按住一集，看这一集的简介和评论。</string>
     <string name="gesture_tour_floor_title">楼层里还有更多</string>
     <string name="gesture_tour_floor_text">点一层就回复；按住可以贴贴、复制、举报，自己的楼层还能编辑和删除。</string>
+    <string name="gesture_tour_reaction_title">看看谁贴了</string>
+    <string name="gesture_tour_reaction_text">点一下贴贴就跟着贴；按住一个，看都有谁贴了。</string>
     <string name="gesture_tour_arrange_title">探索页按你的口味排</string>
-    <string name="gesture_tour_arrange_text">按住探索或统计模块的标题，调整顺序、名称和样式，或添加、移除模块。</string>
+    <string name="gesture_tour_arrange_text">按住探索模块的标题，调整顺序、名称和样式，或添加、移除模块。</string>
+    <string name="gesture_tour_stats_title">统计图也按你的口味排</string>
+    <string name="gesture_tour_stats_text">按住作品统计模块的标题，调整顺序、名称和样式，或添加、移除模块。</string>
     <string name="settings_gesture_tour">使用技巧</string>
     <!-- 探索页整理模块：整理列表、编辑面板、添加模块 -->
     <string name="explore_arrange_title">整理模块</string>

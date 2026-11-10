@@ -63,6 +63,8 @@ import io.github.touhougo.chogumi.core.ui.composables.SectionHeader
 import io.github.touhougo.chogumi.core.ui.composables.SectionHeaderSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonStandIn
 import io.github.touhougo.chogumi.core.ui.composables.StatsCard
+import io.github.touhougo.chogumi.core.ui.composables.StatsCardGap
+import io.github.touhougo.chogumi.core.ui.composables.StatsModulePadding
 import io.github.touhougo.chogumi.core.ui.composables.SubjectCardVerticalSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.formatScore
 import io.github.touhougo.chogumi.core.ui.theme.AppMotion
@@ -120,7 +122,7 @@ internal fun LazyListScope.statsTabItems(
             entrances.play(module.id, entrance, motion, module.drawing.entranceStagger())
         }
         CompositionLocalProvider(LocalChartEntrance provides entrance) {
-            Column(Modifier.padding(vertical = 6.dp)) {
+            Column(Modifier.padding(vertical = StatsModulePadding)) {
                 StatsModuleBlock(module, tab, onArrange, onSubjectClick, onRetryRatingSplit, onRetryRecs, onRetryRecentCollectTimes, onRetryEpisodes)
             }
         }
@@ -156,7 +158,7 @@ internal fun rememberStatsEntrances(subjectId: Int): StatsEntrances {
 private fun StatsLayoutSkeleton(tab: SubjectStatsTab) {
     val module = defaultStatsLayout().first()
     Column(Modifier.padding(vertical = 6.dp)) {
-        StatsCard(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        StatsCard(verticalArrangement = Arrangement.spacedBy(StatsCardGap)) {
             SkeletonStandIn { Text(statsModuleName(module, tab.subject.type), style = MaterialTheme.typography.titleMedium) }
             SkeletonStandIn { StatsDrawingSkeleton(module, tab) }
         }
@@ -211,7 +213,7 @@ internal fun StatsModuleBlock(module: StatsModule, tab: SubjectStatsTab, onArran
         }
         return
     }
-    StatsCard(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    StatsCard(verticalArrangement = Arrangement.spacedBy(StatsCardGap)) {
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = titleModifier)
         if (module.data == StatsData.RATING) {
             Row(verticalAlignment = Alignment.Top) {

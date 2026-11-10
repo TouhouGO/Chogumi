@@ -44,7 +44,7 @@ class GestureTourTest {
             composeRule.onNodeWithText("下一步").performClick()
             composeRule.mainClock.advanceTimeBy(PAGE_MILLIS)
         }
-        composeRule.onNodeWithText("探索页按你的口味排").assertIsDisplayed()
+        composeRule.onNodeWithText("统计图也按你的口味排").assertIsDisplayed()
         composeRule.onNodeWithText("跳过").assertDoesNotExist()
         composeRule.onNodeWithText("下一步").assertDoesNotExist()
         assertEquals("翻页不算结束", 0, done)
@@ -64,7 +64,7 @@ class GestureTourTest {
     }
 
     private companion object {
-        const val PAGES = 4
+        const val PAGES = 6
         const val FRAME_MILLIS = 16L
 
         /** 一次翻页的弹簧走完（standard default spatial 远不到 1 秒）。 */

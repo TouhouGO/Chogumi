@@ -24,19 +24,16 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -77,8 +74,12 @@ import io.github.touhougo.chogumi.core.model.CommentReactionBo
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.composables.AppDropdownMenu
 import io.github.touhougo.chogumi.core.ui.composables.AppMenuItem
+import io.github.touhougo.chogumi.core.ui.composables.ReactionChipFace
+import io.github.touhougo.chogumi.core.ui.composables.ReactionChipGeometry
 import io.github.touhougo.chogumi.core.ui.composables.ReactionGridGeometry
 import io.github.touhougo.chogumi.core.ui.composables.RollingText
+import io.github.touhougo.chogumi.core.ui.composables.reactionChipContainer
+import io.github.touhougo.chogumi.core.ui.composables.reactionChipContent
 import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -91,8 +92,6 @@ import kotlinx.coroutines.launch
 
 /** 已被占用的表情画多淡：取 Compose M3 组件不可用内容用的透明度（M3 规范里没写数值，我的设计决定）。 */
 private const val TAKEN_ALPHA = 0.38f
-private val ReactionChipHeight = 28.dp
-private val ReactionChipSmiley = 16.dp
 /** 贴上时 chip 弹一下的峰值缩放（设计决定，not in M3）。 */
 private const val REACTION_POP_SCALE = 1.15f
 
@@ -173,8 +172,8 @@ internal fun ReactionBar(
         modifier = modifier
             .fillMaxWidth()
             .animateRowHeight(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(ReactionChipGeometry.Spacing),
+        verticalArrangement = Arrangement.spacedBy(ReactionChipGeometry.Spacing),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         CommentReactionsFlow(
@@ -360,7 +359,7 @@ internal fun ReactionGrid(palette: List<Int>, selected: Int?, taken: Set<Int> = 
 }
 
 /**
- * 贴贴 chip（原型 `.react`）：高 28、左右 10、全圆角、表情 16；我贴过的用 `primaryContainer`。[onToggle] 非 null 时可点。
+ * 贴贴 chip：样子是 [ReactionChipFace]（几何 [ReactionChipGeometry]，我贴过的 `primaryContainer`）。[onToggle] 非 null 时可点。
  *
  * 动画（贴贴不能只是机械地换色加数）：
  * - 计数变化：新数字从下方滑入（+1）或上方滑入（−1），旧数字反向滑出；
@@ -389,12 +388,12 @@ private fun CommentReactionsFlow(
 private fun ReactionChip(reaction: CommentReactionBo, onToggle: ((CommentReactionBo) -> Unit)?, onShowUsers: (value: Int) -> Unit) {
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
     val container by animateColorAsState(
-        if (reaction.selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        reactionChipContainer(reaction.selected),
         effects,
         label = "reactionContainer",
     )
     val content by animateColorAsState(
-        if (reaction.selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        reactionChipContent(reaction.selected),
         effects,
         label = "reactionContent",
     )
@@ -411,38 +410,30 @@ private fun ReactionChip(reaction: CommentReactionBo, onToggle: ((CommentReactio
         Unit
     }
     val display = reactionDisplayOf(reaction.value)
-    Surface(
-        shape = CircleShape,
-        color = container,
-        contentColor = content,
+    ReactionChipFace(
+        container = container,
+        content = content,
         modifier = Modifier.graphicsLayer {
             scaleX = pop.value
             scaleY = pop.value
         },
+        rowModifier = Modifier
+            .reactionChipGestures(
+                selected = reaction.selected,
+                onToggle = onToggle?.let { toggle ->
+                    {
+                        if (!reaction.selected) popOnSelect()
+                        toggle(reaction)
+                    }
+                },
+                onShowUsers = { onShowUsers(reaction.value) },
+                usersLabel = stringResource(R.string.reaction_users_open),
+            )
+            .animateContentSize(reactionSizeSpec()),
     ) {
-        Row(
-            modifier = Modifier
-                .reactionChipGestures(
-                    selected = reaction.selected,
-                    onToggle = onToggle?.let { toggle ->
-                        {
-                            if (!reaction.selected) popOnSelect()
-                            toggle(reaction)
-                        }
-                    },
-                    onShowUsers = { onShowUsers(reaction.value) },
-                    usersLabel = stringResource(R.string.reaction_users_open),
-                )
-                .heightIn(min = ReactionChipHeight)
-                .padding(horizontal = 10.dp)
-                .animateContentSize(reactionSizeSpec()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ReactionGlyph(display, ReactionChipSmiley)
-            // 只翻变了的那几位：100 → 101 只有末位翻，「10」不动（全 App 的数字变化都走 RollingText）
-            RollingText(text = "${reaction.count}", order = reaction.count, style = MaterialTheme.typography.labelMedium)
-        }
+        ReactionGlyph(display, ReactionChipGeometry.Smiley)
+        // 只翻变了的那几位：100 → 101 只有末位翻，「10」不动（全 App 的数字变化都走 RollingText）
+        RollingText(text = "${reaction.count}", order = reaction.count, style = MaterialTheme.typography.labelMedium)
     }
 }
 
