@@ -83,7 +83,7 @@ internal fun StatsModuleDrawing(module: StatsModule, tab: SubjectStatsTab, onSub
         StatsDrawing.LIFELINE -> tab.lifeline.valueOrNull()?.let { LifeTimeline(it) }
         StatsDrawing.EPISODE_GRID -> tab.episodeHeat.valueOrNull()?.let { EpisodeHeat(it) }
         StatsDrawing.EPISODE_BARS, StatsDrawing.EPISODE_LINE -> tab.episodeHeat.valueOrNull()?.let { heat ->
-            val points = heat.cells.map { cell -> PlotPoint(formatEpisodeSort(cell.sort), cell.comments.toDouble(), if (subject.type == io.github.touhougo.chogumi.core.model.SubjectType.MUSIC) stringResource(R.string.stats_track_tip, formatEpisodeSort(cell.sort), cell.comments)
+            val points = heat.cells.map { cell -> PlotPoint(formatEpisodeSort(cell.sort), cell.comments.toDouble(), if (subject.type == io.github.touhougo.chogumi.core.model.SubjectType.MUSIC) androidx.compose.ui.res.pluralStringResource(R.plurals.stats_track_tip, cell.comments, formatEpisodeSort(cell.sort), cell.comments)
                 else androidx.compose.ui.res.pluralStringResource(R.plurals.stats_episode_tip, cell.comments, formatEpisodeSort(cell.sort), cell.comments)) }
             if (module.drawing == StatsDrawing.EPISODE_LINE) StatsLine(points) else CountBars(points.map { it.value.toInt() }, points.map { it.label }, points.map { it.tip }, statsModuleName(module, subject.type), 110.dp)
         }

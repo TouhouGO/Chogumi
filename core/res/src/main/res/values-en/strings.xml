@@ -1600,7 +1600,7 @@
     <string name="stats_ridge_tip">Mean %1$s, %2$s rated between %3$d and %4$d</string>
     <string name="stats_tag_more">+%1$d</string>
     <string name="stats_tag_collapse">Collapse</string>
-    <string name="stats_track_tip">Track %1$s: %2$d comments</string>
     <plurals name="stats_group_tip"><item quantity="one">%1$s: mean %2$s (%3$d voter)</item><item quantity="other">%1$s: mean %2$s (%3$d voters)</item></plurals>
     <plurals name="stats_tag_expand_description"><item quantity="one">Expand all %1$d tag</item><item quantity="other">Expand all %1$d tags</item></plurals>
+    <plurals name="stats_track_tip"><item quantity="one">Track %1$s: %2$d comment</item><item quantity="other">Track %1$s: %2$d comments</item></plurals>
 </resources>

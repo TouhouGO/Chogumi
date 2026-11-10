@@ -1603,7 +1603,7 @@
     <string name="stats_ridge_tip">均分 %1$s，%2$s 的人打在 %3$d–%4$d 分</string>
     <string name="stats_tag_more">+%1$d</string>
     <string name="stats_tag_collapse">收起</string>
-    <string name="stats_track_tip">第 %1$s 首：%2$d 条讨论</string>
     <plurals name="stats_group_tip"><item quantity="other">%1$s：均分 %2$s（%3$d 人）</item></plurals>
     <plurals name="stats_tag_expand_description"><item quantity="other">展开全部 %1$d 个标签</item></plurals>
+    <plurals name="stats_track_tip"><item quantity="other">第 %1$s 首：%2$d 条讨论</item></plurals>
 </resources>
