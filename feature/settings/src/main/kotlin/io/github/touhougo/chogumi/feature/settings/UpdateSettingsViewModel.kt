@@ -62,11 +62,26 @@ class UpdateSettingsViewModel(
         viewModelScope.launchWrite(failures) { preferencesRepository.setUpdateCheckInterval(value) }
     }
 
+    /**
+     * 正在查时又要查（查的时候打开了预发布通道）：记下，这一轮结束后再查一次。正在跑的那一轮是按旧设置取的，
+     * 它的结果不算数，不丢掉这一次请求。
+     */
+    private var recheck = false
+
     override fun checkNow() {
-        if (currentState.manualCheck == ManualUpdateCheck.CHECKING) return
+        if (currentState.manualCheck == ManualUpdateCheck.CHECKING) {
+            recheck = true
+            return
+        }
         updateState { it.copy(manualCheck = ManualUpdateCheck.CHECKING) }
         viewModelScope.launch {
             val result = appUpdates.checkNow()
+            if (recheck) {
+                recheck = false
+                updateState { it.copy(manualCheck = ManualUpdateCheck.IDLE) }
+                checkNow()
+                return@launch
+            }
             val next = if (result is Outcome.Success && result.value == null) ManualUpdateCheck.UP_TO_DATE else ManualUpdateCheck.IDLE
             updateState { it.copy(manualCheck = next) }
             if (result is Outcome.Failed) failures.post(result.failure, retry = ::checkNow)
