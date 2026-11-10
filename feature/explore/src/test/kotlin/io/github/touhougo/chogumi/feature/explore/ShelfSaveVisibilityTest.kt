@@ -26,8 +26,10 @@ import io.github.touhougo.chogumi.core.data.repository.testWebSessionRepository
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.model.SubjectType
+import io.github.touhougo.chogumi.core.model.TileShelfSource
 import io.github.touhougo.chogumi.core.model.WorkShelfStyle
 import io.github.touhougo.chogumi.core.model.defaultShelfLayout
+import io.github.touhougo.chogumi.core.model.tileCandidates
 import io.github.touhougo.chogumi.core.network.api.NextApi
 import io.github.touhougo.chogumi.core.network.api.PrivacyApi
 import io.github.touhougo.chogumi.core.network.testApiClient
@@ -46,6 +48,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,7 +56,7 @@ import org.robolectric.annotation.Config
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 
-/** 编辑保存失败留在原面板，保存期间不允许再次提交或编辑名字。 */
+/** 编辑保存失败留在原面板，保存期间不允许再次提交或编辑名字；从「添加模块」新建、保存成功回到整理页本身。 */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], qualifiers = "zh")
 class ShelfSaveVisibilityTest {
@@ -77,14 +80,41 @@ class ShelfSaveVisibilityTest {
         directories.forEach { it.deleteRecursively() }
     }
 
-    @Test
-    fun 保存挂起保留面板_失败后保留输入并恢复重试() {
+    /** 页面真用的 [ShelfArranger]，状态写进 [ui]（[ArrangeSheets] 读的就是它）。 */
+    private fun arranger(dao: ExploreShelfDao): ShelfArranger {
         val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "shelf-save-${System.nanoTime()}").apply { mkdirs(); directories += this }
         fun store(name: String) = PreferenceDataStoreFactory.create(scope = scope) { File(dir, "$name.preferences_pb") }
         val tokenStore = TokenStore(store("tokens"))
         val client = testApiClient { error("保存不请求接口") }.also { clients += it; engines += it.engine }
         val web = testWebClient { error("保存不请求网页") }.also { clients += it; engines += it.engine }
         val nsfw = NsfwPreferenceRepository(store("nsfw"), PrivacyApi(client), tokenStore, testWebSessionRepository(tokenStore, web))
+        val state = MutableStateFlow(ShelfArrangeState())
+        return ShelfArranger(
+            scope, state, { ui.arrange }, { change -> ui = ui.copy(arrange = change(ui.arrange)); state.value = ui.arrange }, failures,
+            ExploreLayoutRepository(dao), TagCatalogRepository(NextApi(client), FakeTagCatalogDao(), NsfwFilter(nsfw), AppClock { 0L }),
+        )
+    }
+
+    @Test
+    fun 从添加模块新建保存成功后两层面板一起收起_回到整理页() {
+        val dao = FakeExploreShelfDao()
+        val arranger = arranger(dao)
+        arranger.openAdding()
+        compose.setContent { ChogumiTheme { PageSheetTestHost { ArrangeSheets(ui, arranger, LocalDate.of(2026, 10, 24).year) } } }
+        compose.onNodeWithTag("add_shelf_list").assertIsDisplayed()
+        compose.runOnIdle {
+            arranger.newTilesShelf(SubjectType.ANIME)
+            arranger.addTile(tileCandidates(SubjectType.ANIME, TileShelfSource.Custom("")).first().label.key)
+        }
+        compose.onNodeWithTag("shelf_editor_save").performClick()
+        compose.waitUntil { !ui.arrange.adding && ui.arrange.editor == null }
+        compose.onNodeWithTag("add_shelf_list").assertDoesNotExist()
+        compose.onNodeWithTag("shelf_editor_save").assertDoesNotExist()
+        assertTrue("新模块写进了布局", dao.writes >= 1)
+    }
+
+    @Test
+    fun 保存挂起保留面板_失败后保留输入并恢复重试() {
         val dao = object : ExploreShelfDao by FakeExploreShelfDao() {
             override suspend fun replaceType(subjectType: Int, rows: List<ExploreShelfEntity>) {
                 entered.complete(Unit)
@@ -92,11 +122,7 @@ class ShelfSaveVisibilityTest {
                 throw IOException("保存失败")
             }
         }
-        val state = MutableStateFlow(ShelfArrangeState())
-        val arranger = ShelfArranger(
-            scope, state, { ui.arrange }, { change -> ui = ui.copy(arrange = change(ui.arrange)); state.value = ui.arrange }, failures,
-            ExploreLayoutRepository(dao), TagCatalogRepository(NextApi(client), FakeTagCatalogDao(), NsfwFilter(nsfw), AppClock { 0L }),
-        )
+        val arranger = arranger(dao)
         arranger.openEditor(SubjectType.ANIME, defaultShelfLayout(SubjectType.ANIME).single { it.id == "preset:奇幻" })
         arranger.setName("保留的输入")
         arranger.setStyle(WorkShelfStyle.SPINE)
@@ -112,7 +138,7 @@ class ShelfSaveVisibilityTest {
             assertEquals("保留的输入", (ui.arrange.editor as ShelfEditor.Works).name)
             assertFalse(ui.arrange.saving)
             assertNotNull(ui.arrange.editor)
-            assertEquals(null, ui.arrange.closing)
+            assertTrue(ui.arrange.closing.isEmpty())
         }
     }
 }

@@ -163,11 +163,11 @@ class ShelfArrangerTest {
         arranger.setStyle(WorkShelfStyle.SPINE)
         arranger.save(name = "")
         assertEquals(WorkShelfStyle.SPINE, (layoutAfterWrites(1).single { it.id == ranking.id } as WorkShelfEntry).style)
-        assertEquals(ArrangeSheet.EDITOR, state.value.closing)
+        assertEquals(setOf(ArrangeSheet.EDITOR), state.value.closing)
 
         arranger.editorClosed()
         assertNull(state.value.editor)
-        assertNull(state.value.closing)
+        assertTrue(state.value.closing.isEmpty())
     }
 
     @Test

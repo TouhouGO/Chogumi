@@ -38,7 +38,7 @@ internal fun StatsArrangeSheets(state: ArrangeState<StatsEditor>, arranger: Stat
     if (state.adding) {
         val choices = StatsData.entries.filter { it in tab.availableData() }
         val details = choices.associateWith { data -> data.drawings.map { it.label() }.joinToString("、") }
-        ArrangeAddSheet(stringResource(R.string.stats_arrange_add), state.closing == ArrangeSheet.ADDING,
+        ArrangeAddSheet(stringResource(R.string.stats_arrange_add), state.hides(ArrangeSheet.ADDING),
             arranger.machine::addingClosed, action = { Button(onClick = arranger.machine::finishAdding) { Text(stringResource(R.string.arrange_done)) } }, tag = "stats_add_list", snackbar = snackbar) {
             itemsIndexed(choices, key = { _, data -> data.name }) { index, data ->
                 ArrangeChoiceRow(index, choices.size, statsDataName(data, tab.subject.type), details[data], { arranger.add(data) },
@@ -49,7 +49,7 @@ internal fun StatsArrangeSheets(state: ArrangeState<StatsEditor>, arranger: Stat
     }
     state.editor?.let { editor ->
         ArrangeEditorSheet(stringResource(if (editor.isNew) R.string.stats_module_new else R.string.stats_module_edit),
-            state.closing == ArrangeSheet.EDITOR, arranger.machine::editorClosed,
+            state.hides(ArrangeSheet.EDITOR), arranger.machine::editorClosed,
             action = { BusyButton(onClick = arranger::save, enabled = true, busy = state.saving, busyLabel = stringResource(R.string.loading), modifier = Modifier.testTag("stats_editor_save")) { Text(stringResource(R.string.save)) } }, snackbar = snackbar) {
             FormTextField(editor.module.name, arranger::name, enabled = !state.saving,
                 label = stringResource(R.string.stats_module_name), placeholder = statsDataName(editor.module.data, tab.subject.type),
