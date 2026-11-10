@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- 调试包才有：adb 立刻发系统通知（用法在 NoticeSampleReceiver 的 KDoc）。导出给 adb 用，正式包里没有它 -->
+        <receiver
+            android:name=".debug.NoticeSampleReceiver"
+            android:exported="true" />
+    </application>
+</manifest>

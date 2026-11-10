@@ -371,6 +371,10 @@ flowchart LR
   晚了一小时以上的不补发（`AIRING_REMINDER_GRACE_MILLIS`）。每小时的刷新与 App 启动都会补排闹钟，所以不用开机广播。
 - 一次检查（放送提醒是一次跑）会被几处同时触发（闹钟、每小时的任务、App 启动时的跟随），还会撞上关开关、登出时的撤：两类都各有一把锁，
   一次跑与一次撤一个接一个。不然两次跑读到同一份「还没发」各发一遍，撤完之后在途的那次（正在取头像、封面）又把通知与基线写回来。
+- 测试时不用等真的回复或开播：调试包里有一条 adb 命令立刻发通知（app 的 debug 源码集 `NoticeSampleReceiver`，正式包里没有），
+  `adb shell am broadcast -n io.github.touhougo.chogumi.debug/io.github.touhougo.chogumi.debug.NoticeSampleReceiver --es kind <kind>`，
+  kind 是 `community`（最近 3 条提醒，已读的也算）、`message`（未读短信，`--ei count` 定条数）、`airing`（在追作品每部一条）、`digest`（每日汇总）。
+  发的是真的数据，照真的样子发（`CommunityNotices.postSamples`、`AiringReminders.postSamples`），点开与按钮和真的同一条路；不看设置里的开关。
 - 每天定时的「上一次」「下一次」按设备时区的日历日子算（`lastDailyMillisOf` / `nextDailyMillisOf`），不加减 24 小时：夏令时切换那天是 23 或 25 小时。
 - Android 13 起发通知要用户允许（`POST_NOTIFICATIONS`）：第一次打开任一提醒时问；拒绝过、系统不再弹的，打开系统的通知设置页。
   系统里关掉通知时开关显示为关、写原因，设置本身不改：回来打开系统通知就接着发。

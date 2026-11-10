@@ -112,6 +112,23 @@ class CommunityNotices(
         outcomeOf { post(snapshot) }
     }
 
+    /**
+     * 调试包的 adb 入口（app 的 debug 源码集 `NoticeSampleReceiver`）：把最近的几条提醒（已读的也算）照真的样子发出来，
+     * 不看开关、基线与前台；点开与「标为已读」和真的同一条路。下一轮真的检查会撤掉其中已读的那些。返回发了几条。
+     */
+    suspend fun postSamples(): Int {
+        val notices = (notificationRepository.getNotifications(limit = SAMPLE_COUNT) as? Outcome.Success)?.value.orEmpty()
+        if (notices.isNotEmpty()) SystemNotices.ensureChannels(context)
+        notices.forEach { SystemNotices.post(context, SystemNotices.NOTICE_TAG, it.id, noticeNotification(it)) }
+        return notices.size
+    }
+
+    /** 调试包的 adb 入口：发一条「[count] 条未读短信」，与真的同一个样子。 */
+    fun postMessageSample(count: Int) {
+        SystemNotices.ensureChannels(context)
+        SystemNotices.post(context, SystemNotices.MESSAGE_TAG, MESSAGE_ID, messageNotification(count))
+    }
+
     private suspend fun post(snapshot: UnreadSnapshot) {
         val suppress = foreground.first()
         val round = noticeRoundOf(
@@ -205,6 +222,9 @@ class CommunityNotices(
 
         /** 短信通知只有一条：同一个 id 换成新的条数。 */
         const val MESSAGE_ID = 0
+
+        /** 调试入口一次发几条最近的提醒。 */
+        const val SAMPLE_COUNT = 3
 
         /** 取头像最多等多久：取不到就不放头像，通知照发。 */
         const val ICON_TIMEOUT_MILLIS = 5_000L
