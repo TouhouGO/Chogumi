@@ -14,6 +14,7 @@ import io.github.touhougo.chogumi.core.model.releaseNotesTextOf
 import io.github.touhougo.chogumi.core.model.updateCheckDue
 import io.github.touhougo.chogumi.core.model.updateOfferOf
 import io.github.touhougo.chogumi.core.network.api.ReleaseApi
+import io.github.touhougo.chogumi.core.network.model.release.GitHubReleaseDto
 import io.github.touhougo.chogumi.core.network.model.release.ReleaseManifestDto
 import io.github.touhougo.chogumi.core.network.releaseDownloadUrl
 import java.io.File
@@ -53,6 +54,9 @@ sealed interface UpdateDownload {
 /**
  * 检查更新与应用内下载，全 App 一份（应用作用域）：外壳的更新提示框读 [offer] 与 [download]，设置页的「立即检查」调 [checkNow]。
  *
+ * - 去哪儿找最新一版由「接收预发布版」（`updatePrerelease`）定：关着只看最新正式版的 release.json；开着看最近发布的几个
+ *   Release 里最新的一个（正式或预发布，[newestPublishedOf]）和它的 release.json，说明随列表一起到。预发布与正式版共用一套
+ *   递增的版本号，比新旧、忽略都照旧只看 versionCode。
  * - 要提示的那一版带着 Release 页上发布时写的说明（[withNotes]）。
  * - 自动检查只在 App 到前台时（[watch]）按间隔判（`updateCheckDue`）；取不到什么也不做，等下一个时机——用户什么也没做，
  *   不为它打扰（设计决策）。查到了就记下时刻（检查间隔从它起算），要不要提示由 `updateOfferOf` 判。
@@ -104,23 +108,30 @@ class AppUpdates(
                     updateCheckDue(preferences.updateCheckInterval.first(), launch, preferences.updateCheckedAt.first(), clock.nowMillis())
             }.valueOrNull() ?: false
             if (!due) return
-            val latest = fetchLatest().valueOrNull() ?: return
+            val prerelease = storageOutcomeOf { preferences.updatePrerelease.first() }.valueOrNull() ?: return
+            val latest = fetchLatest(prerelease).valueOrNull() ?: return
             val offer = storageOutcomeOf {
-                updateOfferOf(preferences.updateCheck.first(), latest, installedVersionCode, preferences.ignoredUpdateVersionCode.first())
+                updateOfferOf(preferences.updateCheck.first(), latest.release, installedVersionCode, preferences.ignoredUpdateVersionCode.first())
             }.valueOrNull()
-            if (offer != null) offered.value = withNotes(offer)
+            if (offer != null) offered.value = withNotes(latest)
         }
     }
 
     /**
-     * 「立即检查」：取最新一版，比装着的新就提示（不看开关与忽略过的版本），返回它；已是最新返回 null。取不到返回失败。
+     * 「立即检查」：按「接收预发布版」取最新一版，比装着的新就提示（不看开关与忽略过的版本），返回它；
+     * 已是最新返回 null。读不出设置、取不到返回失败。
      */
     suspend fun checkNow(): Outcome<AppRelease?> = checks.withLock {
-        when (val fetched = fetchLatest()) {
+        val fetched = when (val prerelease = storageOutcomeOf { preferences.updatePrerelease.first() }) {
+            is Outcome.Failed -> return@withLock prerelease
+            is Outcome.Success -> fetchLatest(prerelease.value)
+        }
+        when (fetched) {
             is Outcome.Failed -> fetched
             is Outcome.Success -> {
-                val offer = updateOfferOf(enabled = true, latest = fetched.value, installedVersionCode = installedVersionCode, ignoredVersionCode = null)
-                if (offer != null) offered.value = withNotes(offer)
+                val latest = fetched.value
+                val offer = updateOfferOf(enabled = true, latest = latest.release, installedVersionCode = installedVersionCode, ignoredVersionCode = null)
+                if (offer != null) offered.value = withNotes(latest)
                 Outcome.Success(offer)
             }
         }
@@ -183,15 +194,28 @@ class AppUpdates(
         }
     }
 
-    private suspend fun fetchLatest(): Outcome<AppRelease> = outcomeOf {
-        val release = releaseOf(api.getLatestManifest())
+    /** 取到的最新一版；[notesKnown] 为 true 时说明已经随它到了（预发布通道读的列表带着说明），不用再取。 */
+    private class Latest(val release: AppRelease, val notesKnown: Boolean)
+
+    /** 最新一版：[prerelease] 关着读最新正式版的 release.json，开着读最近发布的几个 Release 里最新的那一个。 */
+    private suspend fun fetchLatest(prerelease: Boolean): Outcome<Latest> = outcomeOf {
+        val latest = if (prerelease) {
+            val (newest, manifestUrl) = newestPublishedOf(api.getRecentReleases())
+            val release = releaseOf(api.getManifest(manifestUrl)).copy(notes = releaseNotesTextOf(newest.body), prerelease = newest.prerelease)
+            Latest(release, notesKnown = true)
+        } else {
+            Latest(releaseOf(api.getLatestManifest()), notesKnown = false)
+        }
         storageOutcomeOf { preferences.setUpdateCheckedAt(clock.nowMillis()) }
-        release
+        latest
     }
 
     /** 要提示的那一版带上发布时写的说明；说明取不到只是不画那一块，不算这次检查失败。只在要提示时取，不为每次检查多发一个请求。 */
-    private suspend fun withNotes(release: AppRelease): AppRelease =
-        release.copy(notes = releaseNotesTextOf(outcomeOf { api.getReleaseNotes(release.versionName) }.valueOrNull()))
+    private suspend fun withNotes(latest: Latest): AppRelease {
+        if (latest.notesKnown) return latest.release
+        val release = latest.release
+        return release.copy(notes = releaseNotesTextOf(outcomeOf { api.getReleaseNotes(release.versionName) }.valueOrNull()))
+    }
 
     /** 下好并校验过的安装包；同一版已经在 [dir] 里、对得上就直接用。 */
     private suspend fun fetchApk(release: AppRelease, onProgress: (written: Long, total: Long?) -> Unit): File {
@@ -236,6 +260,18 @@ internal fun releaseOf(manifest: ReleaseManifestDto): AppRelease {
 }
 
 private val SHA256_HEX = Regex("[0-9a-fA-F]{64}")
+
+/**
+ * 预发布通道的最新一版：最近发布的 Release（GitHub 按建立时间从新到旧给出，不带令牌时不含草稿）里第一个带 release.json
+ * 附件的，连同那份 release.json 的地址。版本号只增不减，最新建立的就是版本最高的；一个也没有是认不出的响应（[Failure.BadResponse]）。
+ */
+internal fun newestPublishedOf(releases: List<GitHubReleaseDto>): Pair<GitHubReleaseDto, String> =
+    releases.firstNotNullOfOrNull { release ->
+        release.assets.singleOrNull { it.name == MANIFEST_FILE_NAME }?.let { release to it.downloadUrl }
+    } ?: throw FailureException(Failure.BadResponse)
+
+/** 每一版附带的版本信息文件名（tools/release/formal_release.py 写出）。 */
+private const val MANIFEST_FILE_NAME = "release.json"
 
 /** 文件的 SHA-256，小写十六进制。 */
 internal fun sha256Of(file: File): String {

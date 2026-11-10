@@ -27,7 +27,7 @@
 | 设置项 | 分类名与图标只在 core:ui `SettingsSection`，分类 → 页面只在 feature:settings `SettingsPageScreen`；本地偏好加进 `PreferenceSettings.kt` 对应分类的组（`appearanceGroups`……），要读写服务端的设置另开 ViewModel（`ContentSettingsViewModel`），不加回一级菜单；一级菜单最上面自己那一行去个人资料页（`ProfileSettings.kt`，写入经 `UserRepository.editProfile`，§1.7） |
 | 从外面进来的链接（OAuth 回跳、别的应用里点开的 bgm.tv 网页） | app 的 `LinkActivity`（清单里唯一挂 VIEW 的入口；登记的域名与路径和 `inAppRoute` 由 `LinkManifestContractTest` 守）→ `AppActivity.handleLink`；应用里没有的页交给浏览器（`CustomTabUriHandler` 指名浏览器，不绕回自己） |
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
-| 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
+| 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`（开了「接收预发布版」时是 GitHub 接口最近几个 Release 里最新一个的，选哪一个只在 `AppUpdates` 的 `newestPublishedOf`）：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
 | 连 bgm.tv 走哪条线路（系统网络 / 直连） | core:netroute：线路设置与核心起停 `NetRoute`、给网络层的调整 `DirectRouting`、边缘地址来源 `EdgeAddresses`、设备支不支持 `directRouteSupported`；网络层只认 core:network 的 `OkHttpCustomizer`（三个接口客户端与图片加载都套上）。直连核心的 Go 源码在 `core/netroute/go/`，改了跑 `tools/echcore/build.sh` 重新生成 `core/netroute/libs/echcore.aar`；别处不引用核心（`python3 tools/guards/check_netroute.py`）。设置页「网络」与登录页的地球、「试试直连」都读同一份设置（§1.10） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
@@ -622,6 +622,15 @@ sed -n 's/^CLIENT_SECRET=//p' oauth-app.properties | gh secret set CHOGUMI_OAUTH
 3. 等 Release 工作流跑完，拿草稿附带的 APK 按下面的「正式包验收清单」验收，通过后点发布。
 
 发布后的 Release 就是 App 检查更新的数据源：App 读 `releases/latest/download/release.json`（草稿不算 latest），提示框里的「更新内容」是 Release 说明栏的正文（去掉 Markdown 标记后显示），所以说明栏写给用户看的中文。
+
+**预发布版。** 只有在设置 › 更新里开了「接收预发布版」的人收到：他们的 App 读 GitHub 接口最近发布的几个 Release
+（`api.github.com/repos/TouhouGO/Chogumi/releases`，从新到旧），取第一个带 `release.json` 的，那一版是不是预发布决定提示框写
+「有预发布版」还是「有新版本」。预发布版用普通的下一个版本号（不加后缀，versionCode 照旧由 `chogumi.version` 推出、只增不减），
+所以 `release.yml`、`formal_release.py` 和 `release.json` 都和正式版一样：
+
+1. 照上面的 1–3 步出草稿。
+2. 发布草稿时勾上「Set as a pre-release」：正式通道的 `latest` 不动，只有开了开关的人收到。
+3. 试下来没问题，回到这个 Release 页取消勾选、设为 latest，它就成了正式版；有问题就修好再发下一个版本号。
 
 #### 正式包验收清单
 
