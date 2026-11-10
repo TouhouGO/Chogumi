@@ -43,6 +43,17 @@ fun createImageOkHttpClient(customizers: List<OkHttpCustomizer>): OkHttpClient =
     .build()
 
 /**
+ * 只看第一个响应的客户端（网络线路的试连与「检查连接」）：超时同接口客户端（[requestTimeouts]），不跟随跳转、不重发，套上 [customizers]。
+ * 站点回什么都算连上，跳转也是：跟着跳转走会把跳转目标的好坏算到这个站点头上。
+ */
+fun createProbeOkHttpClient(customizers: List<OkHttpCustomizer>): OkHttpClient = OkHttpClient.Builder()
+    .requestTimeouts()
+    .followRedirects(false)
+    .followSslRedirects(false)
+    .customizedBy(customizers)
+    .build()
+
+/**
  * 图片的跳转在这里跟随，不交给 OkHttp：OkHttp 自己跟随时，后面几跳在应用拦截器之下生成，不再经过 [OkHttpCustomizer] 装上的线路
  * （外站图片跳到 bgm.tv 的图床时，那一跳会走系统网络）。这里每一跳都从线路之上重新进链。只跟随读（GET、HEAD，图片只有读），
  * 最多 [MAX_REDIRECTS] 跳；换了主机不带 Authorization。接口与网页客户端由 Ktor 跟随或不跟随，每一跳本来就是一次新请求，不需要它。

@@ -119,8 +119,7 @@ class NetworkSettingsViewModel(
 
     override fun onProxyChange(value: Boolean) {
         if (!value) {
-            connectJob?.cancel()
-            updateState { it.copy(connecting = ProxyConnecting.IDLE, draft = saved?.let(::draftOf) ?: it.draft) }
+            updateState { it.copy(draft = saved?.let(::draftOf) ?: it.draft) }
             switchTo(RouteMode.SYSTEM, null)
             return
         }
@@ -171,7 +170,10 @@ class NetworkSettingsViewModel(
         it.copy(draft = change(it.draft), connecting = if (it.connecting == ProxyConnecting.FAILED) ProxyConnecting.IDLE else it.connecting)
     }
 
+    /** 换到代理以外的线路：在途的「连接」作废（它的结果不会再用），状态回到空闲，再打开代理时能重新连。 */
     private fun switchTo(mode: RouteMode, failedText: Int?) {
+        connectJob?.cancel()
+        updateState { it.copy(connecting = ProxyConnecting.IDLE) }
         viewModelScope.launch {
             val failure = netRoute.setMode(mode).failureOrNull() ?: return@launch
             if (failedText != null) failures.post(failedText) else failures.post(failure)
