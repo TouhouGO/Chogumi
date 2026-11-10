@@ -7,19 +7,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -38,6 +46,7 @@ import io.github.touhougo.chogumi.core.ui.collection.HubAlpha
 import io.github.touhougo.chogumi.core.ui.collection.HubStrokeAlpha
 import io.github.touhougo.chogumi.core.ui.collection.RingGeometry
 import io.github.touhougo.chogumi.core.ui.collection.SlotElevation
+import io.github.touhougo.chogumi.core.ui.composables.ModalScrim
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonSketch
 import kotlin.math.roundToInt
 
@@ -45,6 +54,7 @@ import kotlin.math.roundToInt
  * 手势引导的演示台：每页一块，里面用色块按真实的 dp 排一小段界面，再整块缩小画出来，像一张会动的截图。
  * 色块不是真组件（不接数据、不能点），几何、文案与颜色从组件自己的常量取：长按环与封面角标就是真环的那几层
  * （RingLayers、MarkBadges），格子取 TileStyle 的样子与 EpisodeTileRows 的排法，字与封面是骨架的示意图画法（SkeletonSketch）。
+ * 演示台本身是 `surfaceContainer`：页面上是这个颜色、浮在页面上的块（统计卡、贴贴 chip）在台上取 `raisedContainer`，不然看不见。
  */
 
 /**
@@ -145,4 +155,70 @@ internal fun FingerDot(finger: TourFinger) {
             }
             .background(Color.White.copy(alpha = HubStrokeAlpha), CircleShape),
     )
+}
+
+/** 面板占演示台的高度比例：手机上它是半屏的面板（设计决定，not in M3）。 */
+private const val SheetFraction = 0.62f
+
+/** 演示台里一块面板开着没有、升到哪了（0 = 在台底下，1 = 全升起）：脚本开关它，[TourSheet] 照着画。 */
+@Stable
+internal class TourSheetState {
+    val progress = Animatable(0f)
+    var shown by mutableStateOf(false)
+        private set
+
+    /** 压暗、从底下升起（spatial 动效，与页面面板升起同一档）。 */
+    suspend fun open(motion: MotionScheme) {
+        shown = true
+        progress.animateTo(1f, motion.slowSpatialSpec())
+    }
+
+    suspend fun close(motion: MotionScheme) {
+        shown = false
+        progress.animateTo(0f, motion.defaultSpatialSpec())
+    }
+
+    /** 回到收着的样子（演示从头再来、翻走了）。 */
+    suspend fun reset() {
+        shown = false
+        progress.snapTo(0f)
+    }
+}
+
+/**
+ * 演示台里的页面面板：先压暗（[ModalScrim]），再从底边升起占台高的 [SheetFraction]；形状与把手是页面面板那一套
+ * （[BottomSheetDefaults]，与 PageModalSheet 一样），底色 [color] 跟它示意的那种面板。按住一集的单集面板、按住贴贴的名单面板都画它。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun BoxScope.TourSheet(
+    state: TourSheetState,
+    color: Color = BottomSheetDefaults.ContainerColor,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    ModalScrim(shown = state.shown, onDismiss = {}, modifier = Modifier.fillMaxSize())
+    Surface(
+        shape = BottomSheetDefaults.ExpandedShape,
+        color = color,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .fillMaxHeight(SheetFraction)
+            .graphicsLayer { translationY = size.height * (1f - state.progress.value) },
+    ) {
+        Column {
+            BottomSheetDefaults.DragHandle(Modifier.align(Alignment.CenterHorizontally))
+            content()
+        }
+    }
+}
+
+/** 按下态：M3 的 pressed state layer，onSurface 10%（tokens.md State layer opacity）。 */
+private const val PressedStateAlpha = 0.1f
+
+/** 演示里被手指按着的那一块压一层按下态（[pressed] 时淡入，effects 动效），画在 [this] 的背景里。 */
+@Composable
+internal fun Modifier.pressedLayer(pressed: Boolean): Modifier {
+    val alpha by animateFloatAsState(if (pressed) PressedStateAlpha else 0f, MaterialTheme.motionScheme.fastEffectsSpec(), label = "tour_pressed")
+    return background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha))
 }

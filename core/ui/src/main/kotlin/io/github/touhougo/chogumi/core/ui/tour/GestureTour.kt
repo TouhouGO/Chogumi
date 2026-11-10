@@ -43,12 +43,14 @@ import io.github.touhougo.chogumi.core.ui.composables.TabPager
 import io.github.touhougo.chogumi.core.ui.composables.rememberTabPagerState
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 
-/** 引导的四页，顺序即翻页顺序：每页一处只靠长按才找得到的操作。 */
+/** 引导的各页，顺序即翻页顺序：每页一处只靠长按才找得到的操作。 */
 private enum class TourPage(@StringRes val title: Int, @StringRes val text: Int) {
     MARK(R.string.gesture_tour_mark_title, R.string.gesture_tour_mark_text),
     EPISODE(R.string.gesture_tour_episode_title, R.string.gesture_tour_episode_text),
     FLOOR(R.string.gesture_tour_floor_title, R.string.gesture_tour_floor_text),
+    REACTION(R.string.gesture_tour_reaction_title, R.string.gesture_tour_reaction_text),
     ARRANGE(R.string.gesture_tour_arrange_title, R.string.gesture_tour_arrange_text),
+    STATS(R.string.gesture_tour_stats_title, R.string.gesture_tour_stats_text),
 }
 
 /** 宽屏上引导的内容最宽这么多、居中：演示台是正方形，再宽就高过一屏（设计决定，not in M3）。 */
@@ -60,7 +62,7 @@ private val DotCurrentWidth = 18.dp
 private val DotGap = 6.dp
 
 /**
- * 手势引导：只靠长按才找得到的几处（封面长按环、按住一集看讨论、楼层长按菜单、整理探索页），各一页会动的演示，
+ * 手势引导：只靠长按才找得到的几处（封面长按环、按住一集看讨论、楼层长按菜单、按住贴贴看谁贴了、整理探索页、整理作品统计），各一页会动的演示，
  * 演示只在翻到那一页、停稳时放（[TabPager] 的当前页）。第一次打开与升级之后由外壳自动放一次，设置的「使用技巧」重看。
  *
  * 版式按 M3 的引导流程：左右滑或点「下一步」（tonal 按钮，buttons.md：onboarding 的 Next）翻页，最后一页是「开始使用」（filled），
@@ -116,7 +118,9 @@ private fun TourPageContent(page: TourPage, playing: Boolean) {
             TourPage.MARK -> MarkDemo(playing)
             TourPage.EPISODE -> EpisodeDemo(playing)
             TourPage.FLOOR -> FloorDemo(playing)
+            TourPage.REACTION -> ReactionDemo(playing)
             TourPage.ARRANGE -> ArrangeDemo(playing)
+            TourPage.STATS -> StatsArrangeDemo(playing)
         }
         Text(
             text = stringResource(page.title),

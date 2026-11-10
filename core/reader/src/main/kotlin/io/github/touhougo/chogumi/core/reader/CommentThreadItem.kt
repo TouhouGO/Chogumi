@@ -340,7 +340,7 @@ private fun CommentFloor(
                     onReact = vote,
                     onShowUsers = showUsers,
                     onAdd = if (postReact) picker::openOn else null,
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.padding(top = FloorGeometry.ReactionsTopGap),
                 )
             }
             below()

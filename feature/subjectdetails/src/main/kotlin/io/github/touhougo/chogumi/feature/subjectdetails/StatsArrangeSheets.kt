@@ -1,23 +1,16 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeAddSheet
@@ -27,6 +20,7 @@ import io.github.touhougo.chogumi.core.ui.arrange.ArrangeSheet
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import io.github.touhougo.chogumi.core.ui.arrange.EditorSection
 import io.github.touhougo.chogumi.core.ui.arrange.RemoveEntryButton
+import io.github.touhougo.chogumi.core.ui.arrange.StatsModuleLead
 import io.github.touhougo.chogumi.core.ui.arrange.StyleOptions
 import io.github.touhougo.chogumi.core.ui.composables.BusyButton
 import io.github.touhougo.chogumi.core.ui.composables.FormTextField
@@ -60,18 +54,5 @@ internal fun StatsArrangeSheets(state: ArrangeState<StatsEditor>, arranger: Stat
             }
             if (!editor.isNew) RemoveEntryButton(stringResource(R.string.stats_module_remove), arranger::removeEdited, !state.saving, "stats_editor_remove")
         }
-    }
-}
-
-@Composable
-internal fun StatsModuleLead(data: StatsData) {
-    val icon = when (data) {
-        StatsData.RATING, StatsData.TOTAL_COLLECTS -> R.drawable.bar_chart_24
-        StatsData.COLLECTION -> R.drawable.grid_view_24
-        StatsData.TAGS, StatsData.SERIES, StatsData.RECOMMENDATIONS -> R.drawable.grid_view_24
-        else -> R.drawable.bar_chart_24
-    }
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
-        Box(contentAlignment = Alignment.Center) { Icon(painterResource(icon), null) }
     }
 }

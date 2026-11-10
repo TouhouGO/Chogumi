@@ -3,8 +3,6 @@ package io.github.touhougo.chogumi.core.ui.tour
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -32,8 +30,8 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.model.COMMON_REACTIONS
+import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.composables.AppMenuItem
 import io.github.touhougo.chogumi.core.ui.composables.CommentFloorSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.MenuGroups
@@ -41,9 +39,6 @@ import io.github.touhougo.chogumi.core.ui.composables.ReactionGridGeometry
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonBox
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
-
-/** 楼层的按下态：M3 的 pressed state layer，onSurface 10%（tokens.md State layer opacity）。 */
-private const val PressedStateAlpha = 0.1f
 
 /** 菜单离按住的那层楼底边多远、离左边多远：菜单从楼层正文的左边弹出（设计决定，not in M3）。 */
 private val MenuInset = 8.dp
@@ -140,13 +135,12 @@ private class FloorBounds {
 }
 
 /**
- * 一层楼的示意：就是评论楼层的骨架 [CommentFloorSkeleton]，[pressed] 时压一层 pressed state layer。
- * 单集面板里的评论也是它。
+ * 一层楼的示意：就是评论楼层的骨架 [CommentFloorSkeleton]，[pressed] 时压一层 pressed state layer（[pressedLayer]），
+ * [reactions] 是正文下面那一排贴贴。单集面板里的评论也是它。
  */
 @Composable
-internal fun DemoFloor(modifier: Modifier = Modifier, pressed: Boolean = false) {
-    val pressedAlpha by animateFloatAsState(if (pressed) PressedStateAlpha else 0f, MaterialTheme.motionScheme.fastEffectsSpec(), label = "tour_floor")
-    CommentFloorSkeleton(modifier.background(MaterialTheme.colorScheme.onSurface.copy(alpha = pressedAlpha)))
+internal fun DemoFloor(modifier: Modifier = Modifier, pressed: Boolean = false, reactions: (@Composable () -> Unit)? = null) {
+    CommentFloorSkeleton(modifier.pressedLayer(pressed), reactions = reactions)
 }
 
 /**

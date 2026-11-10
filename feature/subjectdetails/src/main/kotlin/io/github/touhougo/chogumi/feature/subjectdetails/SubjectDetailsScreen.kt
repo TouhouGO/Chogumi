@@ -69,6 +69,7 @@ import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
+import io.github.touhougo.chogumi.core.ui.arrange.StatsModuleLead
 import io.github.touhougo.chogumi.core.ui.collection.CollectionSheetHost
 import io.github.touhougo.chogumi.core.ui.collection.PosterMarkHost
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate

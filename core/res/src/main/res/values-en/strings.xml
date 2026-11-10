@@ -866,8 +866,12 @@
     <string name="gesture_tour_episode_text">Tap a tile to mark up to that episode. Hold one to read its synopsis and comments.</string>
     <string name="gesture_tour_floor_title">More in every reply</string>
     <string name="gesture_tour_floor_text">Tap a reply to answer it. Hold it to react, copy or report, or to edit and delete your own.</string>
+    <string name="gesture_tour_reaction_title">See who reacted</string>
+    <string name="gesture_tour_reaction_text">Tap a reaction to add yours. Hold one to see who reacted.</string>
     <string name="gesture_tour_arrange_title">Arrange Explore your way</string>
-    <string name="gesture_tour_arrange_text">Hold any section title to reorder, hide or add sections.</string>
+    <string name="gesture_tour_arrange_text">Hold a section title on Explore to reorder, hide or add sections.</string>
+    <string name="gesture_tour_stats_title">Arrange stats your way</string>
+    <string name="gesture_tour_stats_text">Hold a stats module title to reorder, restyle, add or remove modules.</string>
     <string name="settings_gesture_tour">Tips</string>
     <string name="explore_arrange_title">Arrange sections</string>
     <string name="explore_arrange_enter">Arrange sections</string>
