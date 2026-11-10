@@ -41,9 +41,16 @@ class ProportionBarTest {
     fun 极端权重的五段都能在画布内看到() {
         setContent(300.dp)
 
-        assertColors(listOf(138f, 280f, 286f, 292f, 298f), width = 300f)
+        val centers = listOf(138f, 280f, 286f, 292f, 298f)
+        assertColors(centers, width = 300f)
+        // 段的边缘落在像素中间，抗锯齿把边上那一列混成两色：在相邻两段的中心之间找一列页面底色，
+        // 不取一个离边缘只差零点几 dp 的固定点（首段右缘在 275.9dp，按 2.625 倍密度 276dp 那一列有七成是首段的红）
         val pixels = chart().captureToImage().toPixelMap()
-        assertTrue("段间保留空白而不是连成一块", pixels[276f.scaledX(300f, pixels.width), pixels.height / 2].closeTo(surface))
+        val row = pixels.height / 2
+        centers.zipWithNext().forEachIndexed { index, (from, to) ->
+            val columns = from.scaledX(300f, pixels.width)..to.scaledX(300f, pixels.width)
+            assertTrue("第 $index 段与第 ${index + 1} 段之间保留空白而不是连成一块", columns.any { pixels[it, row].closeTo(surface) })
+        }
     }
 
     @Test
