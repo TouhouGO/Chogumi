@@ -43,6 +43,8 @@ import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.unit.ColorProvider
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
+import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
+import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.model.ProgressCount
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.composables.collectionProgressLabel
@@ -269,10 +271,13 @@ private fun pickSubject(context: Context, glanceId: GlanceId): Action {
 }
 
 /** 选作品页选好了：记下这个小组件的作品，马上重画。 */
-internal suspend fun chooseSubject(context: Context, appWidgetId: Int, subjectId: Int, updates: WidgetUpdates) {
+internal suspend fun chooseSubject(context: Context, appWidgetId: Int, subjectId: Int, updates: WidgetUpdates): Outcome<Boolean> = storageOutcomeOf {
+    val manager = context.getSystemService(AppWidgetManager::class.java)
+    if (manager.getAppWidgetInfo(appWidgetId)?.provider != android.content.ComponentName(context, SubjectWidgetReceiver::class.java)) return@storageOutcomeOf false
     val glanceId = GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
     updateAppWidgetState(context, glanceId) { it[SubjectKey] = subjectId }
     updates.updateNow()
+    true
 }
 
 class SubjectWidgetReceiver : ChogumiWidgetReceiver() {
