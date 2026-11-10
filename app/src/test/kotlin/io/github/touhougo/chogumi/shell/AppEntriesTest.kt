@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.model.MonoType
 import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TopicType
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
 import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
@@ -63,7 +64,7 @@ class AppEntriesTest {
 
     @Test
     fun `每种路由都有页面`() {
-        val entries = appEntries(navigate = {}, goBack = {}, account = SignedInAccount(userId = 1, username = "me"), progressEntryRequests = ProgressEntryRequests(), bottomPadding = { 0.dp })
+        val entries = appEntries(navigate = {}, goBack = {}, account = SignedInAccount(userId = 1, username = "me"), progressEntryRequests = ProgressEntryRequests(), inboxRequests = InboxRequests(), bottomPadding = { 0.dp })
         assertEquals(emptyList(), samples.filter { runCatching { entries(it) }.isFailure }, "这些路由没有页面")
     }
 }

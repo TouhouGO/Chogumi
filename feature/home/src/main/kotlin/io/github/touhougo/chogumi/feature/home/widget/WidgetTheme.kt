@@ -1,8 +1,6 @@
 package io.github.touhougo.chogumi.feature.home.widget
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Typography
@@ -32,6 +30,7 @@ import io.github.touhougo.chogumi.core.model.ThemeMode
 import io.github.touhougo.chogumi.core.model.ThemePreferences
 import io.github.touhougo.chogumi.core.ui.chart.inkOn
 import io.github.touhougo.chogumi.core.ui.chart.ordinalTones
+import io.github.touhougo.chogumi.core.ui.common.SystemNotices
 import io.github.touhougo.chogumi.core.ui.theme.appColorScheme
 import io.github.touhougo.chogumi.core.ui.theme.themeColorSource
 import kotlinx.coroutines.flow.first
@@ -129,16 +128,8 @@ internal fun widgetInnerRadius(context: Context): Dp =
         8.dp
     }
 
-/**
- * 打开 App：[url] 是 bgm.tv 网页地址（[BgmWeb] 拼的）时 App 打开它对应的那一页（`inAppRoute` 认），null 时只打开 App。
- * 用桌面图标同一个入口（用户在设置里换过图标也一样），App 已经开着就回到它、不另开一个。
- */
-internal fun openApp(context: Context, url: String? = null): Action {
-    val intent = requireNotNull(context.packageManager.getLaunchIntentForPackage(context.packageName)) { "App 没有桌面入口" }
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-    if (url != null) intent.data = Uri.parse(url)
-    return actionStartActivity(intent)
-}
+/** 打开 App（[SystemNotices.launchIntent]：[url] 为 null 时只打开 App）。 */
+internal fun openApp(context: Context, url: String? = null): Action = actionStartActivity(SystemNotices.launchIntent(context, url))
 
 /** 打开一部作品的作品页。 */
 internal fun openSubject(context: Context, subjectId: Int): Action = openApp(context, BgmWeb.subject(subjectId))

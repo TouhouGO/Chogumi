@@ -39,6 +39,7 @@ import io.github.touhougo.chogumi.core.model.RakuenFilter
 import io.github.touhougo.chogumi.core.model.groupOf
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.PagedListContent
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.rememberLinkOpener
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate
 import io.github.touhougo.chogumi.core.ui.composables.ChogumiPullToRefreshBox
@@ -51,6 +52,7 @@ import io.github.touhougo.chogumi.core.ui.composables.PageHeaderBar
 import io.github.touhougo.chogumi.core.ui.composables.SelectableChip
 import io.github.touhougo.chogumi.core.ui.composables.TabPager
 import io.github.touhougo.chogumi.core.ui.composables.rememberTabPagerState
+import kotlinx.coroutines.flow.filterNotNull
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -76,6 +78,8 @@ fun CommunityScreen(
     onMyTopics: () -> Unit,
     onConversation: (Int) -> Unit,
     onWrite: () -> Unit,
+    /** 点开系统通知时要打开铃铛面板的请求（外壳写、这里取走）。 */
+    inboxRequests: InboxRequests,
     modifier: Modifier = Modifier,
     viewModel: CommunityViewModel = koinViewModel(),
     notificationViewModel: NotificationViewModel = koinViewModel(),
@@ -95,6 +99,13 @@ fun CommunityScreen(
     var pressedTopic by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { notificationViewModel.refreshUnreadCount() }
+    LaunchedEffect(inboxRequests) {
+        inboxRequests.pending.filterNotNull().collect { tab ->
+            inboxRequests.consume()
+            notificationViewModel.selectTab(tab)
+            showNotificationSheet = true
+        }
+    }
     FailureNoticeEffect(viewModel.failures, snackbar)
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshJoinedGroups()

@@ -22,6 +22,7 @@ import io.github.touhougo.chogumi.core.model.ExperienceMode
 import io.github.touhougo.chogumi.core.model.NoticeBo
 import io.github.touhougo.chogumi.core.network.api.NextApi
 import io.github.touhougo.chogumi.core.network.model.web.WebSession
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders

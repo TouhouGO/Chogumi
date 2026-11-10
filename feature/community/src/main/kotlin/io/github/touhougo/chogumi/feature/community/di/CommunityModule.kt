@@ -7,8 +7,11 @@ import io.github.touhougo.chogumi.feature.community.GroupViewModel
 import io.github.touhougo.chogumi.feature.community.MutedGroupsViewModel
 import io.github.touhougo.chogumi.feature.community.MyTopicsViewModel
 import io.github.touhougo.chogumi.feature.community.NotificationViewModel
+import io.github.touhougo.chogumi.feature.community.notice.CommunityNotices
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val communityModule = module {
@@ -19,4 +22,7 @@ val communityModule = module {
     viewModelOf(::MyTopicsViewModel)
     viewModelOf(::MutedGroupsViewModel)
     viewModelOf(::BlockedUsersViewModel)
+
+    // 社区提醒的系统通知：活过页面，与 App 进程同生命周期
+    single { CommunityNotices(androidContext(), get(), get(), get(), get(), get(named("appForeground"))) }
 }

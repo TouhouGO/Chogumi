@@ -178,6 +178,14 @@ class ShellViewModel(
             notificationRepository.refreshUnreadCount()
         }
     }
+
+    /**
+     * 点开了一条社区提醒的系统通知：它标为已读（与在铃铛面板里点开一样）。标不上时它留在未读里，铃铛面板照常显示；
+     * 用户对此无能为力，不提示。
+     */
+    fun markNoticeRead(id: Int) {
+        viewModelScope.launch { notificationRepository.markRead(id) }
+    }
 }
 
 /** 外观偏好的一组（主题、配色、阅读字号、封面画质、刷新率），只在 [ShellViewModel.restoredStates] 里合成。 */

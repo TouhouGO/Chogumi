@@ -50,6 +50,7 @@ import io.github.touhougo.chogumi.core.model.userKeyOf
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.PagedListContent
 import io.github.touhougo.chogumi.core.ui.common.labelRes
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import io.github.touhougo.chogumi.core.ui.common.navigation.rememberLinkOpener
 import io.github.touhougo.chogumi.core.ui.composables.CircleAvatar
 import io.github.touhougo.chogumi.core.ui.composables.ChoiceSheetTitleRow

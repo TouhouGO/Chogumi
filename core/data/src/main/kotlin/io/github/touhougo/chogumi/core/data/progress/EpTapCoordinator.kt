@@ -47,8 +47,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/** 进度写入的发起处：失败提示只在发起处出现一次（[WIDGET] 是桌面小组件，失败画在那一行上）。 */
-enum class ProgressOrigin { HOME, PROGRESS, DETAILS, WIDGET }
+/**
+ * 进度写入的发起处：失败提示只在发起处出现一次（[WIDGET] 是桌面小组件，失败画在那一行上；
+ * [NOTIFICATION] 是放送提醒上的「看过了」，没有地方可画，本地回滚就是全部）。
+ */
+enum class ProgressOrigin { HOME, PROGRESS, DETAILS, WIDGET, NOTIFICATION }
 
 /** [EpTapCoordinator.advanceResolved] 读出的那一部，与读它时的业务日（判断哪集已播）。 */
 data class AdvanceTarget(val subject: ProgressSubject, val today: LocalDate)

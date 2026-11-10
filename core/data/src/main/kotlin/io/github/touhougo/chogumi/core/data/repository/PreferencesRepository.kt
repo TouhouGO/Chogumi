@@ -3,10 +3,13 @@ package io.github.touhougo.chogumi.core.data.repository
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import io.github.touhougo.chogumi.core.data.util.ObservedPreferences
+import io.github.touhougo.chogumi.core.model.AiringReminderMode
 import io.github.touhougo.chogumi.core.model.AppFeatures
+import io.github.touhougo.chogumi.core.model.CommunityCheckInterval
 import io.github.touhougo.chogumi.core.model.ContentDomains
 import io.github.touhougo.chogumi.core.model.CoverQuality
 import io.github.touhougo.chogumi.core.model.ExperienceMode
+import io.github.touhougo.chogumi.core.model.NotificationSettings
 import io.github.touhougo.chogumi.core.model.ReadingTextSize
 import io.github.touhougo.chogumi.core.model.RefreshRate
 import io.github.touhougo.chogumi.core.model.SubjectType
@@ -201,6 +204,45 @@ class PreferencesRepository(
 
     suspend fun ignoreUpdate(versionCode: Int) {
         prefs.edit { it[PreferenceKeys.UPDATE_IGNORED_VERSION_CODE] = versionCode }
+    }
+
+    /** 系统通知的设置（设置 › 通知）：两个开关默认关，各自的方式与时刻见 [NotificationSettings]。 */
+    val notificationSettings: Flow<NotificationSettings> = select { prefs ->
+        NotificationSettings(
+            community = prefs[PreferenceKeys.NOTIFY_COMMUNITY] ?: false,
+            interval = prefs.enumOr(PreferenceKeys.NOTIFY_COMMUNITY_INTERVAL, CommunityCheckInterval.DEFAULT),
+            airing = prefs[PreferenceKeys.NOTIFY_AIRING] ?: false,
+            airingMode = prefs.enumOr(PreferenceKeys.NOTIFY_AIRING_MODE, AiringReminderMode.AT_AIRING),
+            dailyMinute = NotificationSettings.dailyMinuteOf(prefs[PreferenceKeys.NOTIFY_AIRING_DAILY_MINUTE]),
+        )
+    }
+
+    suspend fun setCommunityNotifications(value: Boolean) {
+        prefs.edit { it[PreferenceKeys.NOTIFY_COMMUNITY] = value }
+    }
+
+    suspend fun setCommunityCheckInterval(value: CommunityCheckInterval) {
+        prefs.edit { it[PreferenceKeys.NOTIFY_COMMUNITY_INTERVAL] = value.name }
+    }
+
+    suspend fun setAiringNotifications(value: Boolean) {
+        prefs.edit { it[PreferenceKeys.NOTIFY_AIRING] = value }
+    }
+
+    suspend fun setAiringReminderMode(value: AiringReminderMode) {
+        prefs.edit { it[PreferenceKeys.NOTIFY_AIRING_MODE] = value.name }
+    }
+
+    suspend fun setAiringDailyMinute(value: Int) {
+        require(value in 0 until NotificationSettings.MINUTES_PER_DAY) { "汇总时刻是一天里的分钟数（0..1439），收到 $value" }
+        prefs.edit { it[PreferenceKeys.NOTIFY_AIRING_DAILY_MINUTE] = value }
+    }
+
+    /** 第一次打开提醒时问过「后台运行」没有：只问一次，之后从设置里的「后台运行」去。 */
+    val backgroundPrompted: Flow<Boolean> = select { prefs -> prefs[PreferenceKeys.NOTIFY_BACKGROUND_PROMPTED] ?: false }
+
+    suspend fun setBackgroundPrompted() {
+        prefs.edit { it[PreferenceKeys.NOTIFY_BACKGROUND_PROMPTED] = true }
     }
 
     /**

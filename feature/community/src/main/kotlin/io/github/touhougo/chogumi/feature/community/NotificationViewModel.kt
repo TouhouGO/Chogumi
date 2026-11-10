@@ -13,11 +13,9 @@ import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.map
 import io.github.touhougo.chogumi.core.model.NoticeBo
 import io.github.touhougo.chogumi.core.model.PmConversationSummary
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-
-/** 铃铛面板的两页：通知、短信。 */
-enum class InboxTab { NOTICES, MESSAGES }
 
 /**
  * 铃铛面板：停在哪一页，最近的通知（已读与未读）这一个区块，短信会话列表这一份分页列表。

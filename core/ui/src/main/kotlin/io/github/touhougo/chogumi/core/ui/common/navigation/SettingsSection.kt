@@ -21,6 +21,9 @@ enum class SettingsSection(@StringRes val title: Int, @DrawableRes val icon: Int
     /** NSFW、屏蔽的小组、屏蔽的用户。 */
     CONTENT_FILTER(R.string.settings_content_filter, R.drawable.shield_24),
 
+    /** 社区提醒、放送提醒发成系统通知；通知类别、后台运行。没登录时一级菜单里没有这一项。 */
+    NOTIFICATIONS(R.string.settings_notifications, R.drawable.notifications_24),
+
     /** 当前版本、立即检查；自动检查更新、检查间隔。 */
     UPDATES(R.string.settings_updates, R.drawable.update_24),
 

@@ -3,6 +3,8 @@
 问一句「要不要做」的确认框只有一个：core:ui 的 ConfirmDialog（右边确认、左边「取消」，收不回来的操作确认按钮用 error 色）。
 各页自己拼 AlertDialog，确认色、「取消」的字、先收起还是先执行就各写各的。
 带输入框或其他内容的对话框不是确认框，列在 ALLOWED 里，每条写明理由。
+选时间的对话框也只有一个：core:ui 的 TimeSelectDialog（表盘与键盘输入的切换、矮窗口退回输入式只写在那里）；
+官方的 TimePickerDialog / DatePickerDialog 只在它里面出现。
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from pathlib import Path
 
 from sources import enclosing_function, kotlin_typealiases, main_sources, normalize_code
 
-HOMES = {"ConfirmDialog.kt"}
+HOMES = {"ConfirmDialog.kt", "TimeSelectDialog.kt"}
 
 ALLOWED: dict[tuple[str, str], str] = {
     ("ThemeColorSettings.kt", "SeedGrid"): "自定义主题色：对话框里是十六进制色值的输入框",
@@ -25,7 +27,7 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("AppUpdateDialog.kt", "AppUpdateDialog"): "更新提示：对话框里是更新内容、下载进度，三个选择",
 }
 
-CALL = re.compile(r"(?<![\w.])(?:[a-z]\w*\.)*(AlertDialog|BasicAlertDialog)\s*\(")
+CALL = re.compile(r"(?<![\w.])(?:[a-z]\w*\.)*(AlertDialog|BasicAlertDialog|TimePickerDialog|DatePickerDialog)\s*\(")
 
 
 def find_violations(root: Path, allowed: dict[tuple[str, str], str] = ALLOWED) -> list[str]:
@@ -45,7 +47,7 @@ def find_violations(root: Path, allowed: dict[tuple[str, str], str] = ALLOWED) -
             line = text[: m.start()].count("\n") + 1
             violations.append(
                 f"{path.relative_to(root).as_posix()}:{line}: {key[1]} 自己拼了 {m.group(1)}——"
-                "确认框改用 core:ui 的 ConfirmDialog；带输入框的对话框写进 check_dialogs.py 的 ALLOWED 并写明理由"
+                "确认框改用 core:ui 的 ConfirmDialog、选时间改用 TimeSelectDialog；带输入框的对话框写进 check_dialogs.py 的 ALLOWED 并写明理由"
             )
     for key in sorted(set(allowed) - used):
         violations.append(f"白名单条目 {key[0]}::{key[1]} 已匹配不到，删掉这条（死配置）")

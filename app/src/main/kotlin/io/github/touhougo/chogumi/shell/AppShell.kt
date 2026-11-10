@@ -50,6 +50,7 @@ import io.github.touhougo.chogumi.core.ui.common.LocalFriends
 import io.github.touhougo.chogumi.core.ui.common.LocalReadingTextSize
 import io.github.touhougo.chogumi.core.ui.common.LocalSignedInAccount
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageSheetRegistry
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
 import io.github.touhougo.chogumi.core.ui.common.navigation.rememberAppNavigator
@@ -66,6 +67,7 @@ fun AppShell(
     updates: AppUpdateViewModel,
     windowSizeClass: WindowSizeClass,
     progressEntryRequests: ProgressEntryRequests,
+    inboxRequests: InboxRequests,
 ) {
     val state by mainViewModel.uiState.collectAsStateWithLifecycle()
     if (state.initializing) return
@@ -142,7 +144,7 @@ fun AppShell(
                         )
                     },
                 ) { bottomPadding ->
-                    AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests)
+                    AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests, inboxRequests)
                 }
             }
             // 更新提示等引导收起再出

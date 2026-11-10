@@ -56,6 +56,7 @@ import io.github.touhougo.chogumi.core.data.repository.SubjectCommunityRepositor
 import io.github.touhougo.chogumi.core.data.repository.SubjectCommunityRepositoryImpl
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository
 import io.github.touhougo.chogumi.core.data.repository.SyncPreferenceStore
+import io.github.touhougo.chogumi.core.data.repository.SystemNoticeLedger
 import io.github.touhougo.chogumi.core.data.repository.TagCatalogRepository
 import io.github.touhougo.chogumi.core.data.repository.TimelineRepository
 import io.github.touhougo.chogumi.core.data.repository.TopicRepository
@@ -214,6 +215,7 @@ val dataModule = module {
     // 首页进度区块：/p1/home 慢且大，必须走缓存优先；收藏与逐集随同一拍写进本地。
     single { HomeRepository(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(named("computationDispatcher"))) }
     single { PreferencesRepository(get(named("preferencesDataStore"))) }
+    single { SystemNoticeLedger(get(named("preferencesDataStore"))) }
     // 界面大小：Activity 在第一帧之前同步读，所以不在偏好 DataStore 里（见 DisplayScaleRepository）。
     single { DisplayScaleRepository(androidContext()) }
     // NSFW 偏好缓存：真源是 bgm.tv 账号设置（p1/privacy），本地只按 userId 分区存副本。

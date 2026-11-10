@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 应用内更新：下好、校验过的安装包交给系统安装器（shell/ApkInstall.kt）；第一次安装时系统让用户允许一次 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 系统通知（设置 › 通知）：Android 13 起第一次打开提醒时问一次；电池优化放行由用户在系统对话框里点 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- CustomTabUriHandler 找浏览器：Android 11 起不声明就看不见别的应用能不能开网页。 -->
     <queries>

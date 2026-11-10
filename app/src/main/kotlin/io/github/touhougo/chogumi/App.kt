@@ -26,8 +26,10 @@ import io.github.touhougo.chogumi.core.ui.image.CoverSizeInterceptor
 import io.github.touhougo.chogumi.di.appModule
 import io.github.touhougo.chogumi.feature.calendar.di.calendarModule
 import io.github.touhougo.chogumi.feature.community.di.communityModule
+import io.github.touhougo.chogumi.feature.community.notice.CommunityNotices
 import io.github.touhougo.chogumi.feature.explore.di.exploreModule
 import io.github.touhougo.chogumi.feature.home.di.homeModule
+import io.github.touhougo.chogumi.feature.home.notice.AiringReminders
 import io.github.touhougo.chogumi.feature.home.widget.WidgetUpdates
 import io.github.touhougo.chogumi.feature.login.di.loginModule
 import io.github.touhougo.chogumi.feature.messages.di.messagesModule
@@ -97,6 +99,13 @@ class App : Application(), SingletonImageLoader.Factory {
         // 到前台时按间隔检查更新（冷启动也算一次到前台）
         appScope.launch {
             get<AppUpdates>().watch(get(named("appForeground")))
+        }
+        // 系统通知：社区提醒跟着开关、专注模式与账号排后台检查；放送提醒跟着开关、方式与账号排闹钟
+        appScope.launch {
+            get<CommunityNotices>().watch()
+        }
+        appScope.launch {
+            get<AiringReminders>().watch()
         }
         // 桌面上放着小组件时，App 里标的进度、换的配色马上画到桌面上
         appScope.launch {
