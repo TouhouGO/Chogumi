@@ -37,6 +37,7 @@ import io.github.touhougo.chogumi.core.ui.common.LocalUserCareerCard
 import io.github.touhougo.chogumi.core.ui.common.navigation.AppNavDisplay
 import io.github.touhougo.chogumi.core.ui.common.navigation.AppNavigator
 import io.github.touhougo.chogumi.core.ui.common.navigation.PageSheetRegistry
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.Route
 import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
@@ -91,12 +92,13 @@ fun AppEntries(
     account: SignedInAccount?,
     sheets: PageSheetRegistry,
     progressEntryRequests: ProgressEntryRequests,
+    inboxRequests: InboxRequests,
 ) {
     // 页面在测量时读这份状态而不是建页时的快照：底栏高度随系统导航条变化（切换手势 / 三键导航）时，
     // 已经建好的页面也跟着重排
     val currentBottomPadding = rememberUpdatedState(bottomPadding)
-    val entries = remember(navigator, account, progressEntryRequests) {
-        appEntries(navigator::navigate, navigator::goBack, account, progressEntryRequests, bottomPadding = { currentBottomPadding.value })
+    val entries = remember(navigator, account, progressEntryRequests, inboxRequests) {
+        appEntries(navigator::navigate, navigator::goBack, account, progressEntryRequests, inboxRequests, bottomPadding = { currentBottomPadding.value })
     }
     val userCareerCard = remember(navigator, account) { userCareerCardOf(navigator::navigate, account) }
     CompositionLocalProvider(LocalUserCareerCard provides userCareerCard, LocalIndexPicker provides indexPicker) {
@@ -149,6 +151,7 @@ internal fun appEntries(
     goBack: () -> Unit,
     account: SignedInAccount?,
     progressEntryRequests: ProgressEntryRequests,
+    inboxRequests: InboxRequests,
     bottomPadding: () -> Dp,
 ): (NavKey) -> NavEntry<NavKey> {
     val isLoggedIn = account != null
@@ -248,6 +251,7 @@ internal fun appEntries(
                 onMyTopics = { navigate(Route.MyTopics) },
                 onConversation = { navigate(Route.PmConversation(it)) },
                 onWrite = { navigate(Route.PmWrite()) },
+                inboxRequests = inboxRequests,
                 modifier = aboveBottomBar,
             )
         }

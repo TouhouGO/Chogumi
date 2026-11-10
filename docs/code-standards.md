@@ -165,7 +165,8 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
   不在一个容器里塞 spacer。
 - 问「做不做」的对话框是 `ConfirmDialog`（core:ui）：确认在右、「取消」在左，收不回来的操作确认用 `error`（`destructive`），先关再做。
   它接收问的那个 `target` 并交给 `onConfirm`：关闭会清掉打开它的状态，所以动作只对拿到手的东西做，不回头读状态。不自己拼 `AlertDialog`；
-  带输入或别的内容的对话框在 `tools/guards/check_dialogs.py` 里登记并写理由。
+  带输入或别的内容的对话框在 `tools/guards/check_dialogs.py` 里登记并写理由。选一天里的时刻只经 `TimeSelectDialog`（core:ui：M3 时间选择器放在
+  官方 `TimePickerDialog` 里，12 / 24 小时制跟随系统，窗口矮时直接是键盘输入），不另拼 `TimePickerDialog`。
 - 组件拿它所在位置给的宽度：网格里填满格子，行里由调用方传 `width`。不用 `wrapContentWidth` / `requiredWidth`（含 `Size` / `In` 变体）
   逃出父级的宽度：自己定宽、钉在更宽格子起点的卡，会把每格多出来的宽度全堆到最后一列右边。
 - 连体按钮组里的文字经 `ConnectedChoiceGroup`，它从不把标签切成「…」：等宽 → 按标签定宽 → 收窄内边距 → 尾部选项收进溢出菜单（M3）。

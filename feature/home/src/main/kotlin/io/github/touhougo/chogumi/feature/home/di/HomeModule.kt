@@ -1,6 +1,7 @@
 package io.github.touhougo.chogumi.feature.home.di
 
 import io.github.touhougo.chogumi.feature.home.HomeViewModel
+import io.github.touhougo.chogumi.feature.home.notice.AiringReminders
 import io.github.touhougo.chogumi.feature.home.widget.WidgetCalendarSource
 import io.github.touhougo.chogumi.feature.home.widget.WidgetHeatSource
 import io.github.touhougo.chogumi.feature.home.widget.WidgetProgressActions
@@ -20,4 +21,7 @@ val homeModule = module {
     single { WidgetCalendarSource(get(), get(), get(), get(), get(), get(), get()) }
     single { WidgetProgressActions(get(), get()) }
     single { WidgetUpdates(androidContext(), get(named("appScope")), get(), get(), get(), get()) }
+
+    // 放送提醒（系统通知）：读小组件同一份放送数据
+    single { AiringReminders(androidContext(), get(), get(), get(), get(), get()) }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
 import kotlin.math.ceil
 import org.junit.Assert.assertFalse

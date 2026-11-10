@@ -6,6 +6,7 @@ import io.github.touhougo.chogumi.BuildConfig
 import io.github.touhougo.chogumi.core.data.update.AppUpdates
 import io.github.touhougo.chogumi.core.foundation.AppTime
 import io.github.touhougo.chogumi.core.network.AuthConfig
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxRequests
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
 import io.github.touhougo.chogumi.shell.AppUpdateViewModel
 import io.github.touhougo.chogumi.shell.ShellViewModel
@@ -34,6 +35,7 @@ fun appModule(authConfig: AuthConfig) = module {
     single { AppTime.ticking(get(), get(named("appForeground")), get(named("appScope"))) }
     // 首页进进度页的入口请求：导航状态，不是持久数据
     single { ProgressEntryRequests() }
+    single { InboxRequests() }
     single {
         AppUpdates(
             api = get(),

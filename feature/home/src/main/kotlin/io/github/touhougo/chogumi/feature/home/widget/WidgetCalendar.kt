@@ -16,9 +16,9 @@ import io.github.touhougo.chogumi.core.model.CalendarEntry
 import io.github.touhougo.chogumi.core.model.CalendarItemBo
 import io.github.touhougo.chogumi.core.model.FollowedWork
 import io.github.touhougo.chogumi.core.model.airingDateOf
-import io.github.touhougo.chogumi.core.model.airingNowOf
 import io.github.touhougo.chogumi.core.model.calendarWeek
 import io.github.touhougo.chogumi.core.model.followedWorksOf
+import java.time.LocalDate
 import kotlinx.coroutines.flow.mapNotNull
 
 /** 放送小组件（今日放送、本周追番）这一次读到的东西。 */
@@ -28,15 +28,19 @@ internal sealed interface WidgetCalendar {
 
     /**
      * [week] 是每日放送页同一份整周（[calendarWeek]：七个星期各是从今天起七天里的那一天，在追的放在它真正播的那天），
-     * [today] 是放送日的星期（北京时间 4 点翻页），没登录（[signedIn] 为 false）时没有「我在追」。
-     * [works] 是在看小组件同一份作品（按 id）：在追的那几行从它取进度与 +1。
+     * [date] 是读的那一刻的放送日（北京时间 4 点翻页），[today] 是它的星期；没登录（[signedIn] 为 false）时没有「我在追」。
+     * [works] 是在看小组件同一份作品（按 id）：在追的那几行从它取进度与 +1。[followed] 是拼出整周的在追作品与它们本机已有的章节
+     * （放送提醒从里面取今天播的那一集）。
      */
     data class Ready(
         val week: Map<Int, CalendarDaySections>,
-        val today: Int,
+        val date: LocalDate,
         val signedIn: Boolean,
         val works: Map<Int, WidgetWork>,
-    ) : WidgetCalendar
+        val followed: List<FollowedWork>,
+    ) : WidgetCalendar {
+        val today: Int get() = date.dayOfWeek.value
+    }
 }
 
 /** 今日放送的一行：放送表里的一部（[entry]）；在追、且在在看列表里时带上它的进度与按钮（[work]）。 */
@@ -88,12 +92,13 @@ internal class WidgetCalendarSource(
             val starts = airingTimeRepository.observeBroadcastStarts().settled().valueOrNull().orEmpty()
             val followed = if (signedIn) followedOf(calendar) ?: return@outcomeOf WidgetCalendar.Failed else emptyList()
             val works = if (signedIn) (worksSource.load() as? WidgetWorks.Ready)?.works.orEmpty() else emptyList()
-            val now = clock.nowMillis()
+            val date = airingDateOf(clock.nowMillis())
             WidgetCalendar.Ready(
-                week = calendarWeek(calendar, followed, airingDateOf(now), starts),
-                today = airingNowOf(now).weekday,
+                week = calendarWeek(calendar, followed, date, starts),
+                date = date,
                 signedIn = signedIn,
                 works = works.associateBy { it.subjectId },
+                followed = followed,
             )
         }
         return (result as? Outcome.Success)?.value ?: WidgetCalendar.Failed

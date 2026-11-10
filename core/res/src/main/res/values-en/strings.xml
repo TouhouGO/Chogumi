@@ -1494,4 +1494,44 @@
         <item quantity="one">%1$d episode this month</item>
         <item quantity="other">%1$d episodes this month</item>
     </plurals>
+    <string name="settings_notifications">Notifications</string>
+    <string name="notify_community">Community reminders</string>
+    <string name="notify_community_interval">Check every</string>
+    <string name="notify_interval_15m">15 min</string>
+    <string name="notify_interval_30m">30 min</string>
+    <string name="notify_interval_1h">1 hour</string>
+    <string name="notify_interval_3h">3 hours</string>
+    <string name="notify_focus_mode_on">Focus mode is on</string>
+    <string name="notify_airing">Airing reminders</string>
+    <string name="notify_airing_mode">Remind</string>
+    <string name="notify_airing_at_airing">At airtime</string>
+    <string name="notify_airing_daily">Daily</string>
+    <string name="notify_airing_time">Time</string>
+    <string name="notify_categories">Categories</string>
+    <string name="notify_background">Background</string>
+    <string name="notify_background_restricted">Reminders may be late in battery saver. Tap to allow.</string>
+    <string name="notify_system_off">Notifications are off in system settings. Tap to turn on.</string>
+    <string name="notify_channel_reply">Replies</string>
+    <string name="notify_channel_mention">Mentions</string>
+    <string name="notify_channel_friend">Friends</string>
+    <string name="notify_channel_message">Messages</string>
+    <string name="notify_channel_other">Other</string>
+    <string name="notify_channel_airing">Airing</string>
+    <string name="notify_notice_detail">%1$s\n“%2$s”</string>
+    <string name="notify_mark_read">Mark as read</string>
+    <plurals name="notify_unread_messages">
+        <item quantity="one">%1$d unread message</item>
+        <item quantity="other">%1$d unread messages</item>
+    </plurals>
+    <string name="notify_airing_episode_at">Ep %1$s airs at %2$s</string>
+    <string name="notify_airing_episode_today">Ep %1$s out today</string>
+    <string name="notify_airing_at">Airs at %1$s</string>
+    <string name="notify_airing_today">Out today</string>
+    <string name="notify_airing_watched">Watched</string>
+    <plurals name="notify_digest_title">
+        <item quantity="one">%1$d show airing today</item>
+        <item quantity="other">%1$d shows airing today</item>
+    </plurals>
+    <string name="notify_digest_line">%1$s %2$s</string>
+    <string name="notify_digest_line_episode">%1$s %2$s Ep %3$s</string>
 </resources>

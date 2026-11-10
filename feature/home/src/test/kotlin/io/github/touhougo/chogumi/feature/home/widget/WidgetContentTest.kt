@@ -186,7 +186,7 @@ class WidgetContentTest {
     fun `本周追番周一起七列，只放在追的，部数不重复数`() {
         val wednesday = calendarDaySections(3, listOf(item(1, 5), item(2, 9)), setOf(1), emptyMap())
         val friday = calendarDaySections(5, listOf(item(1, 5)), setOf(1), emptyMap())
-        val calendar = WidgetCalendar.Ready(mapOf(3 to wednesday, 5 to friday), today = 3, signedIn = true, works = emptyMap())
+        val calendar = WidgetCalendar.Ready(mapOf(3 to wednesday, 5 to friday), date = LocalDate.of(2026, 11, 11), signedIn = true, works = emptyMap(), followed = emptyList())
 
         val content = weekContentOf(calendar) as WeekContent.Ready
 
@@ -198,7 +198,7 @@ class WidgetContentTest {
 
     @Test
     fun `本周追番没登录是登录按钮，读不出来另有样子`() {
-        assertEquals(WeekContent.SignedOut, weekContentOf(WidgetCalendar.Ready(emptyMap(), 1, signedIn = false, works = emptyMap())))
+        assertEquals(WeekContent.SignedOut, weekContentOf(WidgetCalendar.Ready(emptyMap(), LocalDate.of(2026, 11, 9), signedIn = false, works = emptyMap(), followed = emptyList())))
         assertEquals(WeekContent.LoadFailed, weekContentOf(WidgetCalendar.Failed))
     }
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import io.github.touhougo.chogumi.core.ui.testing.VisualCapture
 import io.github.touhougo.chogumi.core.ui.testing.saveScreenshot
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme

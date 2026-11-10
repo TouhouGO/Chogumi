@@ -64,6 +64,36 @@ object PreferenceKeys {
     /** 用户在更新提示里「忽略」的那一版的 versionCode：它和更早的版本不再提示。 */
     val UPDATE_IGNORED_VERSION_CODE = intPreferencesKey("pref_update_ignored_version_code")
 
+    /** 社区提醒发不发系统通知（[PreferencesRepository.notificationSettings]）：没有这个键 = 关。 */
+    val NOTIFY_COMMUNITY = booleanPreferencesKey("pref_notify_community")
+
+    /** 社区提醒多久查一次（`CommunityCheckInterval` 的名字）；读盘经 `enumOr` 收敛。 */
+    val NOTIFY_COMMUNITY_INTERVAL = stringPreferencesKey("pref_notify_community_interval")
+
+    /** 放送提醒发不发系统通知：没有这个键 = 关。 */
+    val NOTIFY_AIRING = booleanPreferencesKey("pref_notify_airing")
+
+    /** 放送提醒怎么发（`AiringReminderMode` 的名字）；读盘经 `enumOr` 收敛。 */
+    val NOTIFY_AIRING_MODE = stringPreferencesKey("pref_notify_airing_mode")
+
+    /** 每天定时汇总的时刻（从 0 点起的分钟数）；不在 0..1439 里读成默认。 */
+    val NOTIFY_AIRING_DAILY_MINUTE = intPreferencesKey("pref_notify_airing_daily_minute")
+
+    /** 第一次打开提醒时问过「后台运行」了（[PreferencesRepository.backgroundPrompted]）：只问这一次。 */
+    val NOTIFY_BACKGROUND_PROMPTED = booleanPreferencesKey("pref_notify_background_prompted")
+
+    /**
+     * 系统通知的记账（`SystemNoticeLedger`），按账号：社区提醒的基线（发过与跳过的最大提醒 id）、上一轮记下的未读短信条数。
+     * 实际键为 `notify_ledger_baseline_<accountId>` 等；关掉社区提醒、换了账号时整组清掉。
+     */
+    const val NOTICE_LEDGER_PREFIX = "notify_ledger_"
+
+    fun noticeBaselineKey(accountId: Int) = intPreferencesKey("${NOTICE_LEDGER_PREFIX}baseline_$accountId")
+    fun notifiedMessagesKey(accountId: Int) = intPreferencesKey("${NOTICE_LEDGER_PREFIX}messages_$accountId")
+
+    /** 今天已经发过的放送提醒（`SystemNoticeLedger`）：`<accountId>|<放送日>|<作品 id,…>`，汇总记成作品 id 0；换了一天或账号就从头记。 */
+    val AIRING_POSTED = stringPreferencesKey("notify_airing_posted")
+
     /** 最近搜索整表的会话归属；SearchRepository 删除旧行成功后才允许新归属读取。 */
     val RECENT_SEARCH_OWNER = stringPreferencesKey("recent_search_owner")
 

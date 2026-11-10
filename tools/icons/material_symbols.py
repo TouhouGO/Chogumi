@@ -111,6 +111,7 @@ ICONS: dict[str, tuple[str, bool]] = {
     "more_vert": ("more_vert", False),
     "music_note": ("music_note", False),
     "music_note_filled": ("music_note", True),
+    "notifications": ("notifications", False),
     "notifications_filled": ("notifications", True),
     "open_in_new": ("open_in_new", False),
     "palette": ("palette", False),

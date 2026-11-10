@@ -1499,4 +1499,42 @@
     <plurals name="widget_heat_month">
         <item quantity="other">这个月 %1$d 集</item>
     </plurals>
+    <string name="settings_notifications">通知</string>
+    <string name="notify_community">社区提醒</string>
+    <string name="notify_community_interval">检查间隔</string>
+    <string name="notify_interval_15m">15 分钟</string>
+    <string name="notify_interval_30m">30 分钟</string>
+    <string name="notify_interval_1h">1 小时</string>
+    <string name="notify_interval_3h">3 小时</string>
+    <string name="notify_focus_mode_on">专注模式开着</string>
+    <string name="notify_airing">放送提醒</string>
+    <string name="notify_airing_mode">提醒方式</string>
+    <string name="notify_airing_at_airing">开播时</string>
+    <string name="notify_airing_daily">每天定时</string>
+    <string name="notify_airing_time">提醒时间</string>
+    <string name="notify_categories">通知类别</string>
+    <string name="notify_background">后台运行</string>
+    <string name="notify_background_restricted">省电时提醒会晚到，点这里放行</string>
+    <string name="notify_system_off">系统里关掉了通知，点这里去打开</string>
+    <string name="notify_channel_reply">回复</string>
+    <string name="notify_channel_mention">提到我</string>
+    <string name="notify_channel_friend">好友</string>
+    <string name="notify_channel_message">短信</string>
+    <string name="notify_channel_other">其他</string>
+    <string name="notify_channel_airing">放送</string>
+    <string name="notify_notice_detail">%1$s\n「%2$s」</string>
+    <string name="notify_mark_read">标为已读</string>
+    <plurals name="notify_unread_messages">
+        <item quantity="other">%1$d 封未读短信</item>
+    </plurals>
+    <string name="notify_airing_episode_at">第 %1$s 集 %2$s 开播</string>
+    <string name="notify_airing_episode_today">第 %1$s 集 今天更新</string>
+    <string name="notify_airing_at">%1$s 开播</string>
+    <string name="notify_airing_today">今天更新</string>
+    <string name="notify_airing_watched">看过了</string>
+    <plurals name="notify_digest_title">
+        <item quantity="other">今天要播 %1$d 部</item>
+    </plurals>
+    <string name="notify_digest_line">%1$s %2$s</string>
+    <string name="notify_digest_line_episode">%1$s %2$s 第 %3$s 集</string>
 </resources>

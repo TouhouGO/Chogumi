@@ -34,6 +34,7 @@ import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
+import io.github.touhougo.chogumi.core.model.EpButtonState
 import io.github.touhougo.chogumi.core.model.SessionState
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +64,7 @@ import org.koin.core.component.inject
 internal fun allWidgets(): List<GlanceAppWidget> = listOf(ProgressWidget(), SubjectWidget(), HeatWidget(), TodayWidget(), WeekWidget())
 
 /**
- * 小组件上点 +1：交给标进度协调器（首页、进度页、详情页同一个），失败画在那一行上。
+ * 小组件上点 +1、放送提醒上点「看过了」：交给标进度协调器（首页、进度页、详情页同一个），小组件发起的失败画在那一行上。
  *
  * 协调器先写本地（小组件跟着本地刷新，点下去就是新进度）、停手 2 秒后才提交。点击是一次广播，广播结束后进程随时可能被回收，
  * 所以 [advance] 一直挂起到这一轮写入（含失败回滚）结束（[EpTapCoordinator.active] 不再有这部）：广播没结束，提交就不会丢。
@@ -90,13 +91,23 @@ internal class WidgetProgressActions(
     /** 换了账号：上一个账号的失败标记不留给下一个。 */
     fun forgetFailures() = _failed.update { emptySet() }
 
-    suspend fun advance(subjectId: Int) {
+    suspend fun advance(subjectId: Int) = advance(ProgressOrigin.WIDGET, subjectId) { true }
+
+    /**
+     * 放送提醒上的「看过了」：这部的下一集还是通知说的那一集（[episodeId]）才标；点之前已经在别处标过了就什么也不写。
+     * 失败只有本地回滚（没有地方可画）。
+     */
+    suspend fun advanceEpisode(subjectId: Int, episodeId: Int) = advance(ProgressOrigin.NOTIFICATION, subjectId) { work ->
+        (work.button as? EpButtonState.Next)?.episode?.id == episodeId
+    }
+
+    private suspend fun advance(origin: ProgressOrigin, subjectId: Int, accept: (WidgetWork) -> Boolean) {
         // 账号在点下那一刻取（advanceResolved），读列表期间换了号，这次点击作废
-        val queued = coordinator.advanceResolved(ProgressOrigin.WIDGET) {
+        val queued = coordinator.advanceResolved(origin) {
             val ready = source.load() as? WidgetWorks.Ready
             // 点的那一行已经不在列表里（别处看完了、换了号）：什么也不写，小组件刷新后显示现在的样子
-            ready?.works?.firstOrNull { it.subjectId == subjectId }?.let { work ->
-                _failed.update { it - subjectId }
+            ready?.works?.firstOrNull { it.subjectId == subjectId }?.takeIf(accept)?.let { work ->
+                if (origin == ProgressOrigin.WIDGET) _failed.update { it - subjectId }
                 AdvanceTarget(work.progressSubject, ready.today)
             }
         }
@@ -280,9 +291,7 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
 
     override suspend fun doWork(): Result {
         // 取不到就留着上一次画的：小组件上的内容来自本机，下一轮再取
-        outcomeOf { homeRepository.getHomeProgress().collect { } }
-        outcomeOf { calendarRepository.getCalendar().collect { } }
-        airingTimeRepository.refreshIfStale()
+        refreshCalendarSources(homeRepository, calendarRepository, airingTimeRepository)
         updates.updateNow()
         return Result.success()
     }
@@ -302,4 +311,18 @@ class WidgetRefreshWorker(context: Context, params: WorkerParameters) : Coroutin
             WorkManager.getInstance(context).cancelUniqueWork(NAME)
         }
     }
+}
+
+/**
+ * 到期才真去网络地取一次首页进度、放送表与放送时刻表（`HomeRepository.getHomeProgress`、`CalendarRepository.getCalendar`、
+ * `AiringTimeRepository.refreshIfStale` 各自判到没到期）；取不到就留着本机的。小组件与放送提醒的每小时刷新都经它。
+ */
+internal suspend fun refreshCalendarSources(
+    homeRepository: HomeRepository,
+    calendarRepository: CalendarRepository,
+    airingTimeRepository: AiringTimeRepository,
+) {
+    outcomeOf { homeRepository.getHomeProgress().collect { } }
+    outcomeOf { calendarRepository.getCalendar().collect { } }
+    airingTimeRepository.refreshIfStale()
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- 社区提醒通知上的「标为已读」：只收 App 自己发出的意图，不导出 -->
+        <receiver
+            android:name=".notice.MarkNoticeReadReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

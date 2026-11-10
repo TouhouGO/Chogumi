@@ -35,7 +35,11 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.core.qualifier.named
+import io.github.touhougo.chogumi.core.ui.common.SystemNotices
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxRequests
+import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import io.github.touhougo.chogumi.core.ui.common.navigation.ProgressEntryRequests
+import io.github.touhougo.chogumi.core.ui.common.navigation.Route
 import io.github.touhougo.chogumi.core.ui.common.navigation.inAppRoute
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -50,6 +54,7 @@ class AppActivity : ComponentActivity() {
     /** 按需表情的下载能力；由外壳经 CompositionLocal 下发给渲染层（渲染层不该知道 DI 的存在）。 */
     private val smileyAssetStore: SmileyAssetStore by inject()
     private val progressEntryRequests: ProgressEntryRequests by inject()
+    private val inboxRequests: InboxRequests by inject()
     private val computationDispatcher: CoroutineDispatcher by inject(named("computationDispatcher"))
     private val displayScale: DisplayScaleRepository by inject()
 
@@ -74,7 +79,7 @@ class AppActivity : ComponentActivity() {
 
         // 仅冷启动处理进来的地址：Activity 重建（旋转/进程恢复）会重投同一 base intent，重放会毁 token、再推一遍页面
         if (savedInstanceState == null) {
-            handleLink(intent?.data)
+            intent?.let(::handleIntent)
         }
 
         setContent {
@@ -97,7 +102,7 @@ class AppActivity : ComponentActivity() {
                     LocalCoverComputationDispatcher provides computationDispatcher,
                 ) {
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        AppShell(viewModel, updates, windowSizeClass, progressEntryRequests)
+                        AppShell(viewModel, updates, windowSizeClass, progressEntryRequests, inboxRequests)
                     }
                 }
             }
@@ -111,6 +116,20 @@ class AppActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    /**
+     * 进来的意图：点开系统通知时带着提醒 id（标为已读）或要打开的铃铛面板页（[SystemNotices.EXTRA_INBOX]：切到社区、打开面板），
+     * 然后是地址（[handleLink]）。
+     */
+    private fun handleIntent(intent: Intent) {
+        val noticeId = intent.getIntExtra(SystemNotices.EXTRA_NOTICE_ID, 0)
+        if (noticeId > 0) viewModel.markNoticeRead(noticeId)
+        InboxTab.entries.firstOrNull { it.name == intent.getStringExtra(SystemNotices.EXTRA_INBOX) }?.let { tab ->
+            viewModel.openLink(Route.Community)
+            inboxRequests.open(tab)
+        }
         handleLink(intent.data)
     }
 

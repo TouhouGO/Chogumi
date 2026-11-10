@@ -129,7 +129,7 @@ fun SettingsContent(
                 SettingsGroup(
                     key = "sections",
                     title = null,
-                    rows = SettingsSection.entries.filter { it != SettingsSection.NETWORK || networkSection }.map<SettingsSection, SettingsRow> { section ->
+                    rows = shownSections(isLoggedIn, networkSection).map<SettingsSection, SettingsRow> { section ->
                         { index, count ->
                             LinkRow(index, count, stringResource(section.title), section.icon) { onSection(section) }
                         }
@@ -194,6 +194,15 @@ fun SettingsContent(
     }
 }
 
+/** 一级菜单里有哪些分类：「通知」只给登录了的（两类提醒都按账号），「网络」只在设备支持直连时有。 */
+private fun shownSections(isLoggedIn: Boolean, networkSection: Boolean): List<SettingsSection> = SettingsSection.entries.filter {
+    when (it) {
+        SettingsSection.NOTIFICATIONS -> isLoggedIn
+        SettingsSection.NETWORK -> networkSection
+        else -> true
+    }
+}
+
 /**
  * 设置的一个分类页（二级页）。分类与它的内容只在这里对应一次：外观、首页与进度、评分与社区是本地偏好，共用
  * [PreferenceSettingsScreen]；内容过滤读写服务端的账号设置，是 [ContentSettingsScreen]；更新要查 GitHub 上的正式版，
@@ -217,6 +226,7 @@ fun SettingsPageScreen(
             PreferenceSettingsScreen(section, onBack, { state, actions -> ratingsCommunityGroups(state, actions) }, modifier)
         SettingsSection.CONTENT_FILTER ->
             ContentSettingsScreen(isLoggedIn, onBack, onMutedGroups, onBlockedUsers, modifier)
+        SettingsSection.NOTIFICATIONS -> NotificationSettingsScreen(onBack, modifier)
         SettingsSection.UPDATES -> UpdateSettingsScreen(onBack, modifier)
         SettingsSection.NETWORK -> NetworkSettingsScreen(onBack, modifier)
     }

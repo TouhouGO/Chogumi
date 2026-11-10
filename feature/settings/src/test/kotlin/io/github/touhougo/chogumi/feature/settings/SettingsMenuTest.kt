@@ -55,7 +55,7 @@ class SettingsMenuTest {
         val opened = mutableListOf<SettingsSection>()
         showSections(networkSection = true) { opened += it }
 
-        listOf("外观", "首页与进度", "评分与社区", "内容过滤", "更新", "网络").forEach { title ->
+        listOf("外观", "首页与进度", "评分与社区", "内容过滤", "通知", "更新", "网络").forEach { title ->
             compose.onNode(hasText(title) and hasClickAction()).performClick()
         }
 
@@ -86,6 +86,14 @@ class SettingsMenuTest {
 
         compose.onNodeWithText("小咕").assertDoesNotExist()
         compose.onNode(hasText("外观") and hasClickAction()).assertExists()
+    }
+
+    @Test
+    fun 游客没有通知分类() {
+        showMenu(isLoggedIn = false, onProfile = {})
+
+        compose.onNodeWithText("内容过滤").assertExists()
+        compose.onNodeWithText("通知").assertDoesNotExist()
     }
 
     private fun showMenu(isLoggedIn: Boolean, onProfile: () -> Unit) {

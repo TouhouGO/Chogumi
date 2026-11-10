@@ -44,6 +44,16 @@ class CheckDialogsTest(unittest.TestCase):
         aliased = "typealias Dialog = AlertDialog\n@Composable\nfun Page() { Dialog(onDismissRequest = {}, confirmButton = {}) }\n"
         self.assertEqual(1, len(self.violations({"feature/a/src/main/Page.kt": aliased})))
 
+    def test_page_builds_its_own_time_picker_dialog_is_rejected_home_passes(self):
+        page = "@Composable\nfun Page() {\n    TimePickerDialog(onDismissRequest = {}, confirmButton = {}, title = {}) {}\n}\n"
+        found = self.violations({"feature/a/src/main/Page.kt": page})
+        self.assertEqual(1, len(found))
+        self.assertIn("TimeSelectDialog", found[0])
+        home = "@Composable\nfun TimeSelectDialog() { TimePickerDialog(onDismissRequest = {}, confirmButton = {}, title = {}) {} }\n"
+        self.assertEqual([], self.violations({"core/ui/src/main/TimeSelectDialog.kt": home}))
+        qualified = "@Composable\nfun Page() { androidx.compose.material3.DatePickerDialog(onDismissRequest = {}, confirmButton = {}) {} }\n"
+        self.assertEqual(1, len(self.violations({"feature/a/src/main/Page.kt": qualified})))
+
     def test_allowed_input_dialog_passes_and_dead_entry_is_reported(self):
         page = "@Composable\nprivate fun RenameDialog() { AlertDialog(onDismissRequest = {}, confirmButton = {}) }\n"
         self.assertEqual([], self.violations({"feature/a/src/main/Page.kt": page}, {("Page.kt", "RenameDialog"): "输入框"}))
