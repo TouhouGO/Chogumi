@@ -6,6 +6,8 @@ import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.token.withSessionToken
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
+import io.github.touhougo.chogumi.core.foundation.Failure
+import io.github.touhougo.chogumi.core.foundation.FailureException
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.model.NoticeBo
@@ -196,10 +198,11 @@ class NotificationRepository(
     }
 
     /** 读一次未读短信并发布，回读到的条数；读不出来、访问关了，或读的期间短信在服务端变过（读数已旧）为 null。 */
-    private suspend fun readUnreadMessages(): Int? {
+    private suspend fun readUnreadMessages(expectedSession: AccountSession? = null): Int? {
         val read = outcomeOf {
             val (access, epoch) = refreshMutex.withLock {
                 val access = synchronizeAccess()
+                expectedSession?.let { tokenStore.requireCurrent(it) }
                 if (!access.allowed) return@outcomeOf null
                 access to messagesEpoch
             }
@@ -227,8 +230,18 @@ class NotificationRepository(
             nextApi.getNotifications(unread = true, limit = UNREAD_NOTICE_LIMIT, accessToken = token)
         }
         if (!publishRead(round, page.total)) return@outcomeOf null
-        UnreadSnapshot(round.access.session.viewerId, page.data.map { it.toDomain() }, readUnreadMessages())
+        val messages = readUnreadMessages(round.access.session)
+        tokenStore.requireCurrent(round.access.session)
+        if (!publishRead(round, page.total)) return@outcomeOf null
+        UnreadSnapshot(round.access.session, page.data.map { it.toDomain() }, messages, page.total)
     }
+
+    /** 快照消费方提交本机结果之前重新确认访问；不持锁等网络，换号或专注模式后拒绝旧快照。 */
+    suspend fun <T> withUnreadSnapshot(snapshot: UnreadSnapshot, block: suspend () -> T): T =
+        tokenStore.commitForSession(snapshot.session) {
+            if (!preferencesRepository.appFeatures.first().community) throw FailureException(Failure.SessionChanged)
+            block()
+        }
 
     /**
      * 未读短信全部标为已读（网页会话，[WebSessionRepository.markMessagesRead]），成功后归零。
@@ -287,7 +300,10 @@ class NotificationRepository(
 }
 
 /**
- * 系统通知一轮检查读到的：读的是哪个账号（[accountId]），此刻的未读提醒（一页，最多 40 条），
+ * 系统通知一轮检查读到的：读的是哪个账号（[accountId]），此刻的未读提醒（一页，最多 40 条；[total] 保留完整性），
  * 未读短信条数（没有网页会话为 0，读不出来为 null：这一轮短信不动）。
  */
-data class UnreadSnapshot(val accountId: Int, val notices: List<NoticeBo>, val messages: Int?)
+data class UnreadSnapshot(val session: AccountSession, val notices: List<NoticeBo>, val messages: Int?, val total: Int) {
+    val accountId: Int get() = session.viewerId
+    val complete: Boolean get() = notices.size >= total
+}

@@ -18,6 +18,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import io.github.touhougo.chogumi.core.common.notice.FailureNotices
+import io.github.touhougo.chogumi.core.foundation.Outcome
+import io.github.touhougo.chogumi.core.ui.composables.FailureNoticeEffect
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,6 +62,7 @@ import org.koin.android.ext.android.inject
  * （与在看列表同一份、同一个顺序），点一部就记给这个小组件。退出不选，系统就不放这个小组件。
  */
 class SubjectWidgetPickerActivity : ComponentActivity() {
+    private val failures = FailureNotices()
     private val source: WidgetWorksSource by inject()
     private val preferences: PreferencesRepository by inject()
     private val updates: WidgetUpdates by inject()
@@ -88,7 +95,7 @@ class SubjectWidgetPickerActivity : ComponentActivity() {
             val (themePreferences, themeMode) = theme ?: return@setContent
             ChogumiTheme(darkTheme = darkThemeOf(themeMode), themePreferences = themePreferences) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-                    PickerScreen(works, onBack = ::finish, onPick = { subjectId -> pick(appWidgetId, subjectId) })
+                    PickerScreen(works, failures, onBack = ::finish, onPick = { subjectId -> pick(appWidgetId, subjectId) })
                 }
             }
         }
@@ -96,9 +103,20 @@ class SubjectWidgetPickerActivity : ComponentActivity() {
 
     private fun pick(appWidgetId: Int, subjectId: Int) {
         lifecycleScope.launch {
-            chooseSubject(applicationContext, appWidgetId, subjectId, updates)
-            setResult(RESULT_OK, resultOf(appWidgetId))
-            finish()
+            when (val result = chooseSubject(applicationContext, appWidgetId, subjectId, updates)) {
+                is Outcome.Success -> {
+                    if (result.value) setResult(RESULT_OK, resultOf(appWidgetId))
+                    finish()
+                }
+                is Outcome.Failed -> {
+                    val missing = outcomeOf { AppWidgetManager.getInstance(applicationContext).getAppWidgetInfo(appWidgetId) == null }.valueOrNull() == true
+                    if (missing) {
+                        finish()
+                    } else {
+                        failures.post(result.failure, retry = { pick(appWidgetId, subjectId) })
+                    }
+                }
+            }
         }
     }
 
@@ -107,8 +125,10 @@ class SubjectWidgetPickerActivity : ComponentActivity() {
 
 /** 选作品页：读到之前画几行同框架的骨架（没有首页缓存时要等网络）。 */
 @Composable
-private fun PickerScreen(works: WidgetWorks?, onBack: () -> Unit, onPick: (Int) -> Unit) {
-    PageScaffold(title = stringResource(R.string.widget_picker_title), onBack = onBack) { padding ->
+private fun PickerScreen(works: WidgetWorks?, failures: FailureNotices, onBack: () -> Unit, onPick: (Int) -> Unit) {
+    val snackbar = remember { SnackbarHostState() }
+    FailureNoticeEffect(failures, snackbar)
+    PageScaffold(title = stringResource(R.string.widget_picker_title), onBack = onBack, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
         when (works) {
             null -> Column(Modifier.padding(padding)) { repeat(PICKER_SKELETON_ROWS) { PickerRowSkeleton() } }
             WidgetWorks.SignedOut -> EmptyLine(stringResource(R.string.widget_sign_in_prompt), Modifier.padding(padding))

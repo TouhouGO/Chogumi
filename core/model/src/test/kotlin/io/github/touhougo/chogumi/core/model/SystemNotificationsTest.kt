@@ -25,7 +25,7 @@ class SystemNotificationsTest {
 
     @Test
     fun `没有基线时不发_基线记成现有未读里最大的`() {
-        val round = noticeRoundOf(listOf(notice(5), notice(9)), baseline = null, shown = emptySet(), suppress = false)
+        val round = noticeRoundOf(listOf(notice(5), notice(9)), baseline = null, shown = emptySet(), suppress = false, complete = true, deferred = emptySet())
 
         assertTrue(round.post.isEmpty())
         assertEquals(9, round.baseline)
@@ -33,7 +33,7 @@ class SystemNotificationsTest {
 
     @Test
     fun `比基线新且没挂着的按id升序发出`() {
-        val round = noticeRoundOf(listOf(notice(12), notice(8), notice(11), notice(10)), baseline = 9, shown = setOf(11), suppress = false)
+        val round = noticeRoundOf(listOf(notice(12), notice(8), notice(11), notice(10)), baseline = 9, shown = setOf(11), suppress = false, complete = true, deferred = emptySet())
 
         assertEquals(listOf(10, 12), round.post.map { it.id })
         assertEquals(12, round.baseline)
@@ -41,7 +41,7 @@ class SystemNotificationsTest {
 
     @Test
     fun `挂着的不在未读里了就撤掉_还未读的留着`() {
-        val round = noticeRoundOf(listOf(notice(11)), baseline = 11, shown = setOf(10, 11), suppress = false)
+        val round = noticeRoundOf(listOf(notice(11)), baseline = 11, shown = setOf(10, 11), suppress = false, complete = true, deferred = emptySet())
 
         assertEquals(setOf(10), round.cancel)
         assertTrue(round.post.isEmpty())
@@ -49,7 +49,7 @@ class SystemNotificationsTest {
 
     @Test
     fun `前台时只推进基线不发_读过的照样撤`() {
-        val round = noticeRoundOf(listOf(notice(12)), baseline = 9, shown = setOf(8), suppress = true)
+        val round = noticeRoundOf(listOf(notice(12)), baseline = 9, shown = setOf(8), suppress = true, complete = true, deferred = emptySet())
 
         assertTrue(round.post.isEmpty())
         assertEquals(12, round.baseline)
@@ -58,7 +58,7 @@ class SystemNotificationsTest {
 
     @Test
     fun `未读清空时基线不往回走`() {
-        val round = noticeRoundOf(emptyList(), baseline = 20, shown = emptySet(), suppress = false)
+        val round = noticeRoundOf(emptyList(), baseline = 20, shown = emptySet(), suppress = false, complete = true, deferred = emptySet())
 
         assertEquals(20, round.baseline)
         assertTrue(round.post.isEmpty())

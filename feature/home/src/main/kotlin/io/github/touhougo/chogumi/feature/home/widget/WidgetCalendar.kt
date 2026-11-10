@@ -6,6 +6,7 @@ import io.github.touhougo.chogumi.core.data.repository.CalendarRepository
 import io.github.touhougo.chogumi.core.data.repository.CollectionObserver
 import io.github.touhougo.chogumi.core.data.repository.CollectionProgressUpdate
 import io.github.touhougo.chogumi.core.data.repository.HomeRepository
+import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Outcome
@@ -35,11 +36,12 @@ internal sealed interface WidgetCalendar {
     data class Ready(
         val week: Map<Int, CalendarDaySections>,
         val date: LocalDate,
-        val signedIn: Boolean,
+        val session: AccountSession,
         val works: Map<Int, WidgetWork>,
         val followed: List<FollowedWork>,
     ) : WidgetCalendar {
         val today: Int get() = date.dayOfWeek.value
+        val signedIn: Boolean get() = session.authenticated
     }
 }
 
@@ -80,26 +82,27 @@ internal class WidgetCalendarSource(
 ) {
     suspend fun load(): WidgetCalendar {
         val result = outcomeOf {
-            val signedIn = when (widgetSignInOf(authRepository)) {
-                WidgetSignIn.SIGNED_IN -> true
-                WidgetSignIn.SIGNED_OUT -> false
-                WidgetSignIn.UNREADABLE -> return@outcomeOf WidgetCalendar.Failed
+            val session = when (val captured = authRepository.currentSession()) {
+                is Outcome.Failed -> return@outcomeOf WidgetCalendar.Failed
+                is Outcome.Success -> captured.value
             }
+            val signedIn = session.authenticated
             val calendar = when (val read = calendarRepository.getCalendar().settled()) {
                 is Outcome.Success -> read.value
                 is Outcome.Failed -> return@outcomeOf WidgetCalendar.Failed
             }
             val starts = airingTimeRepository.observeBroadcastStarts().settled().valueOrNull().orEmpty()
             val followed = if (signedIn) followedOf(calendar) ?: return@outcomeOf WidgetCalendar.Failed else emptyList()
-            val works = if (signedIn) (worksSource.load() as? WidgetWorks.Ready)?.works.orEmpty() else emptyList()
+            val works = if (signedIn) (worksSource.load(session) as? WidgetWorks.Ready)?.works.orEmpty() else emptyList()
             val date = airingDateOf(clock.nowMillis())
-            WidgetCalendar.Ready(
+            val ready = WidgetCalendar.Ready(
                 week = calendarWeek(calendar, followed, date, starts),
                 date = date,
-                signedIn = signedIn,
+                session = session,
                 works = works.associateBy { it.subjectId },
                 followed = followed,
             )
+            authRepository.withSession(session) { ready }
         }
         return (result as? Outcome.Success)?.value ?: WidgetCalendar.Failed
     }

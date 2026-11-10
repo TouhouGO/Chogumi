@@ -23,9 +23,9 @@ class SystemNoticeLedgerTest {
     @Test
     fun `基线按账号记_短信没读出来时不动上一轮的条数`() = runTest {
         val ledger = newLedger()
-        ledger.recordRound(accountId = 1, baseline = 30, messages = 2)
-        ledger.recordRound(accountId = 1, baseline = 31, messages = null)
-        ledger.recordRound(accountId = 2, baseline = 5, messages = 0)
+        ledger.recordRound(accountId = 1, baseline = 30, messages = 2, deferred = emptySet())
+        ledger.recordRound(accountId = 1, baseline = 31, messages = null, deferred = emptySet())
+        ledger.recordRound(accountId = 2, baseline = 5, messages = 0, deferred = emptySet())
 
         assertEquals(31, ledger.noticeBaseline(1))
         assertEquals(2, ledger.notifiedMessages(1))
@@ -35,8 +35,8 @@ class SystemNoticeLedgerTest {
     @Test
     fun `关掉社区提醒清掉每个账号的基线_放送提醒的记录留着`() = runTest {
         val ledger = newLedger()
-        ledger.recordRound(accountId = 1, baseline = 30, messages = 2)
-        ledger.recordRound(accountId = 2, baseline = 5, messages = 1)
+        ledger.recordRound(accountId = 1, baseline = 30, messages = 2, deferred = emptySet())
+        ledger.recordRound(accountId = 2, baseline = 5, messages = 1, deferred = emptySet())
         ledger.markAiringPosted(accountId = 1, date = today, subjectId = 7)
 
         ledger.forgetCommunity()

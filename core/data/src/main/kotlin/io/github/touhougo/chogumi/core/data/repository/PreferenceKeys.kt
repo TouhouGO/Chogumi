@@ -92,6 +92,9 @@ object PreferenceKeys {
     const val NOTICE_LEDGER_PREFIX = "notify_ledger_"
 
     fun noticeBaselineKey(accountId: Int) = intPreferencesKey("${NOTICE_LEDGER_PREFIX}baseline_$accountId")
+    /** 没有交给系统的提醒id，按账号保留，下一轮重试。 */
+    fun deferredNoticesKey(accountId: Int) = androidx.datastore.preferences.core.stringSetPreferencesKey("${NOTICE_LEDGER_PREFIX}deferred_$accountId")
+
     fun notifiedMessagesKey(accountId: Int) = intPreferencesKey("${NOTICE_LEDGER_PREFIX}messages_$accountId")
 
     /** 今天已经发过的放送提醒（`SystemNoticeLedger`）：`<accountId>|<放送日>|<作品 id,…>`，汇总记成作品 id 0；换了一天或账号就从头记。 */
