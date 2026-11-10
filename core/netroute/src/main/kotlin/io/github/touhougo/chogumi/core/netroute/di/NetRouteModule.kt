@@ -6,12 +6,17 @@ import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import io.github.touhougo.chogumi.core.netroute.AndroidNetworkChanges
+import io.github.touhougo.chogumi.core.netroute.AndroidWebViewProxy
 import io.github.touhougo.chogumi.core.netroute.BuiltinEdgeAddresses
+import io.github.touhougo.chogumi.core.netroute.CoreRoutes
 import io.github.touhougo.chogumi.core.netroute.DirectRouteHint
 import io.github.touhougo.chogumi.core.netroute.DirectRouting
 import io.github.touhougo.chogumi.core.netroute.EdgeAddresses
 import io.github.touhougo.chogumi.core.netroute.GoDirectCore
 import io.github.touhougo.chogumi.core.netroute.NetRoute
+import io.github.touhougo.chogumi.core.netroute.OkHttpProxyProbe
+import io.github.touhougo.chogumi.core.netroute.ProxyRouting
+import io.github.touhougo.chogumi.core.netroute.RouteCheck
 import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.network.OkHttpCustomizer
 import org.koin.android.ext.koin.androidContext
@@ -24,7 +29,10 @@ private fun directCoreLog(context: Context): ((String) -> Unit)? =
 
 private const val DIRECT_LOG_TAG = "ChogumiDirect"
 
-/** 网络线路：设置与直连核心（[NetRoute]）、给网络层的调整（[DirectRouting]）、给登录页的提示条件（[DirectRouteHint]）。 */
+/**
+ * 网络线路：设置、直连核心与代理（[NetRoute]）、给网络层的调整（[DirectRouting] 与 [ProxyRouting] 合成一份）、
+ * 「检查连接」（[RouteCheck]，套上同一份调整）、给登录页的提示条件（[DirectRouteHint]）。
+ */
 val netRouteModule = module {
     single<EdgeAddresses> { BuiltinEdgeAddresses }
     single {
@@ -36,12 +44,21 @@ val netRouteModule = module {
             GoDirectCore,
             AndroidNetworkChanges(androidContext()),
             directCoreLog(androidContext()),
+            OkHttpProxyProbe,
+            AndroidWebViewProxy,
         )
     }
     single<OkHttpCustomizer> {
         val route = get<NetRoute>()
-        DirectRouting { route.route() }
+        val routes = CoreRoutes { route.route() }
+        val direct = DirectRouting(routes)
+        val proxy = ProxyRouting(routes)
+        OkHttpCustomizer { builder ->
+            direct.customize(builder)
+            proxy.customize(builder)
+        }
     }
+    single { RouteCheck(getAll()) }
     single<DirectRouteHint> {
         val route = get<NetRoute>()
         DirectRouteHint { route.directAvailable }

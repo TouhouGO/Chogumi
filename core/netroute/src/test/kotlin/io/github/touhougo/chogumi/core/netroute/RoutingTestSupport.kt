@@ -101,3 +101,9 @@ internal class ManualNetworkChanges : NetworkChanges {
 
 /** 不变的网络。 */
 internal val NoNetworkChanges = NetworkChanges { }
+
+/** 测试里不该被调用的试连：调用它就是测试错了。 */
+internal val NoProbe = ProxyProbe { error("这条测试不该试连代理") }
+
+/** 不关心 WebView 代理的测试用的。 */
+internal val NoWebView = WebViewProxy { }

@@ -14,6 +14,8 @@ dependencies {
 
     implementation(libs.ktor.client.okhttp)
     implementation(libs.androidx.datastore.preferences)
+    // 代理线路下应用里的 WebView（回帖的人机验证页）经同一个代理：ProxyController
+    implementation(libs.androidx.webkit)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

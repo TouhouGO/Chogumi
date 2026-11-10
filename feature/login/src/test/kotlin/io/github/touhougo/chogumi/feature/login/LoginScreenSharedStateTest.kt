@@ -109,7 +109,7 @@ class LoginScreenSharedStateTest {
                     key(shown) {
                         // 同 LoginScreen 取 ViewModel 的那一行，只是不经 Koin（单测里的 startKoin 会被编译插件当整图校验）
                         val viewModel = viewModel(viewModelStoreOwner = loginViewModelOwner()) { LoginViewModel(repository, NoDirectRoute) }
-                        LoginScreen(viewModel, onBack = {}, onNetworkClick = null, onSettingsClick = {}, modifier = Modifier)
+                        LoginScreen(viewModel, onBack = {}, onNetworkClick = {}, onSettingsClick = {}, modifier = Modifier)
                     }
                 }
             }

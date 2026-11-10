@@ -75,6 +75,8 @@ class StringsLocaleContractTest {
             "episode_jump_mixed_text",
             // 只在要改的条数超过目录写入上限时出现（大于 15），上限是常量
             "index_reorder_too_many",
+            // 「312 ms」：ms 是毫秒的单位符号，不分单复数
+            "network_check_millis",
         )
         val countNoun = Regex("%\\d+\\$" + "d (?:[a-z]+ )?[a-z]+s\\b")
         val offenders = englishStrings().filter { (key, value) -> key !in fixedQuantity && countNoun.containsMatchIn(value) }.keys
@@ -176,6 +178,11 @@ class StringsLocaleContractTest {
             "settings_display_scale_width",
             // 刷新率的读数「120 Hz」：Hz 是国际单位符号，系统设置里的「屏幕刷新率」也这样写
             "settings_refresh_rate_hz",
+            // 代理的类型：HTTP、SOCKS5 是协议名，代理软件里也这样写，不译
+            "network_proxy_type_http",
+            "network_proxy_type_socks5",
+            // 检查连接的读数「312 ms」：ms 是国际单位符号
+            "network_check_millis",
         ) + thirdPartyNames.keys
         val strings = defaultStrings()
         assertEquals("放行清单里有已经不存在的键（删了字符串就把它从清单删掉）", emptySet<String>(), allowed - strings.keys)

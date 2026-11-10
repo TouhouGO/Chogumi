@@ -32,6 +32,8 @@ class SystemRouteTest {
             core = NoCore,
             networkChanges = NoNetworkChanges,
             log = null,
+            probe = NoProbe,
+            webView = NoWebView,
         )
         scope.launch { route.run() }
         val end = RecordingEnd()

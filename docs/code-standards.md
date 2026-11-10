@@ -405,7 +405,9 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 
 ## 网络线路：一种实现
 
-连 bgm.tv 走哪条线路（系统网络、直连，以后的代理）只在 core:netroute：设置、核心起停、对请求的改写都在那里。网络层只认 core:network 的
-`OkHttpCustomizer`，三个接口客户端与图片加载套上 Koin 里登记的全部 customizer；页面只认 `NetRoute` / `DirectRouteHint` /
-`directRouteSupported`。直连核心（Go，`echcore.aar`）只有 core:netroute 引用，失败时只报失败、绝不退回普通 SNI（服务端事实在
-[开发须知](dev/guide.md) §1.10）。门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_netroute.py`。
+连 bgm.tv 走哪条线路（系统网络、直连、代理）只在 core:netroute：设置、核心起停、代理、对请求的改写都在那里。线路只有一个值
+（`RouteMode`）：直连与代理互斥，都不开是系统网络；状态只经 `NetRoute.transition` 改。网络层只认 core:network 的
+`OkHttpCustomizer`，三个接口客户端与图片加载套上 Koin 里登记的全部 customizer；页面只认 `NetRoute` / `RouteCheck` / `DirectRouteHint` /
+`directRouteSupported`，代理地址与端口的输入规则只在 core:netroute（`proxyHostInput`、`proxyPortInput`、`proxyServerOf`）。直连核心
+（Go，`echcore.aar`）只有 core:netroute 引用。直连与代理失败时都只报失败，绝不退回系统网络或普通 SNI（事实在[开发须知](dev/guide.md)
+§1.11、§1.12）。门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_netroute.py`。

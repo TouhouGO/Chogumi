@@ -30,7 +30,6 @@ import io.github.touhougo.chogumi.core.model.SignedInAccount
 import io.github.touhougo.chogumi.core.model.TopicType
 import io.github.touhougo.chogumi.core.model.indexCategoryOf
 import io.github.touhougo.chogumi.core.model.monoTypeSpec
-import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.LocalIndexPicker
 import io.github.touhougo.chogumi.core.ui.common.LocalUserCareerCard
@@ -263,7 +262,7 @@ internal fun appEntries(
         entry<Route.Login> {
             LoginScreen(
                 onBack = goBack,
-                onNetworkClick = if (directRouteSupported) ({ navigate(Route.SettingsPage(SettingsSection.NETWORK)) }) else null,
+                onNetworkClick = { navigate(Route.SettingsPage(SettingsSection.NETWORK)) },
                 onSettingsClick = toSettings,
             )
         }
