@@ -77,13 +77,13 @@ class RouteCheckTest {
     }
 }
 
-/** 造普通套接字，记下每一条连上过的连接是在哪个线程上关的；没连上的拨号（localhost 解析出 ::1 而服务器只听 127.0.0.1 时）不算。 */
+/** 造普通套接字，记下每一个是在哪个线程上关的。 */
 private class CloseRecordingSockets : SocketFactory() {
     val closedOn: MutableList<Thread> = Collections.synchronizedList(mutableListOf())
 
     override fun createSocket(): Socket = object : Socket() {
         override fun close() {
-            if (!isClosed && isConnected) closedOn += Thread.currentThread()
+            if (!isClosed) closedOn += Thread.currentThread()
             super.close()
         }
     }
