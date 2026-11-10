@@ -20,7 +20,7 @@
 | 整理（长按标题、拖拽排序、左滑移除、编辑、添加与缩略图） | core:ui `arrange/`（通用列表、面板骨架、状态机）；feature:explore 和 feature:subjectdetails 只提供领域数据与动作 |
 | 封面下标签收展 | core:model `subjectTagRow` 保持顺序；feature:subjectdetails `BudgetTagLayout` 按真实标签和+N尺寸预算排一行，展开状态按作品身份保存 |
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/`；章节格子的形状、集号强调、静止与预览描边只在 `TileStyle`，真实网格、演示与进度尺共用，演示的格子种类也由 core:model `EpisodeTracking.episodeGrid` 推导 |
-| 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
+| 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容；按在收起部分或固定栏上拖也收起展开，比一屏还高的头部不吸附） |
 | 复制（楼层与短信菜单的「复制」、详情页长按复制标题 / 原名 / 简介） | 剪贴板只经 core:ui `TextCopy.kt` 写：`rememberTextCopier`，长按复制用 `copyOnLongPress`（要点按的简介把点按一起交给它）；BBCode 变成复制的文字只在 core:common `copyTextOf`（楼层去开头引用的 `floorCopyTextOf`） |
 | 富文本、楼层、动态卡片 | core:reader；阅读字阶 `ReaderTypography`、楼层几何 `FloorGeometry` 与楼层骨架 `CommentFloorSkeleton` 在 core:ui（手势引导也画它们） |
 | 名单面板（作品「谁在看」、楼层「谁贴了」） | 框架只有 core:ui `PeopleListSheet`（标题 + 筛选 chip 行 + 人物区）；谁贴了在 core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |

@@ -208,7 +208,9 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 `heldBy(hold)` 接滚动（`PageScaffold` 的栏与 `CollapsibleHeader` 的 `yieldingBar`），不用裸的 enterAlways 连接。钉在列表之外的行
 （`PinnedRowFrame` 的 tab）上面没有可回去的内容，不扣住顶栏。`PageScaffold` 给每个二级页做了这些；有自己头部的页把头部放进
 `CollapsibleHeader`（`collapsing`）、行放进 `pinned`（`HeaderReveal.OnScrollUp`，进度、探索、社区、放送表都是）；`HeaderTabsFrame` 里
-`HeaderTopAppBar(frame = …)` 在头部收起后让位。不用 `pinnedScrollBehavior`。
+`HeaderTopAppBar(frame = …)` 在头部收起后让位。不用 `pinnedScrollBehavior`。头部与钉住的行本身也接竖向拖动，和在内容里拖是同一份
+收起状态（`CollapsibleHeader` 的 `headerDrag`）：头部再高也不只剩内容露出的那一截可拖，页面不给头部另加拖动。头部按内容量、不受屏高限制；
+比可用高度还高时松手不吸附（全开、全收都露不出它的下半截），停在松手的位置。
 
 最下面那一行钉住的，在内容滚到它下面时带软边，只在 core:ui `PinnedEdge.kt` 画；`PageScaffold` 页没有自己的钉住行时，最下面那一行就是
 顶栏本身（`BarEdgeFrame`），有更低的行时由它接过软边。钉在内容上方的行经 `PinnedRowFrame`（`CollapsibleHeader` 已经是），带 `stickyHeader`
