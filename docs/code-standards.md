@@ -386,6 +386,7 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
   `CustomTabUriHandler`：Custom Tab，不支持的浏览器当普通页打开）；不自己起浏览器 intent。分享只经 core:ui `Share.kt`：链接用
   `shareLink(title, url)`（文字 = 标题一行 + 链接一行），文件用 `shareFile(uri, mimeType)`；不自己拼 `ACTION_SEND`。
   门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_web_links.py`。
+- 复制只经 core:ui `TextCopy.kt`（`rememberTextCopier`；长按复制 `copyOnLongPress`），不自己调 `setClipEntry`；成功不提示。
 - 页面顶栏的 ⋮ 是 core:ui `PageMoreMenu(PageLink(title, url))`：网页与分享在前，页面自己的项隔一个间隔跟在后面（`extra`）。链接来自 `BgmWeb`，
   标题来自 `displayNameOf`（加载中为空：分享就只有链接）。不画 `more_vert` 按钮，不另做一套页面菜单；门禁：`python3 tools/guards/check_menus.py`。
 - 角色与人物共用路由（`Route.MonoDetails(monoType, id)` 等）：把类型传下去，不按它分支选路由。

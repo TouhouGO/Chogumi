@@ -54,6 +54,7 @@ import io.github.touhougo.chogumi.core.model.subjectMetaParts
 import io.github.touhougo.chogumi.core.model.subjectTagRow
 import io.github.touhougo.chogumi.core.model.tagSearchCriteria
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.common.copyOnLongPress
 import io.github.touhougo.chogumi.core.ui.composables.CoverWash
 import io.github.touhougo.chogumi.core.ui.composables.HeaderChip
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonBox
@@ -341,7 +342,7 @@ private const val WASH_ALPHA = 0.45f
 private const val WASH_GRADIENT_END = 0.92f
 
 /**
- * 标题（`headlineSmallEmphasized`，最多 2 行）与原名（与标题相同时不画）。[subject] 为 null 时画骨架：
+ * 标题（`headlineSmallEmphasized`，最多 2 行）与原名（与标题相同时不画），各自长按复制全文（[copyOnLongPress]）。[subject] 为 null 时画骨架：
  * 标题按上界画两行、原名照画——真实内容只会比它矮（文字栏底对齐，矮了只往上收）。
  */
 @Composable
@@ -357,7 +358,7 @@ private fun HeaderTitleLines(subject: SubjectBo?) {
     val title = displayNameOf(subject)
     Text(
         text = title,
-        modifier = Modifier.testTag(DetailsTitleTag),
+        modifier = Modifier.testTag(DetailsTitleTag).copyOnLongPress(title),
         style = titleStyle,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
@@ -365,6 +366,7 @@ private fun HeaderTitleLines(subject: SubjectBo?) {
     if (subject.name.isNotBlank() && subject.name != title) {
         Text(
             text = subject.name,
+            modifier = Modifier.copyOnLongPress(subject.name),
             style = originalStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

@@ -2,7 +2,6 @@ package io.github.touhougo.chogumi.core.reader
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -61,7 +60,8 @@ import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
  * 展开 / 收起的高度变化走 standard 方案的默认空间弹簧过渡：`animateContentSize` 按动画途中的高度裁剪，会回弹的弹簧
  * 收起时缩过头，把底下的「展开」按钮裁掉一截。
  * @param expandLabel / collapseLabel 复用调用方已有的字符串键，不新增文案。
- * @param onContentClick 点正文也切换折叠（简介保留该行为）；楼层不传，让正文里的链接自己响应。
+ * @param contentGestures 挂在正文上的手势（简介：点正文切换折叠、长按复制，core:ui `copyOnLongPress`）；楼层不传，
+ *   点与长按由整层楼的 [bodyGestures] 管，正文里的链接自己响应。
  */
 @Composable
 fun FoldableText(
@@ -74,11 +74,10 @@ fun FoldableText(
     modifier: Modifier = Modifier,
     style: TextStyle = ReaderTypography.compact,
     toggleContentPadding: PaddingValues = PaddingValues(vertical = 6.dp),
-    onContentClick: (() -> Unit)? = null,
+    contentGestures: Modifier = Modifier,
     onUserClick: ((String) -> Unit)? = null,
 ) {
     require(collapsedLines >= 1) { "collapsedLines 至少为 1：$collapsedLines" }
-    val contentModifier = if (onContentClick != null) Modifier.clickable(onClick = onContentClick) else Modifier
 
     val probe = remember(ast, collapsedLines) { FoldProbe(collapsedLines) }
     // 正文按自然高度排版、只露出前 N 行：裁剪挂在正文的图层上、切在折叠线，不需要二次测量，也不依赖任何状态回写。
@@ -88,7 +87,7 @@ fun FoldableText(
         val natural = subcompose(FoldSlot.Content) {
             BBCodeText(
                 ast = ast,
-                modifier = contentModifier,
+                modifier = contentGestures,
                 style = style,
                 onUserClick = onUserClick,
                 foldProbe = probe,
