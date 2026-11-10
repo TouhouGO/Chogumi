@@ -205,7 +205,10 @@ fun ControversyGauge(value: RatingControversy, tip: String, dial: Boolean, modif
     }
 }
 
-/** 三段占比或收藏状态，段宽和针位置都是计算模型给出的数据。 */
+/**
+ * 收藏状态的分段条或环形，段宽是计算模型给出的占比。点哪一段就出哪一段的提示：分段条的命中区就是画出来的那一段
+ * （[stripSegmentBounds]），环形的段不是矩形，命中区是右边图例里它的那一行（[ringLegendBounds]）。
+ */
 @Composable
 fun StatsSegments(points: List<PlotPoint>, ring: Boolean, modifier: Modifier = Modifier) {
     val sum = points.sumOf { it.value }.coerceAtLeast(1.0)
@@ -215,19 +218,23 @@ fun StatsSegments(points: List<PlotPoint>, ring: Boolean, modifier: Modifier = M
     val style = MaterialTheme.typography.labelSmall
     val progress = chartFractions()
     TapChart(points.joinToString { it.tip }, modifier.fillMaxWidth().height(if (ring) 150.dp else 90.dp)) {
-        val rects = points.mapIndexed { i, _ -> Rect(0f, i * heightPx / points.size, widthPx, (i + 1) * heightPx / points.size) }
-        ChartLayout(points.mapIndexed { i, p -> ChartMark(rects[i], p.tip) }) {
+        val shares = points.map { (it.value / sum).toFloat() }
+        val legendLeft = RingLegendStart.toPx()
+        val bounds = if (ring) ringLegendBounds(points.size, legendLeft - RingLegendHitInset.toPx(), widthPx, RingLegendRow.toPx())
+            else stripSegmentBounds(shares, widthPx, StripHeight.toPx())
+        ChartLayout(points.mapIndexed { i, p -> ChartMark(bounds[i], p.tip) }) {
             var offset = 0f
             points.forEachIndexed { i, p ->
-                val share = (p.value / sum).toFloat()
+                val share = shares[i]
                 val color = if (p.color != Color.Unspecified) p.color else controversyColor(primary, tertiary, i.toFloat() / (points.size - 1).coerceAtLeast(1))
                 if (ring) {
                     val radius = 54.dp.toPx()
                     drawArc(color, -90 + offset * 360, max(0f, share * 360 - 2) * progress.chartFraction(i), false,
                         Offset(70.dp.toPx() - radius, 70.dp.toPx() - radius), Size(radius * 2, radius * 2), style = Stroke(18.dp.toPx()))
-                    label(p.label, 150.dp.toPx(), (20 + i * 28).dp.toPx(), style, muted, ha = 0f, maxWidthPx = widthPx - 150.dp.toPx())
+                    label(p.label, legendLeft, bounds[i].top + RingLegendBaseline.toPx(), style, muted, ha = 0f, maxWidthPx = widthPx - legendLeft)
                 } else {
-                    drawRoundRect(color, Offset(offset * widthPx, 0f), Size(max(0f, share * widthPx - 2.dp.toPx()) * progress.chartFraction(i), 20.dp.toPx()), CornerRadius(3.dp.toPx()))
+                    val segment = bounds[i]
+                    drawRoundRect(color, segment.topLeft, Size(max(0f, segment.width - 2.dp.toPx()) * progress.chartFraction(i), segment.height), CornerRadius(3.dp.toPx()))
                     val column = i % 2
                     val row = i / 2
                     label(p.label, column * widthPx / 2 + 16.dp.toPx(), (48 + row * 24).dp.toPx(), style, muted,
@@ -239,6 +246,22 @@ fun StatsSegments(points: List<PlotPoint>, ring: Boolean, modifier: Modifier = M
         }
     }
 }
+
+private val StripHeight = 20.dp
+private val RingLegendStart = 150.dp
+private val RingLegendHitInset = 8.dp
+private val RingLegendRow = 28.dp
+private val RingLegendBaseline = 20.dp
+
+/** 分段条每一段的矩形：按占比从左往右接着排，占满整条宽度；画的时候右边留 2dp 缝，命中区含这条缝。 */
+internal fun stripSegmentBounds(shares: List<Float>, widthPx: Float, heightPx: Float): List<Rect> {
+    var start = 0f
+    return shares.map { share -> Rect(start * widthPx, 0f, (start + share) * widthPx, heightPx).also { start += share } }
+}
+
+/** 环形图例的每一行：从 [leftPx] 到右边，一行 [rowPx] 高，行与行相接。 */
+internal fun ringLegendBounds(count: Int, leftPx: Float, widthPx: Float, rowPx: Float): List<Rect> =
+    List(count) { i -> Rect(leftPx, i * rowPx, widthPx, (i + 1) * rowPx) }
 
 /** 实际分布对照均值相同、σ=0.96的参考正态曲线；参考线和真实线共享尺度。 */
 @Composable
