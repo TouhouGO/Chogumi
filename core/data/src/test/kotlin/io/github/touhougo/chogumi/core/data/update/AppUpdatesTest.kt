@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.RecordedMockEngines
 import io.github.touhougo.chogumi.core.data.repository.TestResources
+import io.github.touhougo.chogumi.core.data.repository.awaitUntil
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.FailureException
 import io.github.touhougo.chogumi.core.foundation.Outcome
@@ -27,9 +28,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -80,14 +83,20 @@ class AppUpdatesTest {
     )
     private val downloadDir = File(resources.directory("updates"), "updates")
 
-    private fun engine(offline: Boolean = false, served: ByteArray = apkBytes, releases: String = withPrerelease) = engines.create { request ->
+    /** [listGate] 不为 null 时，最近版本的列表等它放行才回。 */
+    private fun engine(
+        offline: Boolean = false,
+        served: ByteArray = apkBytes,
+        releases: String = withPrerelease,
+        listGate: CompletableDeferred<Unit>? = null,
+    ) = engines.create { request ->
         if (offline) throw UnknownHostException(request.url.host)
         val url = request.url.toString()
         val octet = headersOf(HttpHeaders.ContentType, ContentType.Application.OctetStream.toString())
         when {
             url.endsWith("/releases/latest/download/release.json") || url == stableManifestUrl -> respond(manifest, HttpStatusCode.OK, octet)
             url == preManifestUrl -> respond(preManifest, HttpStatusCode.OK, octet)
-            url == listUrl -> respond(releases, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+            url == listUrl -> respond(releases.also { listGate?.await() }, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
             url == "https://api.github.com/repos/TouhouGO/Chogumi/releases/tags/v0.2.0" ->
                 respond("""{"body": "## 新增\n* 检查更新"}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
             url == apkUrl -> respond(served, HttpStatusCode.OK)
@@ -200,6 +209,38 @@ class AppUpdatesTest {
         assertEquals(Outcome.Success(release(notes = "新增\n- 检查更新")), updates.checkNow())
         assertEquals(release(notes = "新增\n- 检查更新"), updates.offer.value)
         assertEquals(listOf(listUrl, stableManifestUrl), requestUrls(engine))
+    }
+
+    @Test
+    fun `预发布版在途时关掉通道_立即检查按正式版重取`() = runTest {
+        prefs.setUpdatePrerelease(true)
+        val gate = CompletableDeferred<Unit>()
+        val engine = engine(listGate = gate)
+        val updates = updates(engine)
+
+        val result = async(Dispatchers.IO) { updates.checkNow() }
+        awaitUntil("列表的请求已发出") { listUrl in requestUrls(engine) }
+        prefs.setUpdatePrerelease(false)
+        gate.complete(Unit)
+
+        assertEquals(Outcome.Success(release()), result.await())
+        assertEquals(release(notes = "新增\n- 检查更新"), updates.offer.value)
+    }
+
+    @Test
+    fun `预发布版在途时关掉通道_自动检查不弹`() = runTest {
+        prefs.setUpdatePrerelease(true)
+        val gate = CompletableDeferred<Unit>()
+        val engine = engine(listGate = gate)
+        val updates = updates(engine)
+
+        val check = launch(Dispatchers.IO) { updates.checkIfDue(launch = true) }
+        awaitUntil("列表的请求已发出") { listUrl in requestUrls(engine) }
+        prefs.setUpdatePrerelease(false)
+        gate.complete(Unit)
+        check.join()
+
+        assertNull(updates.offer.value)
     }
 
     @Test

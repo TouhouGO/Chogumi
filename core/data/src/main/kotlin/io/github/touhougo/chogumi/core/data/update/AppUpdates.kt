@@ -113,28 +113,33 @@ class AppUpdates(
             val offer = storageOutcomeOf {
                 updateOfferOf(preferences.updateCheck.first(), latest.release, installedVersionCode, preferences.ignoredUpdateVersionCode.first())
             }.valueOrNull()
-            if (offer != null) offered.value = withNotes(latest)
+            if (offer == null) return
+            val shown = withNotes(latest)
+            // 取的时候换了通道：这一版是按旧设置找的，不弹，等下一次
+            if (prereleaseIs(prerelease)) offered.value = shown
         }
     }
 
     /**
      * 「立即检查」：按「接收预发布版」取最新一版，比装着的新就提示（不看开关与忽略过的版本），返回它；
-     * 已是最新返回 null。读不出设置、取不到返回失败。
+     * 已是最新返回 null。读不出设置、取不到返回失败。取的时候换了通道，按新设置重取：旧通道的结果不落下。
      */
-    suspend fun checkNow(): Outcome<AppRelease?> = checks.withLock {
-        val fetched = when (val prerelease = storageOutcomeOf { preferences.updatePrerelease.first() }) {
-            is Outcome.Failed -> return@withLock prerelease
-            is Outcome.Success -> fetchLatest(prerelease.value)
+    suspend fun checkNow(): Outcome<AppRelease?> = checks.withLock { checkNowLocked() }
+
+    private tailrec suspend fun checkNowLocked(): Outcome<AppRelease?> {
+        val prerelease = when (val read = storageOutcomeOf { preferences.updatePrerelease.first() }) {
+            is Outcome.Failed -> return read
+            is Outcome.Success -> read.value
         }
-        when (fetched) {
-            is Outcome.Failed -> fetched
-            is Outcome.Success -> {
-                val latest = fetched.value
-                val offer = updateOfferOf(enabled = true, latest = latest.release, installedVersionCode = installedVersionCode, ignoredVersionCode = null)
-                if (offer != null) offered.value = withNotes(latest)
-                Outcome.Success(offer)
-            }
+        val latest = when (val fetched = fetchLatest(prerelease)) {
+            is Outcome.Failed -> return fetched
+            is Outcome.Success -> fetched.value
         }
+        val offer = updateOfferOf(enabled = true, latest = latest.release, installedVersionCode = installedVersionCode, ignoredVersionCode = null)
+        val shown = offer?.let { withNotes(latest) }
+        if (!prereleaseIs(prerelease)) return checkNowLocked()
+        if (shown != null) offered.value = shown
+        return Outcome.Success(offer)
     }
 
     /** 关掉提示框，什么也不记：下一次到点再问。 */
@@ -193,6 +198,10 @@ class AppUpdates(
             if (attempt === job) downloads.value = next
         }
     }
+
+    /** 「接收预发布版」此刻还是 [prerelease]；读不出算变了。 */
+    private suspend fun prereleaseIs(prerelease: Boolean): Boolean =
+        storageOutcomeOf { preferences.updatePrerelease.first() }.valueOrNull() == prerelease
 
     /** 取到的最新一版；[notesKnown] 为 true 时说明已经随它到了（预发布通道读的列表带着说明），不用再取。 */
     private class Latest(val release: AppRelease, val notesKnown: Boolean)
