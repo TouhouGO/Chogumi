@@ -9,10 +9,12 @@ import android.content.IntentFilter
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
 import io.github.touhougo.chogumi.core.data.repository.ConcurrentRequestRecorder
+import io.github.touhougo.chogumi.core.data.repository.FaultablePreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.NotificationRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.SystemNoticeLedger
 import io.github.touhougo.chogumi.core.data.repository.TestResources
+import io.github.touhougo.chogumi.core.data.repository.awaitUntil
 import io.github.touhougo.chogumi.core.data.repository.testAuthRepository
 import io.github.touhougo.chogumi.core.data.repository.testTokenStore
 import io.github.touhougo.chogumi.core.data.repository.testWebClient
@@ -32,6 +34,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -105,6 +108,26 @@ class CommunityNoticeReliabilityTest {
         worker.javaClass.getDeclaredField("notices\$delegate").apply { isAccessible = true }.set(worker, lazyOf(notices))
         assertEquals(androidx.work.ListenableWorker.Result.success(), worker.doWork())
         assertEquals(setOf(101), SystemNotices.shownIds(context, SystemNotices.NOTICE_TAG))
+    }
+
+    @Test fun `应用级订阅首次存储失败后恢复_仍能排任务`() = runBlocking {
+        val fault = FaultablePreferencesRepository(resources)
+        fault.repository.setCommunityNotifications(true)
+        fault.failReads.set(true)
+        val watcher = CommunityNotices(context, repository, fault.repository, ledger, auth, foreground)
+        if (!androidx.work.impl.WorkManagerImpl.isInitialized()) {
+            androidx.work.WorkManager.initialize(context, androidx.work.Configuration.Builder().build())
+        }
+        val work = androidx.work.WorkManager.getInstance(context)
+        val watch = resources.scope.async { watcher.watch() }
+        awaitUntil("首读失败") { fault.failedReads.get() > 0 }
+        fault.failReads.set(false)
+        assertTrue(fault.repository.notificationSettings.first().community)
+        awaitUntil("恢复后排上周期检查") {
+            work.getWorkInfosForUniqueWork("community-notices").get().any { it.state != androidx.work.WorkInfo.State.CANCELLED }
+        }
+        assertTrue(!watch.isCompleted, "存储恢复后订阅仍在")
+        watch.cancel(); watch.join()
     }
 
     @Test fun `类别被关闭的提醒保留待发_短信仍发_类别恢复后补发`() = runBlocking {

@@ -32,6 +32,7 @@ import io.github.touhougo.chogumi.core.data.repository.CollectionObserver
 import io.github.touhougo.chogumi.core.data.repository.HomeRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.FailureException
 import io.github.touhougo.chogumi.core.foundation.Outcome
@@ -237,8 +238,8 @@ class WidgetUpdates internal constructor(
  */
 internal fun widgetInputs(context: Context, preferences: PreferencesRepository, vararg data: Flow<*>): Flow<Unit> = merge(
     *data.map { flow -> flow.map { } }.toTypedArray(),
-    preferences.themePreferences.map { },
-    preferences.themeMode.map { },
+    preferences.themePreferences.recoverStorageReads().map { },
+    preferences.themeMode.recoverStorageReads().map { },
     configurationChanges(context),
 )
 

@@ -16,6 +16,7 @@ import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.SystemNoticeLedger
 import io.github.touhougo.chogumi.core.data.repository.UnreadSnapshot
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.model.CommunityCheckInterval
 import io.github.touhougo.chogumi.core.model.MessageRound
@@ -34,7 +35,6 @@ import io.github.touhougo.chogumi.core.ui.common.labelRes
 import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -71,12 +71,11 @@ class CommunityNotices(
         authRepository.ensureInitialized()
         var lastAccount: Int? = null
         combine(
-            preferences.notificationSettings,
-            preferences.appFeatures.map { it.community },
+            preferences.notificationSettings.recoverStorageReads(),
+            preferences.appFeatures.recoverStorageReads().map { it.community },
             accounts(),
         ) { settings, community, account -> Plan(settings.community && community && account != null, settings.interval, account) }
             .distinctUntilChanged()
-            .catch { e -> if (e !is Exception) throw e }
             .collect { plan ->
                 val switched = lastAccount != null && plan.account != lastAccount
                 lastAccount = plan.account

@@ -19,6 +19,7 @@ import io.github.touhougo.chogumi.core.data.repository.HomeRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.SystemNoticeLedger
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.displayZone
@@ -49,7 +50,6 @@ import io.github.touhougo.chogumi.feature.home.widget.refreshCalendarSources
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -89,9 +89,8 @@ class AiringReminders internal constructor(
     suspend fun watch() {
         authRepository.ensureInitialized()
         var lastAccount: Int? = null
-        combine(preferences.notificationSettings, accounts()) { settings, account -> Plan(settings, account) }
+        combine(preferences.notificationSettings.recoverStorageReads(), accounts()) { settings, account -> Plan(settings, account) }
             .distinctUntilChanged()
-            .catch { e -> if (e !is Exception) throw e }
             .collect { plan ->
                 val switched = lastAccount != null && plan.account != lastAccount
                 lastAccount = plan.account
