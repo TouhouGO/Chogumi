@@ -3,6 +3,7 @@ package io.github.touhougo.chogumi.feature.home.widget
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.data.progress.ProgressSubject
+import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.model.CalendarItemBo
 import io.github.touhougo.chogumi.core.model.CollectionType
@@ -27,6 +28,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WidgetContentTest {
+    private val SESSION = AccountSession(1, 7, "fixture_user", true)
+
 
     @Test
     fun `在看列表先待看再其余在追的，两段都有的那部只出现一次`() {
@@ -186,7 +189,7 @@ class WidgetContentTest {
     fun `本周追番周一起七列，只放在追的，部数不重复数`() {
         val wednesday = calendarDaySections(3, listOf(item(1, 5), item(2, 9)), setOf(1), emptyMap())
         val friday = calendarDaySections(5, listOf(item(1, 5)), setOf(1), emptyMap())
-        val calendar = WidgetCalendar.Ready(mapOf(3 to wednesday, 5 to friday), date = LocalDate.of(2026, 11, 11), signedIn = true, works = emptyMap(), followed = emptyList())
+        val calendar = WidgetCalendar.Ready(mapOf(3 to wednesday, 5 to friday), date = LocalDate.of(2026, 11, 11), session = SESSION, works = emptyMap(), followed = emptyList())
 
         val content = weekContentOf(calendar) as WeekContent.Ready
 
@@ -198,7 +201,7 @@ class WidgetContentTest {
 
     @Test
     fun `本周追番没登录是登录按钮，读不出来另有样子`() {
-        assertEquals(WeekContent.SignedOut, weekContentOf(WidgetCalendar.Ready(emptyMap(), LocalDate.of(2026, 11, 9), signedIn = false, works = emptyMap(), followed = emptyList())))
+        assertEquals(WeekContent.SignedOut, weekContentOf(WidgetCalendar.Ready(emptyMap(), LocalDate.of(2026, 11, 9), session = AccountSession(0, null, null, false), works = emptyMap(), followed = emptyList())))
         assertEquals(WeekContent.LoadFailed, weekContentOf(WidgetCalendar.Failed))
     }
 

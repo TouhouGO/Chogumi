@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.foundation.RejectReason
 import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.failureOrNull
@@ -84,6 +85,16 @@ class AuthRepository(
         // 换了号：登录 / 登出已抢先完成，下次调用可以读取新的本地状态。
         if (initialized is Outcome.Failed && initialized.failure != Failure.SessionChanged) setState(SessionState.InitializationError)
     }
+
+    /** 后台读取的操作归属：恢复本机会话后捕获一次，游客也是明确的会话；读不出来是本机存储失败。 */
+    suspend fun currentSession(): Outcome<AccountSession> = storageOutcomeOf {
+        ensureInitialized()
+        tokenStore.session()
+    }
+
+    /** 只提交本机结果：归属校验与提交共用会话写锁，不在这里等待网络。 */
+    suspend fun <T> withSession(session: AccountSession, block: suspend () -> T): T =
+        tokenStore.commitForSession(session, block)
 
     /** 只有令牌与账号信息都齐才算登录；登录途中（令牌已写、账号信息未到）不算。 */
     private fun AccountSession.toState(): SessionState =

@@ -32,6 +32,7 @@ import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.displayZone
 import io.github.touhougo.chogumi.core.foundation.settled
+import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.model.YearRing
 import io.github.touhougo.chogumi.core.model.ringLevelOf
 import io.github.touhougo.chogumi.core.res.R
@@ -75,17 +76,22 @@ internal class WidgetHeatSource(
     private val statistics: LocalCareerStatistics,
     private val clock: AppClock,
 ) {
-    suspend fun load(): HeatContent {
-        when (widgetSignInOf(authRepository)) {
-            WidgetSignIn.SIGNED_IN -> Unit
-            WidgetSignIn.SIGNED_OUT -> return HeatContent.SignedOut
-            WidgetSignIn.UNREADABLE -> return HeatContent.LoadFailed
+    suspend fun load(): HeatContent = when (val read = outcomeOf {
+        val session = when (val captured = authRepository.currentSession()) {
+            is Outcome.Failed -> return@outcomeOf HeatContent.LoadFailed
+            is Outcome.Success -> captured.value
         }
+        if (!session.authenticated) return@outcomeOf HeatContent.SignedOut
         val today = Instant.ofEpochMilli(clock.nowMillis()).atZone(displayZone()).toLocalDate()
-        return when (val read = statistics.observeStatistics(today.year).settled()) {
-            is Outcome.Success -> heatOf(read.value.overall.rhythm?.rings.orEmpty(), today, HEAT_MONTHS)
+        when (val statistics = statistics.observeStatistics(today.year).settled()) {
+            is Outcome.Success -> authRepository.withSession(session) {
+                heatOf(statistics.value.overall.rhythm?.rings.orEmpty(), today, HEAT_MONTHS)
+            }
             is Outcome.Failed -> HeatContent.LoadFailed
         }
+    }) {
+        is Outcome.Success -> read.value
+        is Outcome.Failed -> HeatContent.LoadFailed
     }
 
     private companion object {

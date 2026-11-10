@@ -32,7 +32,9 @@ import io.github.touhougo.chogumi.core.data.repository.CollectionObserver
 import io.github.touhougo.chogumi.core.data.repository.HomeRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.Failure
+import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.model.EpButtonState
 import io.github.touhougo.chogumi.core.model.SessionState
@@ -198,6 +200,19 @@ class WidgetUpdates internal constructor(
         allWidgets().forEach { widget -> outcomeOf { widget.updateAll(context) } }
     }
 
+    /**
+     * 整帧的文字、进度与位图固定归属：封面挂起期间换了号，按当前账号重取，不交出旧帧。
+     * 会话读不出来时照常交出这一帧：来源各自画「读不出来」，不让小组件变成系统的加载失败。
+     */
+    internal suspend fun <T> currentAccountFrame(load: suspend () -> T): T {
+        while (true) {
+            val session = authRepository.currentSession().valueOrNull() ?: return load()
+            val frame = load()
+            val held = outcomeOf { authRepository.withSession(session) { } }
+            if (held !is Outcome.Failed || held.failure != Failure.SessionChanged) return frame
+        }
+    }
+
     private fun accounts() = authRepository.sessionState.map { (it as? SessionState.Authenticated)?.account }.distinctUntilChanged()
 
     private suspend fun anyPlaced(): Boolean {
@@ -217,8 +232,8 @@ class WidgetUpdates internal constructor(
  */
 internal fun widgetInputs(context: Context, preferences: PreferencesRepository, vararg data: Flow<*>): Flow<Unit> = merge(
     *data.map { flow -> flow.map { } }.toTypedArray(),
-    preferences.themePreferences.map { },
-    preferences.themeMode.map { },
+    preferences.themePreferences.recoverStorageReads().map { },
+    preferences.themeMode.recoverStorageReads().map { },
     configurationChanges(context),
 )
 
@@ -250,7 +265,7 @@ internal suspend fun <T> GlanceAppWidget.provideLiveContent(
     load: suspend () -> T,
     content: @Composable (T) -> Unit,
 ): Nothing {
-    suspend fun frame() = WidgetPalette.of(context, preferences) to load()
+    suspend fun frame() = updates.currentAccountFrame { WidgetPalette.of(context, preferences) to load() }
     val seen = updates.revision.value
     val first = frame()
     provideContent {
