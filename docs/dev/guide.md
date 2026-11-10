@@ -364,6 +364,8 @@ flowchart LR
 - bgm.tv 没有推送：社区提醒只能本机按间隔去问（未读提醒 `/p1/notify?unread=true`，一次最多 40 条；未读短信网页的 `/json/notify`）。WorkManager 的周期任务最短
   15 分钟，系统省电时往后推；放行电池优化（设置 › 通知 › 后台运行）能让它准一些，厂商系统另有自启动与后台限制，只能把用户带到那一页
   （`SystemNotices.openBackgroundSettings`，找不到就打开应用信息）。
+  多数国产系统从最近任务里划掉 App、一键清理等于强行停止：排着的检查与闹钟全被取消，用户下次打开 App 时 `watch` 才重新排上（被清理后第一次打开时
+  马上跑的那一轮 App 在前台，只记不发）。没开自启动的，到点也拉不起进程。App 没有接口申请或读取自启动，只能带用户去那一页；常驻进程同样会被清掉，不做。
 - 通知栏里还挂着哪些只从系统读（`NotificationManager.activeNotifications`，按 tag + id）：用户划掉的、点开的不用另记，下一轮看不见就不撤。
 - Android 12 起不许通知点开先进广播再开页面（trampoline）：点开的意图直接是 `AppActivity`，由它标已读、跳页（`EXTRA_NOTICE_ID`、`EXTRA_INBOX`）；
   只有不开页面的按钮（「标为已读」「看过了」）是广播，挂起到写完再结束（`goAsync`，同小组件的 +1，§2.6）。
