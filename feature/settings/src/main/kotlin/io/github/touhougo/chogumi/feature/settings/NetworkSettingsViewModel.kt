@@ -7,6 +7,7 @@ import io.github.touhougo.chogumi.core.data.util.storageAsLoad
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.failureOrNull
 import io.github.touhougo.chogumi.core.netroute.CheckSite
+import io.github.touhougo.chogumi.core.netroute.LocalNetworkAccess
 import io.github.touhougo.chogumi.core.netroute.NetRoute
 import io.github.touhougo.chogumi.core.netroute.ProxyConnect
 import io.github.touhougo.chogumi.core.netroute.ProxyServer
@@ -32,8 +33,8 @@ data class ProxyDraft(val type: ProxyType = ProxyType.SOCKS5, val host: String =
     val server: ProxyServer? get() = proxyServerOf(type, host, port)
 }
 
-/** 「连接」这一下的进度：在连、连不上（输入改了就回到空闲），其余是空闲。 */
-enum class ProxyConnecting { IDLE, BUSY, FAILED }
+/** 「连接」这一下的进度：在连、连不上、缺局域网权限（这两种输入改了就回到空闲），其余是空闲。 */
+enum class ProxyConnecting { IDLE, BUSY, FAILED, NO_LOCAL_NETWORK }
 
 /** 「检查连接」一格：还在测、连上了（毫秒）、连不上。 */
 sealed interface CheckResult {
@@ -57,16 +58,17 @@ data class NetworkSettingsUiState(
     /** 这一轮「检查连接」的结果，按站点；还没测过、或线路换了之后为 null。 */
     val check: Map<CheckSite, CheckResult>? = null,
 ) {
-    /** 「连接」能不能点：不在连、填好了、而且和正在用的那一组不一样（连不上之后可以再点）。 */
+    /** 「连接」能不能点：不在连、填好了、而且和正在用的那一组不一样（连不上、缺权限之后可以再点）。 */
     val canConnect: Boolean
         get() = connecting != ProxyConnecting.BUSY && draft.server != null &&
-            (draft.server != active || connecting == ProxyConnecting.FAILED)
+            (draft.server != active || connecting == ProxyConnecting.FAILED || connecting == ProxyConnecting.NO_LOCAL_NETWORK)
 
     /** 代理那一块的状态行。 */
     val proxyStatus: ProxyStatus
         get() = when {
             connecting == ProxyConnecting.BUSY -> ProxyStatus.CONNECTING
             connecting == ProxyConnecting.FAILED -> ProxyStatus.UNREACHABLE
+            connecting == ProxyConnecting.NO_LOCAL_NETWORK -> ProxyStatus.NO_LOCAL_NETWORK
             active != null && draft.server == active -> ProxyStatus.CONNECTED
             active != null -> ProxyStatus.CHANGED
             else -> ProxyStatus.FILL_IN
@@ -77,7 +79,7 @@ data class NetworkSettingsUiState(
 }
 
 /** 代理那一块状态行说的事。 */
-enum class ProxyStatus { CONNECTING, UNREACHABLE, CONNECTED, CHANGED, FILL_IN }
+enum class ProxyStatus { CONNECTING, UNREACHABLE, NO_LOCAL_NETWORK, CONNECTED, CHANGED, FILL_IN }
 
 /** 「网络」分类页的界面事件。 */
 interface NetworkSettingsActions {
@@ -93,8 +95,14 @@ interface NetworkSettingsActions {
 
     fun onProxyPort(text: String)
 
-    /** 经填好的那一组试连 bgm.tv，连上了才用它。 */
+    /** 经填好的那一组试连 bgm.tv，连上了才用它；缺局域网权限时不试连，状态行说缺权限。 */
     fun onProxyConnect()
+
+    /** 填好的那一组还缺局域网权限（界面据此先请求权限）。 */
+    fun localNetworkMissing(): Boolean
+
+    /** 用户没给局域网权限。 */
+    fun onLocalNetworkDenied()
 
     /** 按现在的线路测一轮几个站点。 */
     fun onCheck()
@@ -103,6 +111,7 @@ interface NetworkSettingsActions {
 class NetworkSettingsViewModel(
     private val netRoute: NetRoute,
     private val routeCheck: RouteCheck,
+    private val localNetwork: LocalNetworkAccess,
 ) : StateViewModel<NetworkSettingsUiState>(NetworkSettingsUiState(directSupported = netRoute.directSupported)),
     NetworkSettingsActions {
 
@@ -142,6 +151,10 @@ class NetworkSettingsViewModel(
     override fun onProxyConnect() {
         if (!currentState.canConnect) return
         val server = currentState.draft.server ?: return
+        if (localNetwork.missing(server)) {
+            updateState { it.copy(connecting = ProxyConnecting.NO_LOCAL_NETWORK) }
+            return
+        }
         updateState { it.copy(connecting = ProxyConnecting.BUSY) }
         connectJob = viewModelScope.launch {
             val result = netRoute.connectProxy(server)
@@ -149,6 +162,10 @@ class NetworkSettingsViewModel(
             if (result is ProxyConnect.NotSaved) failures.post(result.failure)
         }
     }
+
+    override fun localNetworkMissing(): Boolean = currentState.draft.server?.let(localNetwork::missing) == true
+
+    override fun onLocalNetworkDenied() = updateState { it.copy(connecting = ProxyConnecting.NO_LOCAL_NETWORK) }
 
     override fun onCheck() {
         if (currentState.checking) return
@@ -167,7 +184,7 @@ class NetworkSettingsViewModel(
     }
 
     private fun editDraft(change: (ProxyDraft) -> ProxyDraft) = updateState {
-        it.copy(draft = change(it.draft), connecting = if (it.connecting == ProxyConnecting.FAILED) ProxyConnecting.IDLE else it.connecting)
+        it.copy(draft = change(it.draft), connecting = if (it.connecting == ProxyConnecting.BUSY) it.connecting else ProxyConnecting.IDLE)
     }
 
     /** 换到代理以外的线路：在途的「连接」作废（它的结果不会再用），状态回到空闲，再打开代理时能重新连。 */

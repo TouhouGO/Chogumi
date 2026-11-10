@@ -19,6 +19,27 @@ data class ProxyServer(val type: ProxyType, val host: String, val port: Int) {
 }
 
 /**
+ * 连这个代理算不算访问局域网（Android 17 起要 `ACCESS_LOCAL_NETWORK`）：本机回环（`localhost`、127.0.0.0/8、`::1`）不算；
+ * 私有与链路本地的 IP（10/8、172.16/12、192.168/16、169.254/16、100.64/10，IPv6 的 fc00::/7、fe80::/10）算；主机名不在这里解析，
+ * 可能指向局域网，按算处理（多问一次权限，好过连接悄悄超时）；其余公网 IP 不算。
+ */
+fun ProxyServer.needsLocalNetwork(): Boolean {
+    val name = host.lowercase()
+    if (name == "localhost" || name == "::1") return false
+    IPV4.matchEntire(name)?.let { match ->
+        val (a, b) = match.destructured.toList().take(2).map { it.toInt() }
+        return when {
+            a == 127 -> false
+            a == 10 || a == 192 && b == 168 || a == 172 && b in 16..31 || a == 169 && b == 254 || a == 100 && b in 64..127 -> true
+            else -> false
+        }
+    }
+    if (':' in name) return name.startsWith("fc") || name.startsWith("fd") || name.startsWith("fe8") ||
+        name.startsWith("fe9") || name.startsWith("fea") || name.startsWith("feb")
+    return true
+}
+
+/**
  * 地址框里输入的样子：只留主机那一段。去掉前后空白与 `xxx://` 前缀；粘贴进来的整行网址（`socks5://a@b:1080/x`）只留主机，
  * 空格、`/`、`@` 及其后的都不要；`主机:端口` 去掉端口；IPv6 的方括号形式（`[::1]`）原样留着。只收字母、数字、`.`、`-`、`:`、`[`、`]`。
  */
@@ -40,6 +61,7 @@ fun proxyServerOf(type: ProxyType, host: String, port: String): ProxyServer? {
 }
 
 private const val PORT_DIGITS = 5
+private val IPV4 = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$")
 private val SCHEME = Regex("^[A-Za-z][A-Za-z0-9+.-]*://")
 private val HOST_NAME = Regex("^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*$")
 private val IPV6 = Regex("^\\[?[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*\\]?$")
