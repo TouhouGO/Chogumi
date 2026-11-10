@@ -29,6 +29,7 @@ import io.github.touhougo.chogumi.core.data.repository.CommunityRepositoryImpl
 import io.github.touhougo.chogumi.core.data.repository.DataStoreSyncPreferenceStore
 import io.github.touhougo.chogumi.core.data.repository.DisplayScaleRepository
 import io.github.touhougo.chogumi.core.data.repository.DraftRepository
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.ExploreLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.FriendsRepository
 import io.github.touhougo.chogumi.core.data.repository.GroupMuteRepository
@@ -125,6 +126,8 @@ val dataModule = module {
     single { get<ChogumiDatabase>().homeProgressDao() }
     single { get<ChogumiDatabase>().tagCatalogDao() }
     single { get<ChogumiDatabase>().exploreShelfDao() }
+    single { get<ChogumiDatabase>().statsModuleDao() }
+    single { StatsLayoutRepository(get()) }
     single { get<ChogumiDatabase>().subjectSectionDao() }
     single { get<ChogumiDatabase>().cacheEvictionDao() }
     single { get<ChogumiDatabase>().topicReplyDraftDao() }

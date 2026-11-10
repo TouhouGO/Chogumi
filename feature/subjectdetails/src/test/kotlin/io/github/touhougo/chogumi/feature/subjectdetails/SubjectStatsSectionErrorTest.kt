@@ -63,7 +63,7 @@ class SubjectStatsSectionErrorTest {
         )
 
         compose.onNodeWithText(context.getString(R.string.stats_lifeline_title)).assertIsDisplayed()
-        compose.onNodeWithTag(StatsRecsTitleTag).assertIsDisplayed()
+        compose.onNodeWithTag(StatsRecsTitleTag).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.stats_open_web)).assertExists()
         compose.onAllNodesWithText(retryText).assertCountEquals(3)
         compose.onNode(hasText(retryText) and hasAnyAncestor(hasTestTag(StatsRatingSplitErrorTag))).performClick()

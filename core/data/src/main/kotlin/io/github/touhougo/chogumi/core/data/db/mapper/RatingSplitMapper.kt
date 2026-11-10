@@ -3,6 +3,8 @@ package io.github.touhougo.chogumi.core.data.db.mapper
 import io.github.touhougo.chogumi.core.model.AirPhase
 import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
+import io.github.touhougo.chogumi.core.model.TOTAL_COLLECT_GROUPS
+import io.github.touhougo.chogumi.core.model.REGDATE_GROUPS
 import io.github.touhougo.chogumi.core.network.model.web.StatsChartSet
 
 /** 透视页按打分人收藏状态拆的那张图；组编号就是收藏状态的接口值（1 想看 … 5 抛弃）。 */
@@ -20,6 +22,8 @@ fun ratingSplitOf(charts: Map<String, StatsChartSet>): SubjectRatingSplit = Subj
         CollectionType.from(value)?.takeIf { it in CollectionType.choices }
     },
     byAirPhase = charts[BY_AIR_PHASE_CHART].groupsBy { AirPhase.entries.getOrNull(it - 1) },
+    byTotalCollects = charts["total_collects"].groupsBy { it.takeIf { key -> key in TOTAL_COLLECT_GROUPS } },
+    byRegdate = charts["regdate"].groupsBy { it.takeIf { key -> key in REGDATE_GROUPS } },
 )
 
 private fun <K> StatsChartSet?.groupsBy(keyOf: (Int) -> K?): Map<K, List<Int>> =

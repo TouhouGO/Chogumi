@@ -1,5 +1,7 @@
 package io.github.touhougo.chogumi.core.data.db
 
+import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleDao
+import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleEntity
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
@@ -42,7 +44,7 @@ import io.github.touhougo.chogumi.core.data.db.user.UserDao
 import io.github.touhougo.chogumi.core.data.db.user.UserEntity
 
 /** 库的版本，唯一写处；迁移测试迁到它，漏写迁移时链式用例会红。 */
-internal const val DB_VERSION = 7
+internal const val DB_VERSION = 8
 
 @Database(
     entities = [
@@ -58,6 +60,7 @@ internal const val DB_VERSION = 7
         TagCatalogEntity::class,
         TagCatalogMetaEntity::class,
         ExploreShelfEntity::class,
+        StatsModuleEntity::class,
         SubjectSectionEntity::class,
         TopicReplyDraftEntity::class,
         MutedGroupEntity::class,
@@ -80,7 +83,7 @@ internal const val DB_VERSION = 7
     // 7：加放送时刻表（airing_times）与它的刷新记录（airing_times_meta）两张表。
     version = DB_VERSION,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 6, to = 7)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8)],
 )
 abstract class ChogumiDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
@@ -92,6 +95,7 @@ abstract class ChogumiDatabase : RoomDatabase() {
     abstract fun episodeWatchStateDao(): EpisodeWatchStateDao
     abstract fun homeProgressDao(): HomeProgressDao
     abstract fun tagCatalogDao(): TagCatalogDao
+    abstract fun statsModuleDao(): StatsModuleDao
     abstract fun exploreShelfDao(): ExploreShelfDao
     abstract fun subjectSectionDao(): SubjectSectionDao
     abstract fun cacheEvictionDao(): CacheEvictionDao

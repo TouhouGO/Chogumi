@@ -8,6 +8,7 @@ dependencies {
     implementation(projects.core.reader)
 
     // 共享编辑器与真实草稿仓库的集成边界：保留 Room、DataStore 和生产客户端。
+    androidTestImplementation(testFixtures(projects.core.data))
     testImplementation(libs.androidx.room.runtime)
     testImplementation(libs.androidx.room.testing)
 }

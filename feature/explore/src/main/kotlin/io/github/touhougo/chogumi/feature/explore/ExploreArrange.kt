@@ -1,29 +1,19 @@
 package io.github.touhougo.chogumi.feature.explore
 
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
+import io.github.touhougo.chogumi.core.ui.arrange.arrangeOnLongPress
 import androidx.annotation.StringRes
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.onLongClick
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
@@ -42,13 +32,8 @@ import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.composables.COVER_STACK_COUNT
 import io.github.touhougo.chogumi.core.ui.composables.CoverStack
 import io.github.touhougo.chogumi.core.ui.composables.CoverStackSize
-import io.github.touhougo.chogumi.core.ui.composables.EmptyLine
-import io.github.touhougo.chogumi.core.ui.composables.MetaText
-import io.github.touhougo.chogumi.core.ui.composables.ReorderableItemScope
 import io.github.touhougo.chogumi.core.ui.composables.ReorderableList
-import io.github.touhougo.chogumi.core.ui.composables.containerColor
 import io.github.touhougo.chogumi.core.ui.composables.SectionHeader
-import io.github.touhougo.chogumi.core.ui.composables.SegmentedItem
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPoster
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPosterSkeletonBox
 
@@ -67,28 +52,8 @@ internal fun ShelfHeader(
         title = title,
         subtitle = subtitle,
         onArrowClick = onArrowClick,
-        modifier = arrangeOnLongPress(onArrange),
+        modifier = arrangeOnLongPress(onArrange, stringResource(R.string.explore_arrange_enter)),
     )
-}
-
-/**
- * 长按进入整理：按住时有一下触感；读屏用长按动作。只旁听标题这一块：标题行尾的箭头按钮自己消费了按下，长按箭头不算。
- */
-@Composable
-private fun arrangeOnLongPress(onArrange: () -> Unit): Modifier {
-    val haptic = LocalHapticFeedback.current
-    val label = stringResource(R.string.explore_arrange_enter)
-    val arrange by rememberUpdatedState(onArrange)
-    return Modifier
-        .pointerInput(Unit) {
-            detectTapGestures(
-                onLongPress = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    arrange()
-                },
-            )
-        }
-        .semantics { onLongClick(label) { arrange(); true } }
 }
 
 /** 整理列表的一行：画出来的那条货架（名字、内容）与布局里它那一条（来源、样式）。 */
@@ -112,53 +77,14 @@ internal fun ArrangeList(
     actions: ArrangeListActions,
     modifier: Modifier = Modifier,
 ) {
-    val rows = layout.arrangeRows()
-    if (rows.isEmpty()) {
-        EmptyLine(stringResource(R.string.explore_arrange_empty), modifier.testTag("explore_arrange_empty"))
-        return
-    }
-    ReorderableList(
-        items = rows,
-        key = { it.entry.id },
-        onMove = { ids -> actions.move(type, ids) },
-        onRemove = { actions.remove(type, it.entry.id) },
-        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 24.dp),
-        modifier = modifier,
-    ) { row ->
-        ArrangeItem(row, typeContent, onEdit = { actions.openEditor(type, row.entry) })
-    }
-}
-
-@Composable
-private fun ReorderableItemScope.ArrangeItem(row: ArrangeRow, typeContent: ExploreTypeContent, onEdit: () -> Unit) {
-    SegmentedItem(
-        index = segmentIndex,
-        count = segmentCount,
-        onClick = onEdit,
-        containerColor = containerColor,
-        leadingContent = { ArrangeLead(row.shelf, typeContent) },
-        trailingContent = {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(48.dp)
-                    .dragHandle()
-                    .testTag("explore_arrange_handle_${row.entry.id}"),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.drag_indicator_24),
-                    contentDescription = stringResource(R.string.reorder_drag_handle),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        supportingContent = {
-            MetaText(parts = arrangeRowDetail(row), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        },
-        modifier = Modifier.testTag("explore_arrange_row_${row.entry.id}"),
-    ) {
-        Text(exploreTitleText(row.shelf.title), maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
+    ArrangeList(
+        rows = layout.arrangeRows(), key = { it.entry.id },
+        title = { exploreTitleText(it.shelf.title) }, detail = { arrangeRowDetail(it) },
+        leading = { ArrangeLead(it.shelf, typeContent) },
+        onMove = { actions.move(type, it) }, onRemove = { actions.remove(type, it.entry.id) },
+        onEdit = { actions.openEditor(type, it.entry) },
+        empty = stringResource(R.string.explore_arrange_empty), tagPrefix = "explore_arrange", modifier = modifier,
+    )
 }
 
 /**

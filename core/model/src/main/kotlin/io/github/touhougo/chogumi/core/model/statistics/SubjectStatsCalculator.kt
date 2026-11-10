@@ -12,11 +12,18 @@ import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
 import io.github.touhougo.chogumi.core.model.SubjectRelationBo
 import io.github.touhougo.chogumi.core.model.SubjectSeries
 import io.github.touhougo.chogumi.core.model.collectionCountOf
+import io.github.touhougo.chogumi.core.model.StatsData
+import io.github.touhougo.chogumi.core.model.TOTAL_COLLECT_GROUPS
+import io.github.touhougo.chogumi.core.model.REGDATE_GROUPS
+import io.github.touhougo.chogumi.core.model.TagBo
 import java.time.LocalDate
+import kotlin.math.sqrt
+import kotlin.math.ceil
+import kotlin.math.floor
 
 // 作品详情「统计」tab 的各张卡（唯一计算处）：界面只画这里的结果，一张卡没有数据就是 null，整张不画。
 
-/** 统计 tab 出现所需的最少评分人数；按人群拆开的一组也要有这么多人才算出均分。 */
+/** 统计 tab 出现所需的最少评分人数；人群维度另按 STATS_MIN_GROUP_RATINGS 过滤。 */
 const val STATS_MIN_RATINGS = 10
 
 /**
@@ -27,11 +34,51 @@ fun subjectStatsVisible(ratingTotal: Int?, features: AppFeatures): Boolean =
     features.publicRatings && (ratingTotal == null || ratingTotal >= STATS_MIN_RATINGS)
 
 /** 一组人的平均分。 */
-data class GroupMean<K>(val group: K, val mean: Double)
+data class GroupMean<K>(val group: K, val mean: Double, val count: Int = 0, val counts: List<Int> = emptyList())
+
+/** 人群维度最少20票；统计 tab 本身的10票门槛独立保留。 */
+const val STATS_MIN_GROUP_RATINGS = 20
+
+/** 分档边界为左闭右开：1.2 属于略有分歧，1.6 属于两极分化。 */
+enum class ControversyTier { UNANIMOUS, CONCENTRATED, SOME_DISAGREEMENT, MIXED, POLARIZED }
+
+/** 四种争议度画法共用的计算结果；人数是分布总和，不用页面汇总数代替。 */
+data class RatingControversy(
+    val count: Long,
+    val mean: Double,
+    val sigma: Double,
+    val tier: ControversyTier,
+    val gaugePosition: Double,
+    val camps: List<Long>,
+    val insideLow: Int,
+    val insideHigh: Int,
+    val insideShare: Double,
+)
+
+/** 总体标准差；不足100票不出现。五档等宽，档内按[0.8,1,1.2,1.4,1.6,2]的区间线性落针（设计决定，not in M3）。 */
+fun ratingControversyOf(counts: List<Int>): RatingControversy? {
+    if (counts.size != 10 || counts.any { it < 0 }) return null
+    val n = counts.sumOf { it.toLong() }
+    if (n < 100) return null
+    val mean = requireNotNull(meanScoreOf(counts))
+    val sigma = sqrt(counts.withIndex().sumOf { (i, c) -> c * ((i + 1) - mean) * ((i + 1) - mean) } / n)
+    val boundaries = listOf(1.0, 1.2, 1.4, 1.6)
+    val tierIndex = boundaries.indexOfFirst { sigma < it }.let { if (it < 0) 4 else it }
+    val edges = listOf(0.8, 1.0, 1.2, 1.4, 1.6, 2.0)
+    val v = sigma.coerceIn(edges.first(), edges.last())
+    val slot = (0..4).first { v <= edges[it + 1] }
+    val low = ceil(mean - sigma).toInt().coerceAtLeast(1)
+    val high = floor(mean + sigma).toInt().coerceAtMost(10)
+    val inside = counts.withIndex().filter { it.index + 1 in low..high }.sumOf { it.value.toLong() }
+    return RatingControversy(n, mean, sigma, ControversyTier.entries[tierIndex],
+        (slot + (v - edges[slot]) / (edges[slot + 1] - edges[slot])) / 5,
+        listOf(counts.take(4).sumOf { it.toLong() }, counts.slice(4..6).sumOf { it.toLong() }, counts.takeLast(3).sumOf { it.toLong() }),
+        low, high, inside.toDouble() / n)
+}
 
 /**
  * 评分卡：1–10 分各多少人、各收藏状态的人平均打几分、我打的分。
- * @property byCollection 看过、在看、搁置、抛弃的顺序，人数不到 [STATS_MIN_RATINGS] 的组不出现；网页透视页取不到时为空。
+ * @property byCollection 看过、在看、搁置、抛弃的顺序，人数不到 [STATS_MIN_GROUP_RATINGS] 的组不出现；网页透视页取不到时为空。
  * @property mine 我打的分；没登录或没打分为 null。
  */
 data class ScoreCard(
@@ -82,6 +129,11 @@ data class SubjectStats(
     val episodeHeat: EpisodeHeatCard?,
     val lifeline: LifelineCard?,
     val flow: FlowCard?,
+    val controversy: RatingControversy? = null,
+    val airPhases: List<GroupMean<AirPhase>> = emptyList(),
+    val totalCollects: List<GroupMean<Int>> = emptyList(),
+    val regdate: List<GroupMean<Int>> = emptyList(),
+    val tags: List<TagBo> = emptyList(),
 )
 
 /**
@@ -114,6 +166,11 @@ fun subjectStatsOf(input: SubjectStatsInput, today: LocalDate, nowMillis: Long):
         episodeHeat = episodeHeatOf(airedMains, input.watchStates),
         lifeline = lifelineOf(input, airedMains, ended = airedMains.size == mains.size, nowMillis),
         flow = flowOf(input.subject),
+        controversy = ratingControversyOf(input.subject.ratingCounts),
+        airPhases = input.split?.let { groupMeansOf(it.byAirPhase, AirPhase.entries) }.orEmpty(),
+        totalCollects = input.split?.let { groupMeansOf(it.byTotalCollects, TOTAL_COLLECT_GROUPS) }.orEmpty(),
+        regdate = input.split?.let { groupMeansOf(it.byRegdate, REGDATE_GROUPS) }.orEmpty(),
+        tags = input.subject.tags.filter { it.name !in input.subject.metaTags && it.name != input.subject.name && it.name != input.subject.nameCn }.take(18),
     )
 }
 
@@ -124,12 +181,11 @@ fun meanScoreOf(counts: List<Int>): Double? {
     return counts.withIndex().sumOf { (index, count) -> (index + 1) * count.toDouble() } / total
 }
 
-/** 人数够 [STATS_MIN_RATINGS] 的组才算均分，按 [order] 排。 */
+/** 人数够 [STATS_MIN_GROUP_RATINGS] 的组才算均分，按 [order] 排。 */
 private fun <K> groupMeansOf(groups: Map<K, List<Int>>, order: List<K>): List<GroupMean<K>> =
     order.mapNotNull { key ->
-        groups[key]?.takeIf { it.size == RATING_LEVELS && it.sum() >= STATS_MIN_RATINGS }
-            ?.let(::meanScoreOf)
-            ?.let { GroupMean(key, it) }
+        groups[key]?.takeIf { it.size == RATING_LEVELS && it.sumOf { c -> c.toLong() } >= STATS_MIN_GROUP_RATINGS }
+            ?.let { counts -> meanScoreOf(counts)?.let { GroupMean(key, it, counts.sum(), counts) } }
     }
 
 private fun scoreOf(input: SubjectStatsInput): ScoreCard? {
@@ -185,4 +241,20 @@ private fun flowOf(subject: SubjectBo): FlowCard? {
         branches = STARTED_STATES.zip(counts) { type, count -> FlowBranch(type, count, count.toDouble() / started) },
         wish = subject.collectionWish,
     )
+}
+
+/** 图可用性唯一判定；页面和添加目录同读，按数据判，作品种类只影响显示名。 */
+fun availableStatsData(stats: SubjectStats, hasSeries: Boolean, hasRecommendations: Boolean): Set<StatsData> = buildSet {
+    if (stats.score != null) add(StatsData.RATING)
+    if (!stats.score?.byCollection.isNullOrEmpty()) add(StatsData.STATUS_RATING)
+    if (stats.flow != null) add(StatsData.COLLECTION)
+    if (stats.lifeline != null) add(StatsData.LIFELINE)
+    if (stats.episodeHeat != null) add(StatsData.EPISODE_DISCUSSION)
+    if (hasSeries) add(StatsData.SERIES)
+    if (hasRecommendations) add(StatsData.RECOMMENDATIONS)
+    if (stats.controversy != null) add(StatsData.CONTROVERSY)
+    if (stats.airPhases.isNotEmpty()) add(StatsData.AIR_PHASE)
+    if (stats.totalCollects.isNotEmpty()) add(StatsData.TOTAL_COLLECTS)
+    if (stats.regdate.isNotEmpty()) add(StatsData.REGDATE)
+    if (stats.tags.isNotEmpty()) add(StatsData.TAGS)
 }

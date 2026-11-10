@@ -10,6 +10,10 @@ import io.github.touhougo.chogumi.core.data.progress.ProgressSubject
 import io.github.touhougo.chogumi.core.data.repository.CollectionObserver
 import io.github.touhougo.chogumi.core.data.repository.CollectionStore
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
+import io.github.touhougo.chogumi.core.model.StatsModule
+import io.github.touhougo.chogumi.core.model.defaultStatsLayout
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository
 import io.github.touhougo.chogumi.core.data.repository.WatchStateStore
 import io.github.touhougo.chogumi.core.data.util.loadOnce
@@ -124,6 +128,8 @@ data class SubjectDetailsUiState(
      */
     val features: AppFeatures = AppFeatures(community = true, publicRatings = true, coverScores = true, friendMarks = true),
     val isRefreshing: Boolean = false,
+    val statsLayoutLoad: Load<List<StatsModule>> = Load.Ready(defaultStatsLayout()),
+    val statsArrange: ArrangeState<StatsEditor> = ArrangeState(),
     /** 收藏面板（开没开、暂存的修改、保存在途），只由 [CollectionSheetController] 改。 */
     val collectionSheet: CollectionSheetState = CollectionSheetState(),
     /**
@@ -134,6 +140,8 @@ data class SubjectDetailsUiState(
     /** 关联作品海报的长按标记（标的是关联的那一部），只由 [SubjectDetailsViewModel.posterMarks] 改。 */
     val posterMarks: PosterMarkState = PosterMarkState(),
 ) {
+    val statsLayout: List<StatsModule> get() = statsLayoutLoad.valueOrNull() ?: defaultStatsLayout()
+
     val subject: SubjectBo? get() = subjectLoad.valueOrNull()
 
     /** 条目本体还没回来（整页骨架）。 */
@@ -225,6 +233,7 @@ class SubjectDetailsViewModel(
     collectionMarker: CollectionMarker,
     /** 用户点选的选项卡跟着页面的存档走：进程被回收后回到这一页，还停在原来的 tab 上。 */
     private val savedState: SavedStateHandle,
+    statsLayouts: StatsLayoutRepository,
 ) : StateViewModel<SubjectDetailsUiState>(
     SubjectDetailsUiState(
         requestedSection = savedState.get<String>(REQUESTED_SECTION)
@@ -256,6 +265,15 @@ class SubjectDetailsViewModel(
 
     /** 本页的失败提示：收藏 / 进度保存失败、收藏信息没取到、有内容时刷新失败、章节写入失败。 */
     val failures = FailureNotices()
+
+    internal val statsArranger = StatsArranger(viewModelScope, statsLayouts,
+        read = { currentState.statsArrange },
+        write = { change -> updateState { it.copy(statsArrange = change(it.statsArrange)) } },
+        currentLayout = { currentState.statsLayout }, failures = failures)
+
+    init {
+        launchSection("stats-layout", failures, { statsLayouts.observe().storageAsLoad() }, { it.statsLayoutLoad }) { copy(statsLayoutLoad = it) }
+    }
 
     /** 收藏面板：作品就是本页这部（[SubjectDetailsUiState.collectionWork]），保存成功后回读收藏。 */
     private val collectionSheet = CollectionSheetController(

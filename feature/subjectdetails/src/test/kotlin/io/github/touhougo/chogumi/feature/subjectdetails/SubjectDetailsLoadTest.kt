@@ -1,5 +1,8 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
+
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import io.github.touhougo.chogumi.core.common.notice.NoticeText
@@ -97,7 +100,8 @@ class SubjectDetailsLoadTest {
                 8, subRepo, collRepo.store, collRepo.observer, collRepo.watchStates, collRepo.editing(subRepo, orchestrator),
                 collRepo.epTapCoordinator(orchestrator, scope, { 0L }, CommitGate(open = true)::await),
                 prefs.repository, testAppTime(System.currentTimeMillis()), StillCollectionMarker(), SavedStateHandle(),
-            )
+            statsLayouts = StatsLayoutRepository(FakeStatsModuleDao()),
+        )
         }
 
         val ready = withTimeout(WAIT_BUDGET_MS) { vm.uiState.first { it.characters is Load.Ready } }
@@ -136,7 +140,8 @@ class SubjectDetailsLoadTest {
                 8, subRepo, collRepo.store, collRepo.observer, collRepo.watchStates, collRepo.editing(subRepo, orchestrator),
                 collRepo.epTapCoordinator(orchestrator, scope, { 0L }, CommitGate(open = true)::await),
                 faultyPrefs.repository, testAppTime(System.currentTimeMillis()), StillCollectionMarker(), SavedStateHandle(),
-            )
+            statsLayouts = StatsLayoutRepository(FakeStatsModuleDao()),
+        )
         }
 
         awaitUntil("存储失败提示") { vm.failures.current.value?.text == NoticeText.Reason(Failure.Storage) }

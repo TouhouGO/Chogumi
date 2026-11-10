@@ -1,5 +1,7 @@
 package io.github.touhougo.chogumi.feature.explore
 
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeSheet
+
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.data.db.explore.ExploreShelfDao

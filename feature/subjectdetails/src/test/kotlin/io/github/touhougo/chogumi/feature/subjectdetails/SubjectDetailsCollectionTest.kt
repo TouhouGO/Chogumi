@@ -1,5 +1,8 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
+
 import java.util.concurrent.atomic.AtomicInteger
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -120,7 +123,8 @@ class SubjectDetailsCollectionTest {
         subjectId, subRepo, collRepo.store, collRepo.observer, collRepo.watchStates, collRepo.editing(subRepo, orchestrator), coordinator, prefsRepo, testAppTime(System.currentTimeMillis()),
         StillCollectionMarker(),
         SavedStateHandle(),
-    ).also { viewModels += it }
+            statsLayouts = StatsLayoutRepository(FakeStatsModuleDao()),
+        ).also { viewModels += it }
 
     @BeforeTest
     fun setUp() { main.install() }

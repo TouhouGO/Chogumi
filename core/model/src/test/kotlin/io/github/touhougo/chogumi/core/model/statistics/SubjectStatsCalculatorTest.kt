@@ -208,6 +208,71 @@ class SubjectStatsCalculatorTest {
         assertNull(stats(SubjectStatsInput(subject(wish = 10))).flow)
     }
 
+    @Test
+    fun `人群少于20人不画且20人开始保留`() {
+        fun votes(n: Int) = List(10) { if (it == 7) n else 0 }
+        val split = SubjectRatingSplit(
+            byCollection = mapOf(CollectionType.DONE to votes(19), CollectionType.DOING to votes(20)),
+            byAirPhase = emptyMap(),
+        )
+        val card = stats(SubjectStatsInput(subject(counts = votes(100)), split = split)).score!!
+        assertEquals(listOf(CollectionType.DOING), card.byCollection.map { it.group })
+    }
+
+    @Test
+    fun `争议度用总体标准差且99票隐藏100票出现`() {
+        fun distribution(n: Int) = List(10) { if (it == 0) n / 2 else if (it == 9) n - n / 2 else 0 }
+        assertNull(ratingControversyOf(distribution(99)))
+        val value = ratingControversyOf(distribution(100))!!
+        assertEquals(100L, value.count)
+        assertEquals(5.5, value.mean)
+        assertEquals(4.5, value.sigma)
+        assertEquals(ControversyTier.POLARIZED, value.tier)
+        assertEquals(listOf(50L, 0L, 50L), value.camps)
+        assertEquals(1.0, value.gaugePosition)
+    }
+
+    @Test
+    fun `争议度分档左闭右开1点2属于略有分歧`() {
+        fun centered(outer: Int, total: Int): List<Int> = List(10) {
+            when (it + 1) { 3, 7 -> outer; 5 -> total - outer * 2; else -> 0 }
+        }
+        val cases = listOf(
+            Triple(centered(0, 100), 0.0, ControversyTier.UNANIMOUS),
+            Triple(centered(24, 200), kotlin.math.sqrt(0.96), ControversyTier.UNANIMOUS),
+            Triple(centered(25, 200), 1.0, ControversyTier.CONCENTRATED),
+            Triple(centered(17, 100), kotlin.math.sqrt(1.36), ControversyTier.CONCENTRATED),
+            Triple(centered(18, 100), 1.2, ControversyTier.SOME_DISAGREEMENT),
+            Triple(centered(49, 200), 1.4, ControversyTier.MIXED),
+            Triple(centered(32, 100), 1.6, ControversyTier.POLARIZED),
+        )
+        cases.forEach { (counts, sigma, tier) ->
+            val value = ratingControversyOf(counts)!!
+            assertEquals(sigma, value.sigma, 1e-12)
+            assertEquals(tier, value.tier)
+        }
+        assertEquals(0.4, ratingControversyOf(centered(18, 100))!!.gaugePosition, 1e-12)
+    }
+
+    @Test
+    fun `可用目录按实际图与人数过滤缺图无章节不列`() {
+        fun votes(n: Int) = List(10) { if (it == 7) n else 0 }
+        val subject = subject(counts = votes(100), done = 100)
+        val empty = stats(SubjectStatsInput(subject))
+        assertEquals(setOf(io.github.touhougo.chogumi.core.model.StatsData.RATING,
+            io.github.touhougo.chogumi.core.model.StatsData.COLLECTION,
+            io.github.touhougo.chogumi.core.model.StatsData.CONTROVERSY), availableStatsData(empty, false, false))
+        val split = SubjectRatingSplit(emptyMap(), mapOf(AirPhase.AIRING to votes(19)),
+            byTotalCollects = mapOf(1 to votes(19), 1001 to votes(20)), byRegdate = mapOf(1825 to votes(20)))
+        val result = stats(SubjectStatsInput(subject, split))
+        val available = availableStatsData(result, false, false)
+        assertTrue(io.github.touhougo.chogumi.core.model.StatsData.TOTAL_COLLECTS in available)
+        assertTrue(io.github.touhougo.chogumi.core.model.StatsData.REGDATE in available)
+        assertFalse(io.github.touhougo.chogumi.core.model.StatsData.AIR_PHASE in available)
+        assertEquals(listOf(1001), result.totalCollects.map { it.group })
+        assertEquals(20, result.totalCollects.single().count)
+    }
+
     private fun assertMeans(expected: List<Double>, actual: List<Double>) {
         assertEquals(expected.size, actual.size)
         expected.zip(actual).forEach { (e, a) -> assertEquals(e, a, 0.001) }

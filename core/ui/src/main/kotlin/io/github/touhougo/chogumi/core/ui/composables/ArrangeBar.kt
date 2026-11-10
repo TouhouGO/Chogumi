@@ -24,26 +24,28 @@ import io.github.touhougo.chogumi.core.res.R
  * 与面板标题行右端的确认同一个位置与强调）。手势引导里整理的示意画的也是它。
  */
 @Composable
-fun ArrangeBar(onAdd: () -> Unit, onDone: () -> Unit, modifier: Modifier = Modifier) {
+fun ArrangeBar(onAdd: () -> Unit, onDone: () -> Unit, modifier: Modifier = Modifier,
+    title: String = stringResource(R.string.explore_arrange_title),
+    addLabel: String = stringResource(R.string.explore_arrange_add), tagPrefix: String = "explore_arrange") {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .padding(start = 16.dp, end = 8.dp)
-            .testTag("explore_arrange_bar"),
+            .testTag("${tagPrefix}_bar"),
     ) {
         Text(
-            text = stringResource(R.string.explore_arrange_title),
+            text = title,
             style = MaterialTheme.typography.titleLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onAdd, modifier = Modifier.testTag("explore_arrange_add")) {
-            Icon(painterResource(R.drawable.add_24), contentDescription = stringResource(R.string.explore_arrange_add))
+        IconButton(onClick = onAdd, modifier = Modifier.testTag("${tagPrefix}_add")) {
+            Icon(painterResource(R.drawable.add_24), contentDescription = addLabel)
         }
-        FilledIconButton(onClick = onDone, modifier = Modifier.testTag("explore_arrange_done")) {
+        FilledIconButton(onClick = onDone, modifier = Modifier.testTag("${tagPrefix}_done")) {
             Icon(painterResource(R.drawable.check_24), contentDescription = stringResource(R.string.explore_arrange_done))
         }
     }
