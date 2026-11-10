@@ -375,6 +375,7 @@ flowchart LR
   `adb shell am broadcast -n io.github.touhougo.chogumi.debug/io.github.touhougo.chogumi.debug.NoticeSampleReceiver --es kind <kind>`，
   kind 是 `community`（最近 3 条提醒，已读的也算）、`message`（未读短信，`--ei count` 定条数）、`airing`（在追作品每部一条）、`digest`（每日汇总）。
   发的是真的数据，照真的样子发（`CommunityNotices.postSamples`、`AiringReminders.postSamples`），点开与按钮和真的同一条路；不看设置里的开关。
+  测整条链路用 `check`（立刻跑一轮真的社区提醒检查）、`run`（立刻跑一次真的放送提醒）：照真的规矩，开关关着、刚打开的第一轮、App 在前台都不发。
 - 每天定时的「上一次」「下一次」按设备时区的日历日子算（`lastDailyMillisOf` / `nextDailyMillisOf`），不加减 24 小时：夏令时切换那天是 23 或 25 小时。
 - Android 13 起发通知要用户允许（`POST_NOTIFICATIONS`）：第一次打开任一提醒时问；拒绝过、系统不再弹的，打开系统的通知设置页。
   系统里关掉通知时开关显示为关、写原因，设置本身不改：回来打开系统通知就接着发。

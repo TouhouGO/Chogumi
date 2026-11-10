@@ -23,6 +23,9 @@ import org.koin.core.qualifier.named
  *
  * kind：`community` 最近 3 条提醒（已读的也算），`message` 未读短信（`--ei count 5` 定条数，默认 3），
  * `airing` 在追作品每部一条开播提醒，`digest` 一条每日汇总。命令行的 `data=` 写发了几条（`digest` 写汇总里有几部）。
+ *
+ * 测整条链路（开关、基线、前台、读未读数）不用等后台任务：`check` 立刻跑一轮真的社区提醒检查（`CommunityNotices.check`），
+ * `run` 立刻跑一次真的放送提醒（`AiringReminders.run`）。它们照真的规矩来：开关关着、刚打开的第一轮、App 在前台时都不发。
  */
 class NoticeSampleReceiver : BroadcastReceiver(), KoinComponent {
     private val community: CommunityNotices by inject()
@@ -34,21 +37,24 @@ class NoticeSampleReceiver : BroadcastReceiver(), KoinComponent {
         val pending = goAsync()
         scope.launch {
             try {
-                val posted = outcomeOf {
+                val result = outcomeOf {
                     when (kind) {
-                        "community" -> community.postSamples()
+                        "community" -> "posted ${community.postSamples()}"
                         "message" -> {
                             community.postMessageSample(intent.getIntExtra(EXTRA_COUNT, DEFAULT_MESSAGES))
-                            1
+                            "posted 1"
                         }
-                        "airing" -> airing.postSamples(digest = false)
-                        "digest" -> airing.postSamples(digest = true)
-                        else -> null
+                        "airing" -> "posted ${airing.postSamples(digest = false)}"
+                        "digest" -> "posted ${airing.postSamples(digest = true)}"
+                        // 发没发由真的规矩定，这里不数
+                        "check" -> "ran".also { community.check() }
+                        "run" -> "ran".also { airing.run() }
+                        else -> "kind: community | message | airing | digest | check | run"
                     }
                 }
-                pending.resultData = when (posted) {
-                    is Outcome.Success -> posted.value?.let { "posted $it" } ?: "kind: community | message | airing | digest"
-                    is Outcome.Failed -> "failed: ${posted.failure}"
+                pending.resultData = when (result) {
+                    is Outcome.Success -> result.value
+                    is Outcome.Failed -> "failed: ${result.failure}"
                 }
             } finally {
                 pending.finish()
