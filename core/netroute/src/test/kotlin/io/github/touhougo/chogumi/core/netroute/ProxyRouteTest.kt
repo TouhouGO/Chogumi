@@ -18,7 +18,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -162,5 +164,35 @@ class ProxyRouteTest {
         assertTrue(route.setMode(RouteMode.PROXY) is Outcome.Success)
         assertEquals(CoreRoute.ProxyUnavailable, route.route())
         assertEquals(1, core.stops)
+    }
+
+    /**
+     * 关掉代理再打开：存下的那一组要等「连接」试连成功才用。打开开关写下的那一拍会被 [NetRoute.run] 收到；那一拍处理完之后
+     * （包一层存储，每一拍交下去、收的一方处理完才返回，返回时记下）线路仍是还没连上。
+     */
+    @Test
+    fun `关掉再打开代理时_存下的那一组等试连成功才用`() = runBlocking {
+        val store = dataStore()
+        val handled: MutableList<String?> = Collections.synchronizedList(mutableListOf())
+        val tracked = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow {
+                store.data.collect { prefs ->
+                    emit(prefs)
+                    handled += prefs[stringPreferencesKey("route_mode")]
+                }
+            }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences) = store.updateData(transform)
+        }
+        val route = netRoute(tracked, probe = reaches)
+        route.setMode(RouteMode.PROXY)
+        route.connectProxy(server)
+        route.setMode(RouteMode.SYSTEM)
+        awaitUntil("关掉代理那一拍处理完") { handled.lastOrNull() == RouteMode.SYSTEM.name }
+        val before = handled.size
+
+        assertTrue(route.setMode(RouteMode.PROXY) is Outcome.Success)
+        awaitUntil("打开代理那一拍处理完") { handled.drop(before).contains(RouteMode.PROXY.name) }
+
+        assertEquals("还没试连，不能用存下的那一组", CoreRoute.ProxyUnavailable, route.route())
     }
 }

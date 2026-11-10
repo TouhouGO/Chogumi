@@ -28,4 +28,6 @@ dependencies {
     // 网页会话经核心的测试用生产工厂 createWebHttpClient（Ktor）
     testImplementation(libs.ktor.client.core)
     testImplementation(libs.kotlinx.coroutines.test)
+    // 换线路时 h2 连接上在途的请求跑完：要一条真的 HTTP/2（h2c）连接
+    testImplementation(libs.okhttp.mockwebserver3)
 }

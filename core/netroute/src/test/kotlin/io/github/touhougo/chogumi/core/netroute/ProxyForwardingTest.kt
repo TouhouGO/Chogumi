@@ -10,8 +10,18 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.UnknownHostException
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okhttp3.Dns
+import okhttp3.Protocol
 import okhttp3.Request
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -133,5 +143,42 @@ class ProxyForwardingTest {
 
         assertEquals("direct", fetch(client, "http://127.0.0.1:$direct/a"))
         assertEquals(listOf("/a"), seen.toList())
+    }
+
+    @Test
+    fun `换线路后旧的 h2 连接上在途的请求照常跑完_新请求走新线路`() {
+        val heldStarted = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val heldArrivals = AtomicInteger(0)
+        val server = MockWebServer()
+        server.protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath != "/held") return MockResponse(body = "ok")
+                heldArrivals.incrementAndGet()
+                heldStarted.countDown()
+                release.await(10, TimeUnit.SECONDS)
+                return MockResponse(body = "held")
+            }
+        }
+        server.start(InetAddress.getLoopbackAddress(), 0)
+        closers += { server.close() }
+        val (socks, targets) = socks5(server.port)
+        val route = AtomicReference<CoreRoute>(CoreRoute.System)
+        val client = clientFor { route.get() }.newBuilder().protocols(listOf(Protocol.H2_PRIOR_KNOWLEDGE)).build()
+        val base = "http://127.0.0.1:${server.port}"
+        val pool = Executors.newSingleThreadExecutor()
+        closers += { pool.shutdownNow() }
+        // 系统网络下的一条 h2 连接上挂着一个请求
+        val held = pool.submit<String> { runCatching { fetch(client, "$base/held") }.getOrElse { "失败：$it" } }
+        assertEquals(true, heldStarted.await(10, TimeUnit.SECONDS))
+
+        route.set(CoreRoute.Proxied(ProxyServer(ProxyType.SOCKS5, "127.0.0.1", socks)))
+
+        assertEquals("ok", fetch(client, "$base/after"))
+        release.countDown()
+        assertEquals("held", held.get(10, TimeUnit.SECONDS))
+        assertEquals("换线之前就在跑的请求不能被掐断重发", 1, heldArrivals.get())
+        assertEquals("只有新请求经代理", listOf("127.0.0.1:${server.port}"), targets.toList())
     }
 }

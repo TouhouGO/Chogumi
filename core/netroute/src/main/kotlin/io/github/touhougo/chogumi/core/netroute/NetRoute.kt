@@ -156,7 +156,8 @@ fun interface NetworkChanges {
  *   全部成了才换状态。用户动手（[setMode]、[connectProxy]）失败时留在原状态、返回失败；应用存着的设置（[run]）时核心起不来就是
  *   [CoreRoute.Unavailable]。WebView 的代理跟着状态一起换（[WebViewProxy]）。
  * - **代理先连上才用**：打开代理开关只是选了代理（[CoreRoute.ProxyUnavailable]）；[connectProxy] 先经那一组试连 bgm.tv（[ProxyProbe]），
- *   连上了才换过去并存下，连不上时旧的那一组照用。冷启动时设置是代理，直接用存下的那一组（它连上过）。
+ *   连上了才换过去并存下，连不上时旧的那一组照用。冷启动时设置是代理，直接用存下的那一组（它连上过）；之后设置里的代理那一拍
+ *   （用户打开开关写下的）不再换成存下的那一组，等试连成功。
  * - **设置只有一条流** [mode]，线路与界面都订它：读失败时发一拍系统网络，退避一会儿重新订阅，永不结束——存储恢复后所有订阅者
  *   一起跟上，界面显示的与实际线路始终是同一个值。[run] 照这条流应用，每次应用都放行等着的请求。
  *
@@ -261,9 +262,12 @@ class NetRoute internal constructor(
                     return@withLock started
                 }
             }
-            // 用户打开开关时还没连上；应用存着的设置用存下的那一组（它连上过）
+            // 用户打开开关时还没连上。应用存着的设置：已经在代理线路上（刚打开开关、已连上）就不动，不然那一拍会在试连之前
+            // 用上存下的那一组；线路还不是代理时（冷启动、存储读不出先按系统网络之后又恢复）用存下的那一组（它连上过）
             mode == RouteMode.PROXY -> if (persist) {
                 CoreRoute.ProxyUnavailable
+            } else if (state.value is CoreRoute.Proxied || state.value == CoreRoute.ProxyUnavailable) {
+                state.value
             } else {
                 when (val stored = outcomeOf { proxyOf(prefs.data.first()) }) {
                     is Outcome.Success -> stored.value?.let { CoreRoute.Proxied(it) } ?: CoreRoute.ProxyUnavailable
