@@ -1,5 +1,6 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -17,7 +18,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -31,6 +34,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,9 +68,11 @@ import io.github.touhougo.chogumi.core.reader.CommentUserCard
 import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
 import io.github.touhougo.chogumi.core.ui.collection.CollectionSheetHost
 import io.github.touhougo.chogumi.core.ui.collection.PosterMarkHost
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate
+import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
 import io.github.touhougo.chogumi.core.ui.composables.ChogumiPullToRefreshBox
 import io.github.touhougo.chogumi.core.ui.composables.CollapsibleHeaderState
 import io.github.touhougo.chogumi.core.ui.composables.ContentLoadingIndicator
@@ -242,6 +248,14 @@ fun SubjectDetailsScreen(
 ) {
     val viewModel: SubjectDetailsViewModel = koinViewModel { parametersOf(subjectId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var statsTab by remember(subjectId) { mutableStateOf<SubjectStatsTab?>(null) }
+    if (uiState.selectedSection == SubjectDetailsSection.STATS) {
+        val latestStats by viewModel.stats.collectAsStateWithLifecycle()
+        SideEffect { statsTab = latestStats }
+    }
+    val statsArranger = viewModel.statsArranger
+    val statsEntrances = rememberStatsEntrances(subjectId)
+    BackHandler(uiState.statsArrange.active) { statsArranger.machine.exit() }
     // 写操作（收藏、标进度、贴贴）的登录门：未登录点了去登录页
     val loginGate = rememberLoginGate(isLoggedIn, onLogin)
     // 社区 tab 的数据（吐槽第一页、三个入口数量、谁在看头像）：社区页第一次出现在屏幕上才发请求（见下方翻页）。
@@ -251,6 +265,7 @@ fun SubjectDetailsScreen(
     val moderate = loginGate.guard(communityViewModel.moderation::perform)
 
     val snackbarHostState = remember { SnackbarHostState() }
+    StatsArrangeSheets(uiState.statsArrange, statsArranger, statsTab, snackbarHostState)
     // 一个提示条宿主接两个来源：详情（保存 / 刷新 / 章节写入失败）与社区 tab（贴贴失败）
     FailureNoticeEffect(viewModel.failures, snackbarHostState)
     FailureNoticeEffect(communityViewModel.failures, snackbarHostState)
@@ -298,7 +313,8 @@ fun SubjectDetailsScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
-                HeaderTopAppBar(
+                if (uiState.statsArrange.active) ArrangeBar(statsArranger.machine::openAdding, statsArranger.machine::exit, title = stringResource(R.string.stats_arrange_title), addLabel = stringResource(R.string.stats_arrange_add), tagPrefix = "stats_arrange", modifier = Modifier.statusBarsPadding())
+                else HeaderTopAppBar(
                     title = title,
                     frame = headerState,
                     onBack = onBack,
@@ -313,7 +329,7 @@ fun SubjectDetailsScreen(
             floatingActionButton = {
                 // 进页即出：只要条目已到就渲染 FAB，收藏未到位时内嵌 loading。
                 // 点了开不开弹层由 ViewModel.openEditSheet 按 FAB 状态决定。
-                if (subject != null) {
+                if (subject != null && !uiState.statsArrange.active) {
                     CollectionFab(
                         state = uiState.fabState,
                         collection = uiState.collection.valueOrNull(),
@@ -322,7 +338,7 @@ fun SubjectDetailsScreen(
                     )
                 }
             },
-            snackbarHost = { if (!collectionSheetShown) SnackbarHost(snackbarHostState) },
+            snackbarHost = { if (!collectionSheetShown && uiState.statsArrange.editor == null && !uiState.statsArrange.adding) SnackbarHost(snackbarHostState) },
         ) { padding ->
             ChogumiPullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -344,6 +360,16 @@ fun SubjectDetailsScreen(
                     },
                 ) {
                 when {
+                    subject != null && uiState.statsArrange.active && statsTab != null -> {
+                        val tab = requireNotNull(statsTab)
+                        ArrangeList(rows = visibleStatsModules(uiState.statsLayout.orEmpty(), tab, tab.availableData()), key = { it.id },
+                            title = { statsModuleName(it, subject.type) },
+                            detail = { listOfNotNull(statsDataName(it.data, subject.type).takeIf { _ -> it.name.isNotBlank() }, it.drawing.label()) },
+                            leading = { StatsModuleLead(it.data) }, onMove = statsArranger::move,
+                            onRemove = { statsArranger.remove(it.id) }, onEdit = statsArranger::edit,
+                            empty = stringResource(R.string.stats_arrange_empty), tagPrefix = "stats_arrange",
+                            modifier = Modifier.fillMaxSize().padding(padding))
+                    }
                     subject != null -> {
                         val sections = uiState.visibleSections
                         // 选中项（ViewModel 的 selectedSection）是唯一真源：点 tab、点评分小标、「全部角色」都只改它，翻页跟过去；
@@ -454,16 +480,19 @@ fun SubjectDetailsScreen(
                                             onSelectCommentFilter = communityViewModel::selectCommentFilter,
                                         )
 
-                                        SubjectDetailsSection.STATS -> item(key = "section-stats") {
-                                            // 只在统计 tab 组合时收集：各张卡只在这时计算
-                                            val stats by viewModel.stats.collectAsStateWithLifecycle()
-                                            StatsSection(
-                                                tab = stats,
-                                                onSubjectClick = onSubjectClick,
-                                                onRetryRatingSplit = viewModel::retryRatingSplit,
-                                                onRetryRecs = viewModel::retryRecs,
-                                                onRetryRecentCollectTimes = viewModel::retryRecentCollectTimes,
-                                            )
+                                        SubjectDetailsSection.STATS -> {
+                                            val tab = statsTab
+                                            if (tab != null) {
+                                                statsTabItems(
+                                                    tab, uiState.statsLayout, sectionLists.getValue(section), statsEntrances,
+                                                    onArrange = statsArranger.machine::enter,
+                                                    onSubjectClick = onSubjectClick,
+                                                    onRetryRatingSplit = viewModel::retryRatingSplit,
+                                                    onRetryRecs = viewModel::retryRecs,
+                                                    onRetryRecentCollectTimes = viewModel::retryRecentCollectTimes,
+                                                    onRetryEpisodes = viewModel::retryEpisodes,
+                                                )
+                                            }
                                         }
                                     }
                                 }

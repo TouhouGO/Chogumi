@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
+import kotlin.math.min
 
 /** 十档柱的档数：1–10 分。 */
 private const val TEN_BARS_LEVELS = 10
@@ -40,13 +41,14 @@ private val TEN_BARS_HEIGHT = 120.dp
 @Composable
 fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, description: String, height: Dp, modifier: Modifier = Modifier) {
     require(labels.size == counts.size && tips.size == counts.size) { "每根柱一个标签、一条气泡字" }
+    val progress = chartFractions()
     val shape = MaterialTheme.shapes.extraSmall
     val peakColor = MaterialTheme.colorScheme.primary
     val restColor = MaterialTheme.colorScheme.secondaryContainer
     val axis = MaterialTheme.typography.labelSmall
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     TapChart(description, modifier.fillMaxWidth().height(height)) {
-        val gap = 6.dp.toPx()
+        val gap = min(6.dp.toPx(), widthPx / counts.size / 3)
         val barWidth = (widthPx - gap * (counts.size - 1)) / counts.size
         val base = heightPx - 20.dp.toPx()
         val tallest = base - 2.dp.toPx()
@@ -56,6 +58,17 @@ fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, descr
             if (n > 0) max(4.dp.toPx(), tallest * n / peakCount) else 2.dp.toPx()
         }
         fun leftOf(i: Int) = i * (barWidth + gap)
+        val shownLabels = BooleanArray(labels.size)
+        var end = Float.NEGATIVE_INFINITY
+        val lastLabelLeft = widthPx - textWidth(labels.last(), axis)
+        labels.forEachIndexed { i, text ->
+            val labelWidth = textWidth(text, axis)
+            val left = (leftOf(i) + barWidth / 2 - labelWidth / 2).coerceIn(0f, max(0f, widthPx - labelWidth))
+            if (i == labels.lastIndex || (left >= end + 4.dp.toPx() && left + labelWidth + 4.dp.toPx() <= lastLabelLeft)) {
+                shownLabels[i] = true
+                end = left + labelWidth
+            }
+        }
         ChartLayout(
             marks = counts.indices.map { i ->
                 ChartMark(
@@ -66,11 +79,12 @@ fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, descr
             },
             draw = {
                 counts.indices.forEach { i ->
-                    val outline = shape.createOutline(Size(barWidth, heights[i]), layoutDirection, this)
-                    translate(leftOf(i), base - heights[i]) {
+                    val height = heights[i] * progress.chartFraction(i)
+                    val outline = shape.createOutline(Size(barWidth, height), layoutDirection, this)
+                    translate(leftOf(i), base - height) {
                         drawOutline(outline, if (i == peak && peakCount > 0) peakColor else restColor)
                     }
-                    label(labels[i], leftOf(i) + barWidth / 2, heightPx - 4.dp.toPx(), axis, muted)
+                    if (shownLabels[i]) label(labels[i], leftOf(i) + barWidth / 2, heightPx - 4.dp.toPx(), axis, muted)
                 }
             },
         )

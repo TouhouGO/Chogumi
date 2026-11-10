@@ -12,6 +12,7 @@ import io.github.touhougo.chogumi.core.data.image.AvatarImages
 import io.github.touhougo.chogumi.core.data.image.DeviceAvatarImages
 import io.github.touhougo.chogumi.core.data.mark.CollectionMarkCoordinator
 import io.github.touhougo.chogumi.core.data.progress.EpTapCoordinator
+import io.github.touhougo.chogumi.core.data.repository.AccountMe
 import io.github.touhougo.chogumi.core.data.repository.AiringTimeRepository
 import io.github.touhougo.chogumi.core.data.repository.AuthRepository
 import io.github.touhougo.chogumi.core.data.repository.BlockedUsersFeed
@@ -47,11 +48,11 @@ import io.github.touhougo.chogumi.core.data.repository.NsfwPreferenceSynchronize
 import io.github.touhougo.chogumi.core.data.repository.OtherCareerDataSource
 import io.github.touhougo.chogumi.core.data.repository.OtherUserCollectionsCache
 import io.github.touhougo.chogumi.core.data.repository.PmRepository
-import io.github.touhougo.chogumi.core.data.repository.AccountMe
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.ProgressOrchestrator
 import io.github.touhougo.chogumi.core.data.repository.SearchRepository
 import io.github.touhougo.chogumi.core.data.repository.SmileyAssetStore
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectCommunityRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectCommunityRepositoryImpl
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository
@@ -125,6 +126,8 @@ val dataModule = module {
     single { get<ChogumiDatabase>().homeProgressDao() }
     single { get<ChogumiDatabase>().tagCatalogDao() }
     single { get<ChogumiDatabase>().exploreShelfDao() }
+    single { get<ChogumiDatabase>().statsModuleDao() }
+    single { StatsLayoutRepository(get()) }
     single { get<ChogumiDatabase>().subjectSectionDao() }
     single { get<ChogumiDatabase>().cacheEvictionDao() }
     single { get<ChogumiDatabase>().topicReplyDraftDao() }

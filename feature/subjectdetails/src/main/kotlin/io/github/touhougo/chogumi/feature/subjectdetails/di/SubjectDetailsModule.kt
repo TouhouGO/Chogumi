@@ -15,7 +15,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val subjectDetailsModule = module {
-    viewModel { params -> SubjectDetailsViewModel(params.get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { params -> SubjectDetailsViewModel(params.get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { params -> SubjectRelationsViewModel(params.get(), get(), get(), get(), get()) }
     viewModel { params -> SubjectCommunityViewModel(params.get(), get(), get(), get()) }
     viewModel { params -> SubjectCollectorsViewModel(params.get(), get()) }

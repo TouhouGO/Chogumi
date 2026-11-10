@@ -1,5 +1,6 @@
 package io.github.touhougo.chogumi.core.ui.composables
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.res.Configuration
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.foundation.layout.Box
@@ -33,12 +34,22 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
+import org.junit.rules.ExternalResource
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CollectionProgressLabelFitTest {
-    @get:Rule val compose = createComposeRule()
+    /** 整模块跑时，前面的测试早已让 UiAutomation 连上、Activity 才打开：先连上，单跑与整模块跑是同一个条件。 */
+    @get:Rule(order = 0)
+    val automationFirst = object : ExternalResource() {
+        override fun before() {
+            checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation)
+        }
+    }
+
+    @get:Rule(order = 1)
+    val compose = createComposeRule()
     private var clicks = 0
 
     @Test
@@ -88,10 +99,7 @@ class CollectionProgressLabelFitTest {
         assertFalse(config.contains(SemanticsProperties.HideFromAccessibility))
         row.performClick()
         assertEquals(1, clicks)
-        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        automation.waitForIdle(500, 5_000)
-        val root = checkNotNull(automation.rootInActiveWindow) { "Android 无障碍窗口不可用" }
-        val nodes = descendants(root).filter { it.isVisibleToUser && it.isImportantForAccessibility }
+        val nodes = descendants(ownWindowRoot()).filter { it.isVisibleToUser && it.isImportantForAccessibility }
         val accessibleRows = nodes.filter { it.contentDescription?.toString()?.contains("Watched 438 / 1155 eps") == true }
         assertEquals("Android 无障碍树中完整句只出现一次", 1, accessibleRows.size)
         assertEquals("Watched 438 / 1155 eps", accessibleRows.single().contentDescription?.toString())
@@ -104,6 +112,27 @@ class CollectionProgressLabelFitTest {
         assertEquals(2, clicks)
     }
 
+    /**
+     * 本测试 Activity 窗口在 Android 无障碍树里的根。不读 `rootInActiveWindow`：「活动窗口」是系统按焦点记的账，
+     * UiAutomation 在 Activity 打开之前就连上时，这本账不一定指到新窗口。打开交互窗口列表（之后读节点、点节点也要它开着），
+     * 按包名找自己的窗口，等它注册进来：注册之后直到测试结束都在。
+     */
+    private fun ownWindowRoot(): AccessibilityNodeInfo {
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        automation.serviceInfo = automation.serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS }
+        val packageName = InstrumentationRegistry.getInstrumentation().targetContext.packageName
+        var root: AccessibilityNodeInfo? = null
+        compose.waitUntil("本测试的窗口进入 Android 无障碍树", WINDOW_BUDGET_MS) {
+            root = automation.windows.firstNotNullOfOrNull { window -> window.root?.takeIf { it.packageName?.toString() == packageName } }
+            root != null
+        }
+        return checkNotNull(root)
+    }
+
     private fun descendants(node: AccessibilityNodeInfo): List<AccessibilityNodeInfo> =
         listOf(node) + (0 until node.childCount).mapNotNull { node.getChild(it) }.flatMap { descendants(it) }
+
+    private companion object {
+        const val WINDOW_BUDGET_MS = 5_000L
+    }
 }

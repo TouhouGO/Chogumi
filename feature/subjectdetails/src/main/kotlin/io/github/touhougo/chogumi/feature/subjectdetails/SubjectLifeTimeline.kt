@@ -29,6 +29,8 @@ import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.chart.ChartLayout
 import io.github.touhougo.chogumi.core.ui.chart.ChartMark
 import io.github.touhougo.chogumi.core.ui.chart.TapChart
+import io.github.touhougo.chogumi.core.ui.chart.chartFraction
+import io.github.touhougo.chogumi.core.ui.chart.chartFractions
 import io.github.touhougo.chogumi.core.ui.chart.keepSeparated
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonBox
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPoster
@@ -84,6 +86,7 @@ private fun PaceUnit.labelRes(): Int = when (this) {
 
 @Composable
 internal fun LifeTimeline(card: LifelineCard, modifier: Modifier = Modifier) {
+    val progress = chartFractions()
     val rows = lifelineRows()
     val phases = (if (card.ended) AirPhase.entries else AirPhase.entries - AirPhase.AFTER)
         .map { phase -> stringResource(phase.labelRes()) to card.phases.firstOrNull { it.group == phase }?.mean?.let(::formatScore) }
@@ -153,7 +156,8 @@ internal fun LifeTimeline(card: LifelineCard, modifier: Modifier = Modifier) {
                     }
                     bars.forEachIndexed { i, rect ->
                         val alpha = 0.35f + 0.65f * card.episodes[i].comments / peak
-                        drawRoundRect(bar.copy(alpha = alpha), rect.topLeft, rect.size, CornerRadius(3.dp.toPx()))
+                        val growth = progress.chartFraction(i)
+                        drawRoundRect(bar.copy(alpha = alpha), Offset(rect.left, rect.bottom - rect.height * growth), Size(rect.width, rect.height * growth), CornerRadius(3.dp.toPx()))
                     }
                     bars.getOrNull(peakIndex)?.let { rect ->
                         label("$peak", rect.center.x, rect.top - 4.dp.toPx(), small, ink)
