@@ -185,6 +185,13 @@ class PreferencesRepository(
         prefs.edit { it[PreferenceKeys.UPDATE_CHECK_INTERVAL] = value.name }
     }
 
+    /** 检查更新（自动与「立即检查」）也看 GitHub 上标成预发布的版本：默认关，只看正式版。 */
+    val updatePrerelease: Flow<Boolean> = select { prefs -> prefs[PreferenceKeys.UPDATE_PRERELEASE] ?: false }
+
+    suspend fun setUpdatePrerelease(value: Boolean) {
+        prefs.edit { it[PreferenceKeys.UPDATE_PRERELEASE] = value }
+    }
+
     /** 上次查到最新版的时刻（epoch 毫秒），没查到过为 null：检查间隔从它起算（`updateCheckDue`）。 */
     val updateCheckedAt: Flow<Long?> = select { prefs -> prefs[PreferenceKeys.UPDATE_CHECKED_AT] }
 

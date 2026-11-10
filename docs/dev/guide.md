@@ -18,6 +18,7 @@
 | 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/`；章节格子的形状、集号强调、静止与预览描边只在 `TileStyle`，真实网格、演示与进度尺共用，演示的格子种类也由 core:model `EpisodeTracking.episodeGrid` 推导 |
 | 选项卡左右翻页、随滚动收起的头部 | core:ui 的 `TabPager`（选中项是唯一真源，手指翻页落定才回写；上过屏的页翻走不拆，点选翻页被打断时接着当时的速度走）、`CollapsibleHeader`（收起部分 + 固定栏 + 内容） |
+| 复制（楼层与短信菜单的「复制」、详情页长按复制标题 / 原名 / 简介） | 剪贴板只经 core:ui `TextCopy.kt` 写：`rememberTextCopier`，长按复制用 `copyOnLongPress`（要点按的简介把点按一起交给它）；BBCode 变成复制的文字只在 core:common `copyTextOf`（楼层去开头引用的 `floorCopyTextOf`） |
 | 富文本、楼层、动态卡片 | core:reader；阅读字阶 `ReaderTypography`、楼层几何 `FloorGeometry` 与楼层骨架 `CommentFloorSkeleton` 在 core:ui（手势引导也画它们） |
 | 名单面板（作品「谁在看」、楼层「谁贴了」） | 框架只有 core:ui `PeopleListSheet`（标题 + 筛选 chip 行 + 人物区）；谁贴了在 core:reader `ReactionUsers.kt`：状态 `ReactionUsersState` 由屏幕持有（与用户卡片一样在列表之上），楼层页画 `CommentReactionUsers`；名单来自 `CommentReactionBo.others`，「我」那格读 core:ui `LocalSignedInAccount` |
 | 手势引导（只靠长按才找得到的几处，各一页会动的演示） | core:ui 的 `tour` 包：`GestureTour` 是整套页（翻页用 `TabPager`），每页一个演示（`MarkDemo` 封面长按环、`EpisodeDemo` 按住一集、`FloorDemo` 楼层长按、`ArrangeDemo` 整理探索页），都画在 `TourStage` 里（按真实 dp 排、整块缩小，字与色块是 `SkeletonSketch` 的示意图画法）。演示不另编数字：长按环就是真环的 `RingLayers`（给它一个 `RingLook`）与 `MarkBadges`，格子是 `tileFace` 与 `EpisodeTileRows`，单集面板头部是 `EpisodeHeadFrame`，楼层是 `CommentFloorSkeleton`，长按菜单是 `MenuGroups` + `AppMenuItem`、表情格子读 `ReactionGridGeometry`，整理是 `ArrangeBar`、`SegmentedItem` 打头 `CoverStack`、拖着的行按 `reorderRowColor`。这些都在 core:ui，真页面（core:reader、作品页、探索页）也从这里读：演示要的东西缺了，就把它从原处搬进 core:ui，不在演示里照写一份。改了长按环、格子、楼层菜单、整理列表的样子，演示跟着看一遍。第一次打开与升级后由外壳（`AppShell`，`ShellState.gestureTour`，偏好 `gestureTourShown`）盖在页面上放一次，设置的「使用技巧」（`Route.GestureTour`）重看 |
@@ -28,7 +29,7 @@
 | 从外面进来的链接（OAuth 回跳、别的应用里点开的 bgm.tv 网页） | app 的 `LinkActivity`（清单里唯一挂 VIEW 的入口；登记的域名与路径和 `inAppRoute` 由 `LinkManifestContractTest` 守）→ `AppActivity.handleLink`；应用里没有的页交给浏览器（`CustomTabUriHandler` 指名浏览器，不绕回自己） |
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
 | 系统通知（设置 › 通知：社区提醒、放送提醒） | 发什么、撤什么、几点发只在 core:model `SystemNotifications.kt`（`noticeRoundOf`、`messageRoundOf`、`airingRemindersOf`、`airingScheduleOf`、`nextDailyMillisOf`）；记账（社区提醒的基线与短信条数、今天发过的放送提醒）只在 core:data `SystemNoticeLedger`；通知类别、发与撤、点开的意图、系统设置页只在 core:ui `SystemNotices`；社区提醒的后台检查在 feature:community `notice/CommunityNotices`（WorkManager，按用户选的间隔），放送提醒在 feature:home `notice/AiringReminders`（读小组件同一份 `WidgetCalendarSource`，一个不精确闹钟加每小时的刷新），两者都由 `App.kt` 的 `watch` 跟着开关与账号；「看过了」经 `WidgetProgressActions.advanceEpisode`（`ProgressOrigin.NOTIFICATION`）。点开通知进 `AppActivity.handleIntent`：标已读、打开铃铛面板（`InboxRequests`）或那一页。设置页是 feature:settings `NotificationSettings.kt`（§2.8） |
-| 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
+| 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`（开了「接收预发布版」时是 GitHub 接口最近几个 Release 里最新一个的，选哪一个只在 `AppUpdates` 的 `newestPublishedOf`）：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
 | 连 bgm.tv 走哪条线路（系统网络 / 直连） | core:netroute：线路设置与核心起停 `NetRoute`、给网络层的调整 `DirectRouting`、边缘地址来源 `EdgeAddresses`、设备支不支持 `directRouteSupported`；网络层只认 core:network 的 `OkHttpCustomizer`（三个接口客户端与图片加载都套上）。直连核心的 Go 源码在 `core/netroute/go/`，改了跑 `tools/echcore/build.sh` 重新生成 `core/netroute/libs/echcore.aar`；别处不引用核心（`python3 tools/guards/check_netroute.py`）。设置页「网络」与登录页的地球、「试试直连」都读同一份设置（§1.10） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
@@ -636,6 +637,15 @@ sed -n 's/^CLIENT_SECRET=//p' oauth-app.properties | gh secret set CHOGUMI_OAUTH
 3. 等 Release 工作流跑完，拿草稿附带的 APK 按下面的「正式包验收清单」验收，通过后点发布。
 
 发布后的 Release 就是 App 检查更新的数据源：App 读 `releases/latest/download/release.json`（草稿不算 latest），提示框里的「更新内容」是 Release 说明栏的正文（去掉 Markdown 标记后显示），所以说明栏写给用户看的中文。
+
+**预发布版。** 只有在设置 › 更新里开了「接收预发布版」的人收到：他们的 App 读 GitHub 接口最近发布的几个 Release
+（`api.github.com/repos/TouhouGO/Chogumi/releases`，从新到旧），取第一个带 `release.json` 的，那一版是不是预发布决定提示框写
+「有预发布版」还是「有新版本」。预发布版用普通的下一个版本号（不加后缀，versionCode 照旧由 `chogumi.version` 推出、只增不减），
+所以 `release.yml`、`formal_release.py` 和 `release.json` 都和正式版一样：
+
+1. 照上面的 1–3 步出草稿。
+2. 发布草稿时勾上「Set as a pre-release」：正式通道的 `latest` 不动，只有开了开关的人收到。
+3. 试下来没问题，回到这个 Release 页取消勾选、设为 latest，它就成了正式版；有问题就修好再发下一个版本号。
 
 #### 正式包验收清单
 

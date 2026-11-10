@@ -58,6 +58,9 @@ object PreferenceKeys {
     /** 自动检查更新的间隔（`UpdateCheckInterval` 的名字）；读盘经 `PreferencesRepository` 的 `enumOr` 收敛。 */
     val UPDATE_CHECK_INTERVAL = stringPreferencesKey("pref_update_check_interval")
 
+    /** 检查更新时也看预发布版（[PreferencesRepository.updatePrerelease]）：没有这个键 = 只看正式版。 */
+    val UPDATE_PRERELEASE = booleanPreferencesKey("pref_update_prerelease")
+
     /** 上次查到最新版的时刻（epoch 毫秒）：检查间隔从它起算；没查到过就没有这个键。 */
     val UPDATE_CHECKED_AT = longPreferencesKey("pref_update_checked_at")
 

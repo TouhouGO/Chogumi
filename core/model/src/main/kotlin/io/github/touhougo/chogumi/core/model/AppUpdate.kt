@@ -1,8 +1,9 @@
 package io.github.touhougo.chogumi.core.model
 
 /**
- * 一个已发布的正式版：版本名、versionCode（比新旧只看它），安装包的文件名、下载地址与 SHA-256（小写十六进制，
- * 下载完对得上才交给系统安装），以及发布时写的更新说明（[releaseNotesTextOf] 处理过的纯文本；没写或没取到为 null）。
+ * 一个已发布的版本：版本名、versionCode（比新旧只看它，预发布与正式版共用一套递增的版本号），安装包的文件名、下载地址与
+ * SHA-256（小写十六进制，下载完对得上才交给系统安装），发布时写的更新说明（[releaseNotesTextOf] 处理过的纯文本；没写或没取到
+ * 为 null），以及它在 GitHub 上是不是标成预发布（[prerelease]：只有开了「接收预发布版」才会遇到）。
  */
 data class AppRelease(
     val versionName: String,
@@ -11,6 +12,7 @@ data class AppRelease(
     val apkUrl: String,
     val apkSha256: String,
     val notes: String? = null,
+    val prerelease: Boolean = false,
 )
 
 /**

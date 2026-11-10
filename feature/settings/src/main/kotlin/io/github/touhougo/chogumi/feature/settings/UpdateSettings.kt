@@ -16,7 +16,7 @@ import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
 import io.github.touhougo.chogumi.core.ui.composables.SegmentedItem
 import org.koin.compose.viewmodel.koinViewModel
 
-/** 「更新」分类页：当前版本与「立即检查」；自动检查更新的开关，开着时还有检查间隔。 */
+/** 「更新」分类页：当前版本与「立即检查」；接收预发布版（对两种检查都起作用）；自动检查更新的开关，开着时还有检查间隔。 */
 @Composable
 internal fun UpdateSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val viewModel: UpdateSettingsViewModel = koinViewModel()
@@ -51,6 +51,21 @@ fun UpdateSettingsContent(
                     rows = listOf<SettingsRow>(
                         { index, count -> ValueRow(index, count, stringResource(R.string.settings_update_current_version), installedVersion) },
                         { index, count -> CheckNowRow(index, count, state.manualCheck, actions::checkNow) },
+                    ),
+                ),
+                SettingsGroup(
+                    key = "channel",
+                    title = null,
+                    rows = listOf<SettingsRow>(
+                        { index, count ->
+                            SwitchRow(
+                                index = index,
+                                count = count,
+                                title = stringResource(R.string.settings_update_prerelease),
+                                checked = state.prerelease,
+                                onCheckedChange = actions::onPrereleaseChange,
+                            )
+                        },
                     ),
                 ),
                 SettingsGroup(
