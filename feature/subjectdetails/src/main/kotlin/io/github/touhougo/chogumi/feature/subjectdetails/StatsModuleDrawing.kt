@@ -18,6 +18,8 @@ import io.github.touhougo.chogumi.core.model.SubjectSeries
 import io.github.touhougo.chogumi.core.model.formatEpisodeSort
 import io.github.touhougo.chogumi.core.model.statistics.ControversyTier
 import io.github.touhougo.chogumi.core.model.statistics.GroupMean
+import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCell
+import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.statistics.ScoreCard
 import io.github.touhougo.chogumi.core.model.statistics.SubjectStats
 import io.github.touhougo.chogumi.core.res.R
@@ -81,10 +83,9 @@ internal fun StatsModuleDrawing(module: StatsModule, tab: SubjectStatsTab, onSub
             }, ring = module.drawing == StatsDrawing.COLLECTION_RING)
         }
         StatsDrawing.LIFELINE -> tab.lifeline.valueOrNull()?.let { LifeTimeline(it) }
-        StatsDrawing.EPISODE_GRID -> tab.episodeHeat.valueOrNull()?.let { EpisodeHeat(it) }
+        StatsDrawing.EPISODE_GRID -> tab.episodeHeat.valueOrNull()?.let { heat -> EpisodeHeat(heat, heat.cells.map { discussionTip(it, subject.type) }, statsModuleName(module, subject.type)) }
         StatsDrawing.EPISODE_BARS, StatsDrawing.EPISODE_LINE -> tab.episodeHeat.valueOrNull()?.let { heat ->
-            val points = heat.cells.map { cell -> PlotPoint(formatEpisodeSort(cell.sort), cell.comments.toDouble(), if (subject.type == io.github.touhougo.chogumi.core.model.SubjectType.MUSIC) androidx.compose.ui.res.pluralStringResource(R.plurals.stats_track_tip, cell.comments, formatEpisodeSort(cell.sort), cell.comments)
-                else androidx.compose.ui.res.pluralStringResource(R.plurals.stats_episode_tip, cell.comments, formatEpisodeSort(cell.sort), cell.comments)) }
+            val points = heat.cells.map { cell -> PlotPoint(formatEpisodeSort(cell.sort), cell.comments.toDouble(), discussionTip(cell, subject.type)) }
             if (module.drawing == StatsDrawing.EPISODE_LINE) StatsLine(points) else CountBars(points.map { it.value.toInt() }, points.map { it.label }, points.map { it.tip }, statsModuleName(module, subject.type), 110.dp)
         }
         StatsDrawing.SERIES -> tab.series.valueOrNull()?.let { SeriesRow(subject, it, scores = true, onSubjectClick = onSubjectClick) }
@@ -136,3 +137,9 @@ internal fun StatsDrawingSkeleton(module: StatsModule, tab: SubjectStatsTab) {
     if (module.drawing == StatsDrawing.EPISODE_GRID) EpisodeHeatSkeleton(tab.subject)
     else StatsModuleDrawing(module, tab.copy(score = score, episodeHeat = Load.Ready(sampleHeat), calculated = sample, series = Load.Ready(SubjectSeries(emptyList(), emptyList()))), {})
 }
+
+/** 所有讨论画法同读一份按作品类型选择的提示，音乐按首、其他按集。 */
+@Composable
+private fun discussionTip(cell: EpisodeHeatCell, type: SubjectType): String = androidx.compose.ui.res.pluralStringResource(
+    if (type == SubjectType.MUSIC) R.plurals.stats_track_tip else R.plurals.stats_episode_tip,
+    cell.comments, formatEpisodeSort(cell.sort), cell.comments)

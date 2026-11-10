@@ -188,12 +188,12 @@ private fun <T> balancedRows(items: List<T>): List<List<T>> {
 }
 
 @Composable
-internal fun EpisodeHeat(card: EpisodeHeatCard) {
+internal fun EpisodeHeat(card: EpisodeHeatCard, tips: List<String>, description: String) {
     val peak = card.cells.maxOf { it.comments }
-    val cells = card.cells.map { cell ->
+    val cells = card.cells.mapIndexed { index, cell ->
         HeatCell(
             level = heatLevelOf(cell.comments, peak),
-            tip = pluralStringResource(R.plurals.stats_episode_tip, cell.comments, formatEpisodeSort(cell.sort), cell.comments),
+            tip = tips[index],
             label = formatEpisodeSort(cell.sort),
             marked = cell.watched,
         )
@@ -203,7 +203,7 @@ internal fun EpisodeHeat(card: EpisodeHeatCard) {
         rows = rows,
         rowLabels = rows.map { "" },
         columns = rows.first().size,
-        description = stringResource(R.string.stats_episode_heat_title),
+        description = description,
         maxCell = EPISODE_HEAT_CELL,
     )
 }
