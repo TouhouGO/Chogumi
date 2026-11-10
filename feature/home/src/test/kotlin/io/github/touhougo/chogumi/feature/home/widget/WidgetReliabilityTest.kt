@@ -23,13 +23,21 @@ import io.github.touhougo.chogumi.core.network.api.NextApi
 import io.github.touhougo.chogumi.core.network.api.SubjectApi
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import io.github.touhougo.chogumi.core.data.token.TokenStore
+import io.github.touhougo.chogumi.core.foundation.Failure
+import java.io.IOException
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import io.github.touhougo.chogumi.core.data.repository.awaitUntil
 import org.junit.runner.RunWith
@@ -48,7 +56,7 @@ class WidgetReliabilityTest {
         val applicationScope = resources.own(CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, error -> escaped.complete(error) }))
         val fault = FaultablePreferencesRepository(resources)
         fault.failReads.set(true)
-        val updates = realUpdates(context, fault.repository, applicationScope)
+        val (updates) = realUpdates(context, fault.repository, applicationScope)
         updates.ensureRunning()
         awaitUntil("偏好读取失败") { fault.failedReads.get() > 0 }
         assertNull(if (escaped.isCompleted) escaped.await() else null, "偏好读取异常不能漏出")
@@ -61,14 +69,43 @@ class WidgetReliabilityTest {
     fun `配置页的小组件已被移走_选择作品不应抛未处理异常`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val preferences = FaultablePreferencesRepository(resources)
-        val updates = realUpdates(context, preferences.repository, resources.scope)
+        val (updates) = realUpdates(context, preferences.repository, resources.scope)
         // 打开配置页后，桌面移走了这块；id不等于INVALID_APPWIDGET_ID，但系统已查不到provider。
         val result = chooseSubject(context, 723167, 101, updates)
-        kotlin.test.assertEquals(io.github.touhougo.chogumi.core.foundation.Outcome.Success(false), result)
+        assertEquals(io.github.touhougo.chogumi.core.foundation.Outcome.Success(false), result)
     }
 
-    private suspend fun realUpdates(context: Context, preferences: io.github.touhougo.chogumi.core.data.repository.PreferencesRepository, applicationScope: CoroutineScope): WidgetUpdates {
-        val tokenStore = testTokenStore(resources, 7)
+    @Test
+    fun `本机会话读不出来时整帧仍交出来源画的读不出来`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val unreadable = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow { throw IOException("tokens unreadable") }
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = throw IOException("tokens unwritable")
+        }
+        val (updates, source) = realUpdates(context, FaultablePreferencesRepository(resources).repository, resources.scope, TokenStore(unreadable))
+        assertEquals(WidgetWorks.Failed(Failure.Storage), updates.currentAccountFrame { source.load() })
+    }
+
+    @Test
+    fun `取整帧期间换了号_按新账号重取一次`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val tokens = testTokenStore(resources, 7)
+        val (updates) = realUpdates(context, FaultablePreferencesRepository(resources).repository, resources.scope, tokens)
+        var loads = 0
+        val frame = updates.currentAccountFrame {
+            loads++
+            if (loads == 1) tokens.completeSession(tokens.beginSession("other"), 8, "other")
+            loads
+        }
+        assertEquals(2, frame)
+    }
+
+    private suspend fun realUpdates(
+        context: Context,
+        preferences: io.github.touhougo.chogumi.core.data.repository.PreferencesRepository,
+        applicationScope: CoroutineScope,
+        tokenStore: TokenStore = testTokenStore(resources, 7),
+    ): Pair<WidgetUpdates, WidgetWorksSource> {
         val client = resources.apiClient { respond("", HttpStatusCode.NotFound) }
         val clock = TestClock(0)
         val subjectDao = FakeSubjectDao()
@@ -79,8 +116,9 @@ class WidgetReliabilityTest {
         val coordinator = collections.epTapCoordinator(collections.progressOrchestrator(subjects), resources.scope, { 0L }, { })
         val auth = testAuthRepository(resources, client, tokenStore, AuthConfig("fixture", "fixture", "chogumi://oauth/callback"), resources.scope)
         auth.ensureInitialized()
-        val actions = WidgetProgressActions(WidgetWorksSource(home, collections.observer, auth, clock), coordinator)
-        return WidgetUpdates(context, applicationScope, collections.observer, preferences, auth, actions)
+        val source = WidgetWorksSource(home, collections.observer, auth, clock)
+        val actions = WidgetProgressActions(source, coordinator)
+        return WidgetUpdates(context, applicationScope, collections.observer, preferences, auth, actions) to source
     }
 
 }

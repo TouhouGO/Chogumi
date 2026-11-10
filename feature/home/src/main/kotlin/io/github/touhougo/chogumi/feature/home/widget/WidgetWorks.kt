@@ -38,7 +38,7 @@ internal sealed interface WidgetWorks {
     data object SignedOut : WidgetWorks
 
     /** 在看的作品，[works] 为空就是「还没有在看的作品」。 */
-    data class Ready(val works: List<WidgetWork>, val today: LocalDate, val session: AccountSession) : WidgetWorks
+    data class Ready(val works: List<WidgetWork>, val today: LocalDate) : WidgetWorks
 
     /** 本机一份进度都读不出来（没有缓存、网络也不通）。 */
     data class Failed(val failure: Failure) : WidgetWorks
@@ -102,7 +102,7 @@ internal class WidgetWorksSource(
                 // 小组件不画追更时间表，时刻只用在那里
                 broadcastStarts = emptyMap(),
             )
-            authRepository.withSession(session) { WidgetWorks.Ready(widgetWorksOf(candidates), today, session) }
+            authRepository.withSession(session) { WidgetWorks.Ready(widgetWorksOf(candidates), today) }
         }
         return when (result) {
             is Outcome.Success -> result.value

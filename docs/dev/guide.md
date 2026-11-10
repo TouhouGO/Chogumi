@@ -344,7 +344,8 @@ flowchart LR
 ### 2.6 桌面小组件（Glance）
 
 - 一次读取与整帧（文字、进度、位图）固定同一个 `AccountSession`：来源末尾与发布前校验归属，通知与小组件共享
-  `WidgetCalendarSource` / `WidgetWorksSource`，换号期间取到的混合结果不交出去；小组件整帧换号时重新取当前账号。
+  `WidgetCalendarSource` / `WidgetWorksSource`，换号期间取到的混合结果不交出去；小组件整帧换号时重新取当前账号，本机会话读不出来时照常交出来源画的「读不出来」
+  （`AuthRepository.currentSession` 的失败是 `Failure.Storage`），不让小组件变成系统的加载失败框。
 - 小组件配色、两类通知设置的持续读取经 core:data `recoverStorageReads`：读失败后按 1、2、4……秒退避，最多等 30 秒再订阅，
   取消仍结束，不把一次故障当作永久关闭。单部作品配置 `chooseSubject` 返回 `Outcome<Boolean>`：小组件已不存在时取消配置，
   保存失败留在配置页、经 `FailureNotices` 给重试，只有成功才回 `RESULT_OK`。

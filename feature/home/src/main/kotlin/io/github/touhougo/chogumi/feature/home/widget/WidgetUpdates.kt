@@ -34,7 +34,6 @@ import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.Failure
-import io.github.touhougo.chogumi.core.foundation.FailureException
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.model.EpButtonState
@@ -201,21 +200,16 @@ class WidgetUpdates internal constructor(
         allWidgets().forEach { widget -> outcomeOf { widget.updateAll(context) } }
     }
 
-    /** 整帧的文字、进度与位图固定归属；封面挂起期间换号也不能交出旧帧。 */
+    /**
+     * 整帧的文字、进度与位图固定归属：封面挂起期间换了号，按当前账号重取，不交出旧帧。
+     * 会话读不出来时照常交出这一帧：来源各自画「读不出来」，不让小组件变成系统的加载失败。
+     */
     internal suspend fun <T> currentAccountFrame(load: suspend () -> T): T {
         while (true) {
-            val result = outcomeOf {
-                val session = when (val captured = authRepository.currentSession()) {
-                    is Outcome.Failed -> throw FailureException(captured.failure)
-                    is Outcome.Success -> captured.value
-                }
-                val frame = load()
-                authRepository.withSession(session) { frame }
-            }
-            when (result) {
-                is Outcome.Success -> return result.value
-                is Outcome.Failed -> if (result.failure != Failure.SessionChanged) throw FailureException(result.failure)
-            }
+            val session = authRepository.currentSession().valueOrNull() ?: return load()
+            val frame = load()
+            val held = outcomeOf { authRepository.withSession(session) { } }
+            if (held !is Outcome.Failed || held.failure != Failure.SessionChanged) return frame
         }
     }
 

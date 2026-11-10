@@ -57,7 +57,7 @@ class WidgetContentTest {
 
     @Test
     fun `单部作品画选的那部，带上它写失败的标记`() {
-        val works = WidgetWorks.Ready(listOf(work(1), work(2)), TODAY, SESSION)
+        val works = WidgetWorks.Ready(listOf(work(1), work(2)), TODAY)
 
         assertEquals(SubjectContent.Work(work(2), failed = true, cover = null), subjectContentOf(works, 2, failed = setOf(2), cover = null))
         assertEquals(SubjectContent.Work(work(1), failed = false, cover = null), subjectContentOf(works, 1, failed = setOf(2), cover = null))
@@ -65,7 +65,7 @@ class WidgetContentTest {
 
     @Test
     fun `单部作品没选或选的那部不在在看里时是要重新选`() {
-        val works = WidgetWorks.Ready(listOf(work(1)), TODAY, SESSION)
+        val works = WidgetWorks.Ready(listOf(work(1)), TODAY)
 
         assertEquals(SubjectContent.Missing, subjectContentOf(works, null, emptySet(), null))
         assertEquals(SubjectContent.Missing, subjectContentOf(works, 9, emptySet(), null))

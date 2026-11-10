@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.foundation.RejectReason
 import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.failureOrNull
@@ -85,8 +86,8 @@ class AuthRepository(
         if (initialized is Outcome.Failed && initialized.failure != Failure.SessionChanged) setState(SessionState.InitializationError)
     }
 
-    /** 后台读取的操作归属：恢复本机会话后捕获一次，游客也是明确的会话。 */
-    suspend fun currentSession(): Outcome<AccountSession> = outcomeOf {
+    /** 后台读取的操作归属：恢复本机会话后捕获一次，游客也是明确的会话；读不出来是本机存储失败。 */
+    suspend fun currentSession(): Outcome<AccountSession> = storageOutcomeOf {
         ensureInitialized()
         tokenStore.session()
     }
