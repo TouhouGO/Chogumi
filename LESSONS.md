@@ -71,6 +71,11 @@ Chogumi 的代码由 agent 写、审、合、发。每批合入之后复盘一�
 - 修好：#31（`CollapsibleHeader` 的头部与选项卡接同一串滚动连接的拖动；头部不受屏高限制地量；比可用高度还高时不吸附。`HeaderDragTest` 在旧代码上红 `最下面的按钮停在顶栏下面、屏幕之内：0.0.dp..0.0.dp`、`收满后选项卡停在顶栏下面 expected:<64.0> but was:<200.0>`）。
 - Seen 1×（2026-11-10）。
 
+**主线程上不碰套接字，关连接也算。** 关一条 TLS 连接要写出 close_notify：Android 主线程上写套接字抛 `NetworkOnMainThreadException`，它是 `RuntimeException`，OkHttp 的 `closeQuietly` 原样抛出，进程崩。`ConnectionPool.evictAll()` 在调用它的线程上关空闲的连接；第一次调用时池是空的，所以只有「再来一次」才崩，单测与只点一次的验收都看不见。
+- 出事：#28 的「检查连接」在主线程上调 `RouteCheck.startRound()`（`evictAll`），上一轮的连接还空闲在池里（五分钟内）时再测一次就闪退；所有者在真机上切代理后连点检测时发现。
+- 修好：#33（`startRound` 在 IO 线程上清，响应在 OkHttp 回调的线程上关；测试记下套接字在哪个线程上关，旧代码上红 `在调用方的线程上关了套接字. Actual: Thread[#1,Test worker @coroutine#4,5,main]`）。
+- Seen 1×（2026-11-10）。
+
 **围绕一个事实写最小的实现。** 要守的是「这一条已读」一个事实，不是一台状态机。
 - 出事：#628 的第一版为「读成功了才清未读」写了约 400 行租约与代次状态机，外加只给测试用的辅助函数；合并前围绕那一个事实重写。
 - Seen 1×（2026-10-30）。
