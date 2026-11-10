@@ -244,6 +244,8 @@ flowchart LR
   头像走 `https://api.bgm.tv/v0/users/{username}/avatar?type=large`，自定义头像 302 到图片，默认头像 404（格子画占位）。
   这个入口要应用的 UA：okhttp 默认 UA 与空 UA 都回 403。图片加载器对 `api.bgm.tv/v0/` 的请求补上开放接口同一个 UA（app 的 `ApiImageUserAgent`）。
 - 进度页按类别（meta_tags）筛选用本地 subjects 表，不逐作品请求。
+- 进度页的「个人评分」排序读本地收藏表里自己打的分（v0 收藏的 `rate`，1–10，0 = 没打），同步收藏时已经存下，不另请求；
+  「公共评分」档只在公共评分开着时有（`progressSortsFor`）。
 - bgm.tv 的用户页偶发 500 / 502：截图里的失败提示是服务端的事，重拍。
 - 放送时刻来自 bangumi-data，取 GitHub 上 master 的原始文件：`https://raw.githubusercontent.com/bangumi-data/bangumi-data/master/dist/data.json`。
   上游每次合入 master 由 CI 重新构建这个文件并发 npm 版本（2026-11-01 与 npm 最新的 0.3.234 逐字节相同）。约 7.9 MB（gzip 1.5 MB），

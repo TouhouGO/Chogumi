@@ -12,11 +12,12 @@ import java.util.Locale
  *   只有按集推进的类型有（[progressSortsFor]）；
  * - [DATE]：作品日期（放送或发售，`SubjectBo.date`），默认新到旧；
  * - [TITLE]：名称（`nameCn` 优先，空白时回退 `name`），按拼音排（[titleOrder]），默认 A 到 Z；
- * - [RATING]：评分，默认高到低。
+ * - [PUBLIC_RATING]：公共评分（`SubjectBo.ratingScore`），默认高到低；关掉公共评分时没有这一档（[progressSortsFor]）；
+ * - [MY_RATING]：个人评分（收藏里自己打的分 `UserCollectionBo.rate`），默认高到低。
  *
  * 没有这一档的值的作品（未评分、没有逐集数据、没有日期、没有名称）**不论方向都排在最后**（见 [sortProgress]）。
  */
-enum class ProgressSort { RECENT, LATEST_AIRED, DATE, TITLE, RATING }
+enum class ProgressSort { RECENT, LATEST_AIRED, DATE, TITLE, PUBLIC_RATING, MY_RATING }
 
 /**
  * 列表按什么排：档位与方向。[reversed] 为 false 是这一档的默认方向（见 [descending]）。
@@ -30,16 +31,27 @@ data class ProgressOrder(val sort: ProgressSort = ProgressSort.RECENT, val rever
     val descending: Boolean
         get() = if (sort == ProgressSort.TITLE) reversed else !reversed
 
-    /** 在 [type] 这一页实际按什么排：这一页没有选中的档（书籍没有「最近更新」）时按最近操作的默认方向。 */
-    fun on(type: SubjectType?): ProgressOrder = if (sort in progressSortsFor(type)) this else ProgressOrder()
+    /**
+     * 在 [type] 这一页实际按什么排：这一页没有选中的档（书籍没有「最近更新」、关掉公共评分时没有「公共评分」）时
+     * 按最近操作的默认方向。[publicRatings] 是 `AppFeatures.publicRatings`。
+     */
+    fun on(type: SubjectType?, publicRatings: Boolean): ProgressOrder =
+        if (sort in progressSortsFor(type, publicRatings)) this else ProgressOrder()
 }
 
 /**
  * 某一页（[type]，null = 全部）排序菜单里有哪些档——**唯一判定点**。
- * 「最近更新」要逐集数据，只给按集推进的类型（[EpisodeTracking.tracksEpisodes]）与混排的「全部」。
+ * 「最近更新」要逐集数据，只给按集推进的类型（[EpisodeTracking.tracksEpisodes]）与混排的「全部」；
+ * 「公共评分」是他人的评分，只在公共评分开着时有（[publicRatings] = `AppFeatures.publicRatings`）。个人评分一直有。
  */
-fun progressSortsFor(type: SubjectType?): List<ProgressSort> =
-    ProgressSort.entries.filter { it != ProgressSort.LATEST_AIRED || type == null || EpisodeTracking.tracksEpisodes(type) }
+fun progressSortsFor(type: SubjectType?, publicRatings: Boolean): List<ProgressSort> =
+    ProgressSort.entries.filter { sort ->
+        when (sort) {
+            ProgressSort.LATEST_AIRED -> type == null || EpisodeTracking.tracksEpisodes(type)
+            ProgressSort.PUBLIC_RATING -> publicRatings
+            else -> true
+        }
+    }
 
 /**
  * 「最近操作时刻」——**唯一判定点**：收藏记录的更新时间与该作品最后一次「看过某集」的时刻取较大者。
@@ -106,7 +118,9 @@ fun sortProgress(
         ProgressSort.TITLE -> missingLast(titleOrder(), descending) { item ->
             item.subject?.let { displayNameOf(it) }?.takeIf { it.isNotBlank() }
         }
-        ProgressSort.RATING -> missingLast(descending) { item -> item.subject?.ratingScore?.takeIf { it > 0.0 } }
+        ProgressSort.PUBLIC_RATING -> missingLast(descending) { item -> item.subject?.ratingScore?.takeIf { it > 0.0 } }
+        // 收藏里的分是 1–10 的整数，0 表示没打
+        ProgressSort.MY_RATING -> missingLast(descending) { item -> item.rate.takeIf { it > 0 } }
     }
     return items.sortedWith(byValue.thenBy { it.subjectId })
 }

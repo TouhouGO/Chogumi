@@ -12,17 +12,19 @@ import org.junit.Test
  */
 class ProgressSortingTest {
 
-    /** 只有排序键不同的最小条目：subject 携带标题与评分，`updatedAt` 是收藏更新时间。 */
+    /** 只有排序键不同的最小条目：subject 携带标题与公共评分，`rate` 是自己打的分，`updatedAt` 是收藏更新时间。 */
     private fun item(
         id: Int,
         updatedAt: Long = 0L,
         title: String = "作品$id",
         rating: Double = 0.0,
         date: String? = null,
+        rate: Int = 0,
     ) = UserCollectionBo(
         subjectId = id,
         subjectType = SubjectType.ANIME,
         type = CollectionType.DOING,
+        rate = rate,
         updatedAt = updatedAt,
         subject = SubjectBo(
             id = id, type = SubjectType.ANIME, name = title, nameCn = title,
@@ -81,21 +83,37 @@ class ProgressSortingTest {
     fun `最近更新只给按集推进的类型与全部`() {
         val all = ProgressSort.entries
         val withoutAired = all - ProgressSort.LATEST_AIRED
-        assertEquals(all, progressSortsFor(null))
-        assertEquals(all, progressSortsFor(SubjectType.ANIME))
-        assertEquals(all, progressSortsFor(SubjectType.REAL))
-        assertEquals(withoutAired, progressSortsFor(SubjectType.BOOK))
-        assertEquals(withoutAired, progressSortsFor(SubjectType.GAME))
-        assertEquals(withoutAired, progressSortsFor(SubjectType.MUSIC))
+        assertEquals(all, progressSortsFor(null, publicRatings = true))
+        assertEquals(all, progressSortsFor(SubjectType.ANIME, publicRatings = true))
+        assertEquals(all, progressSortsFor(SubjectType.REAL, publicRatings = true))
+        assertEquals(withoutAired, progressSortsFor(SubjectType.BOOK, publicRatings = true))
+        assertEquals(withoutAired, progressSortsFor(SubjectType.GAME, publicRatings = true))
+        assertEquals(withoutAired, progressSortsFor(SubjectType.MUSIC, publicRatings = true))
+    }
+
+    @Test
+    fun `关掉公共评分时没有公共评分档 个人评分还在`() {
+        val sorts = progressSortsFor(SubjectType.ANIME, publicRatings = false)
+        assertFalse(ProgressSort.PUBLIC_RATING in sorts)
+        assertEquals(ProgressSort.entries - ProgressSort.PUBLIC_RATING, sorts)
     }
 
     @Test
     fun `这一页没有选中的档时按最近操作的默认方向排`() {
         val aired = ProgressOrder(ProgressSort.LATEST_AIRED, reversed = true)
-        assertEquals(aired, aired.on(SubjectType.ANIME))
-        assertEquals(ProgressOrder(), aired.on(SubjectType.BOOK))
+        assertEquals(aired, aired.on(SubjectType.ANIME, publicRatings = true))
+        assertEquals(ProgressOrder(), aired.on(SubjectType.BOOK, publicRatings = true))
         val title = ProgressOrder(ProgressSort.TITLE, reversed = true)
-        assertEquals(title, title.on(SubjectType.BOOK))
+        assertEquals(title, title.on(SubjectType.BOOK, publicRatings = true))
+    }
+
+    @Test
+    fun `关掉公共评分时选着的公共评分按最近操作排 再打开又按公共评分`() {
+        val public = ProgressOrder(ProgressSort.PUBLIC_RATING, reversed = true)
+        assertEquals(ProgressOrder(), public.on(SubjectType.ANIME, publicRatings = false))
+        assertEquals(public, public.on(SubjectType.ANIME, publicRatings = true))
+        val mine = ProgressOrder(ProgressSort.MY_RATING)
+        assertEquals(mine, mine.on(SubjectType.ANIME, publicRatings = false))
     }
 
     // ---------- 最近操作 ----------
@@ -180,22 +198,40 @@ class ProgressSortingTest {
         assertEquals(listOf(2, 1, 3), sorted(items, ProgressSort.TITLE, reversed = false))
     }
 
-    // ---------- 评分 ----------
+    // ---------- 公共评分 ----------
 
     @Test
-    fun `评分 顺序为高到低 逆序为低到高`() {
+    fun `公共评分 顺序为高到低 逆序为低到高`() {
         val items = listOf(item(1, rating = 5.0), item(2, rating = 9.0), item(3, rating = 7.0))
-        assertEquals(listOf(2, 3, 1), sorted(items, ProgressSort.RATING, reversed = false))
-        assertEquals(listOf(1, 3, 2), sorted(items, ProgressSort.RATING, reversed = true))
+        assertEquals(listOf(2, 3, 1), sorted(items, ProgressSort.PUBLIC_RATING, reversed = false))
+        assertEquals(listOf(1, 3, 2), sorted(items, ProgressSort.PUBLIC_RATING, reversed = true))
     }
 
     @Test
-    fun `评分 未评分始终排在最后 逆序也不跑到最前`() {
+    fun `公共评分 未评分始终排在最后 逆序也不跑到最前`() {
         val items = listOf(item(1, rating = 0.0), item(2, rating = 5.0), item(3, rating = 0.0), item(4, rating = 9.0))
         // 顺序：已评分 9 > 5，未评分（3、1）恒在最后，未评分内部按 id 升序。
-        assertEquals(listOf(4, 2, 1, 3), sorted(items, ProgressSort.RATING, reversed = false))
+        assertEquals(listOf(4, 2, 1, 3), sorted(items, ProgressSort.PUBLIC_RATING, reversed = false))
         // 逆序：已评分 5 < 9，未评分**仍在最后**（不因为「低分」跑到最前）。
-        assertEquals(listOf(2, 4, 1, 3), sorted(items, ProgressSort.RATING, reversed = true))
+        assertEquals(listOf(2, 4, 1, 3), sorted(items, ProgressSort.PUBLIC_RATING, reversed = true))
+    }
+
+    // ---------- 个人评分 ----------
+
+    @Test
+    fun `个人评分 按自己打的分 不按公共评分`() {
+        // 自己的分与公共评分顺序相反：按个人评分排必须是 3、2、1。
+        val items = listOf(item(1, rating = 9.0, rate = 4), item(2, rating = 7.0, rate = 6), item(3, rating = 5.0, rate = 10))
+        assertEquals(listOf(3, 2, 1), sorted(items, ProgressSort.MY_RATING, reversed = false))
+        assertEquals(listOf(1, 2, 3), sorted(items, ProgressSort.MY_RATING, reversed = true))
+    }
+
+    @Test
+    fun `个人评分 没打分的始终排在最后 逆序也不跑到最前`() {
+        val items = listOf(item(1, rate = 0), item(2, rate = 5), item(3, rate = 0, rating = 9.0), item(4, rate = 8))
+        // 没打分（0）的 1、3 恒在最后、按 id；有公共评分也不算自己打过分。
+        assertEquals(listOf(4, 2, 1, 3), sorted(items, ProgressSort.MY_RATING, reversed = false))
+        assertEquals(listOf(2, 4, 1, 3), sorted(items, ProgressSort.MY_RATING, reversed = true))
     }
 
     @Test
@@ -204,7 +240,7 @@ class ProgressSortingTest {
             UserCollectionBo(subjectId = 1, subjectType = SubjectType.ANIME, type = CollectionType.DOING, subject = null),
             item(2, rating = 8.0, date = "2020-01-01"),
         )
-        listOf(ProgressSort.DATE, ProgressSort.TITLE, ProgressSort.RATING).forEach { sort ->
+        listOf(ProgressSort.DATE, ProgressSort.TITLE, ProgressSort.PUBLIC_RATING).forEach { sort ->
             assertEquals(listOf(2, 1), sorted(items, sort, reversed = false))
             assertEquals(listOf(2, 1), sorted(items, sort, reversed = true))
         }
@@ -222,8 +258,8 @@ class ProgressSortingTest {
     @Test
     fun `同一份数据反复排序结果一致`() {
         val items = listOf(item(3, rating = 7.0), item(1, rating = 0.0), item(2, rating = 7.0))
-        val once = sorted(items, ProgressSort.RATING, reversed = false)
-        repeat(5) { assertEquals(once, sorted(items, ProgressSort.RATING, reversed = false)) }
+        val once = sorted(items, ProgressSort.PUBLIC_RATING, reversed = false)
+        repeat(5) { assertEquals(once, sorted(items, ProgressSort.PUBLIC_RATING, reversed = false)) }
         // 作品 2、3 同为 7 分：平局按 id 升序（2 在前），未评分的 1 恒最后。
         assertEquals(listOf(2, 3, 1), once)
     }
