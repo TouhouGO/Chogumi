@@ -14,7 +14,10 @@ import kotlin.test.assertEquals
 class SubjectStatsTabTest {
 
     private val subject = SubjectBo(id = 8, type = SubjectType.ANIME, name = "n", nameCn = "")
-    private val noCards = SubjectStats(score = null, episodeHeat = null, lifeline = null, flow = null)
+    private val noCards = SubjectStats(
+        score = null, episodeHeat = null, lifeline = null, flow = null,
+        controversy = null, airPhases = emptyList(), totalCollects = emptyList(), regdate = emptyList(), tags = emptyList(),
+    )
 
     /** 条目本体已到的页面状态里统计读的那部分。 */
     private fun sourceOf(state: SubjectDetailsUiState) = checkNotNull(statsSourceOf(state.copy(subjectLoad = Load.Ready(subject))))

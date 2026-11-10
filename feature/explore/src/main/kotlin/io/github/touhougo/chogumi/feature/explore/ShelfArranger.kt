@@ -24,37 +24,22 @@ import io.github.touhougo.chogumi.core.model.WorkShelfEntry
 import io.github.touhougo.chogumi.core.model.WorkShelfSource
 import io.github.touhougo.chogumi.core.model.WorkShelfStyle
 import io.github.touhougo.chogumi.core.model.concreteOrNull
-import io.github.touhougo.chogumi.core.model.isPinnable
 import io.github.touhougo.chogumi.core.model.defaultTileKeys
+import io.github.touhougo.chogumi.core.model.isPinnable
 import io.github.touhougo.chogumi.core.model.reordered
 import io.github.touhougo.chogumi.core.model.withShown
 import io.github.touhougo.chogumi.core.model.withTileShelfSaved
 import io.github.touhougo.chogumi.core.model.withWorkShelfSaved
 import io.github.touhougo.chogumi.core.model.words
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeMachine
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-/**
- * 探索页的整理模式（长按货架标题进入）：整理列表、编辑面板、「添加货架」面板开着哪个。只由 [ShelfArranger] 改。
- *
- * @property active 在整理（整页换成整理列表）
- * @property editor 开着的编辑面板（新建也是它）；null = 没开
- * @property adding 「添加货架」面板开着
- * @property closing 要收起的面板（滑下去后照常回调关闭），保存、点「完成」时置上
- */
-data class ShelfArrangeState(
-    val active: Boolean = false,
-    val editor: ShelfEditor? = null,
-    val adding: Boolean = false,
-    val closing: ArrangeSheet? = null,
-    /** 编辑草稿的保存或移除在途；完成前不排第二次写。 */
-    val saving: Boolean = false,
-)
-
-/** 整理模式里的两种面板。 */
-enum class ArrangeSheet { EDITOR, ADDING }
+/** 探索的领域草稿与通用整理状态组合。 */
+typealias ShelfArrangeState = ArrangeState<ShelfEditor>
 
 /**
  * 一条货架的编辑草稿：点保存才写进布局（[ShelfArranger.save]），下滑、点遮罩、返回就丢掉。
@@ -153,6 +138,7 @@ class ShelfArranger(
 ) : ArrangeListActions {
     private var editorRound = 0L
     private var wordsRound = 0L
+    private val machine = ArrangeMachine(read, write)
 
     init {
         // 筛选面板搜索框 → 目录建议；写回前核对输入还是发起查询时那个
@@ -174,11 +160,11 @@ class ShelfArranger(
 
     // —— 进出整理
 
-    override fun enter() = update { it.copy(active = true) }
+    override fun enter() = machine.enter()
 
     override fun exit() {
         ++editorRound
-        update { ShelfArrangeState() }
+        machine.exit()
     }
 
     // —— 整理列表
@@ -191,40 +177,20 @@ class ShelfArranger(
 
     override fun openEditor(type: SubjectType, entry: ShelfEntry) {
         ++editorRound
-        update { it.copy(editor = editorOf(type, entry), closing = null, saving = false) }
+        machine.edit(editorOf(type, entry))
     }
 
     /** 新建一条作品货架：从空条件起，按排名、海报行。 */
     fun newWorksShelf(type: SubjectType) {
         ++editorRound
-        update {
-            val criteria = SearchCriteria(subjectType = type, sort = SearchSort.RANK)
-            it.copy(
-                editor = ShelfEditor.Works(type, originalId = null, source = null, name = "", form = SearchForm(applied = criteria), style = WorkShelfStyle.POSTER_ROW),
-                closing = null,
-                saving = false,
-            )
-        }
+        val criteria = SearchCriteria(subjectType = type, sort = SearchSort.RANK)
+        machine.edit(ShelfEditor.Works(type, originalId = null, source = null, name = "", form = SearchForm(applied = criteria), style = WorkShelfStyle.POSTER_ROW))
     }
 
     /** 新建一条方块货架：从空起，候选是这个分类的整个预设目录，画成合集。 */
     fun newTilesShelf(type: SubjectType) {
         ++editorRound
-        update {
-            it.copy(
-                editor = ShelfEditor.Tiles(
-                    type = type,
-                    originalId = null,
-                    source = TileShelfSource.Custom(""),
-                    name = "",
-                    tileKeys = emptyList(),
-                    drawing = TileDrawing.STACK,
-                    picking = true,
-                ),
-                closing = null,
-                saving = false,
-            )
-        }
+        machine.edit(ShelfEditor.Tiles(type, originalId = null, source = TileShelfSource.Custom(""), name = "", tileKeys = emptyList(), drawing = TileDrawing.STACK, picking = true))
     }
 
     // —— 编辑面板
@@ -318,13 +284,10 @@ class ShelfArranger(
 
     /** 编辑草稿只在成功后请求关闭；失败留草稿并允许重试，关闭/换面板后旧回包不影响新面板。 */
     private fun writeEditor(persist: suspend () -> Unit) {
-        if (read().saving || read().closing == ArrangeSheet.EDITOR) return
-        val round = editorRound
-        update { it.copy(saving = true) }
+        val token = machine.beginSave() ?: return
         scope.launch {
             val result = outcomeOf { persist() }
-            if (editorRound != round) return@launch
-            update { it.copy(saving = false, closing = if (result is Outcome.Success) ArrangeSheet.EDITOR else null) }
+            if (!machine.completeSave(token, result is Outcome.Success)) return@launch
             if (result is Outcome.Failed) failures.post(result.failure)
         }
     }
@@ -332,17 +295,17 @@ class ShelfArranger(
     /** 编辑面板滑完（保存后、或下滑 / 点遮罩 / 返回丢掉草稿）。 */
     fun editorClosed() {
         ++editorRound
-        update { it.copy(editor = null, saving = false, closing = it.closing.takeIf { closing -> closing != ArrangeSheet.EDITOR }) }
+        machine.editorClosed()
     }
 
     // —— 添加货架
 
-    override fun openAdding() = update { it.copy(adding = true, closing = null) }
+    override fun openAdding() = machine.openAdding()
 
     /** 「添加货架」点「完成」：面板滑下去。 */
-    fun finishAdding() = update { it.copy(closing = ArrangeSheet.ADDING) }
+    fun finishAdding() = machine.finishAdding()
 
-    fun addingClosed() = update { it.copy(adding = false, closing = it.closing.takeIf { closing -> closing != ArrangeSheet.ADDING }) }
+    fun addingClosed() = machine.addingClosed()
 
     /** 「添加货架」里点一行：在页面上的移除，不在的放上来（在近期热门下面第一条）。 */
     fun toggle(type: SubjectType, choice: ShelfChoice) {

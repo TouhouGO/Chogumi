@@ -1,11 +1,5 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCard
-import io.github.touhougo.chogumi.core.model.statistics.FlowCard
-import io.github.touhougo.chogumi.core.model.statistics.LifelineCard
-import io.github.touhougo.chogumi.core.model.statistics.ScoreCard
-import io.github.touhougo.chogumi.core.model.statistics.SubjectStats
-import io.github.touhougo.chogumi.core.model.statistics.SubjectStatsInput
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.orEmpty
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
@@ -14,22 +8,26 @@ import io.github.touhougo.chogumi.core.model.EpisodeStatus
 import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
 import io.github.touhougo.chogumi.core.model.SubjectSeries
+import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCard
+import io.github.touhougo.chogumi.core.model.statistics.LifelineCard
+import io.github.touhougo.chogumi.core.model.statistics.SubjectStats
+import io.github.touhougo.chogumi.core.model.statistics.SubjectStatsInput
 import io.github.touhougo.chogumi.core.ui.common.SectionState
 import io.github.touhougo.chogumi.core.ui.common.sectionStateOf
 
 /**
- * 统计 tab 的一拍：卡片和它们依赖的独立读取仍带着各自的 [Load]。等待时画同尺寸骨架，初始失败时原位重试，
- * 只有确认没有内容才整块不画；评分卡与一生卡的主体不因辅助读取失败而消失。
+ * 统计 tab 的一拍：算好的各张卡（[calculated]，唯一一份），加上它们依赖的独立读取各自的 [Load]。等待时画同尺寸骨架，
+ * 初始失败时原位重试，只有确认没有内容才整块不画；评分卡与一生卡的主体不因辅助读取失败而消失。
+ * [episodeHeat] 与 [lifeline] 是 [calculated] 里那两张卡加上「章节到没到」：章节没到时还在等，不是没有。
  */
 internal data class SubjectStatsTab(
     val subject: SubjectBo,
-    val score: ScoreCard?,
+    val calculated: SubjectStats,
     val ratingSplit: Load<*>,
     val episodeHeat: Load<EpisodeHeatCard?>,
     val series: Load<SubjectSeries>,
     val lifeline: Load<LifelineCard?>,
     val recentCollectTimes: Load<*>,
-    val flow: FlowCard?,
     val recs: Load<List<SubjectBo>>,
 )
 
@@ -77,20 +75,19 @@ internal fun statsSourceOf(state: SubjectDetailsUiState): StatsSource? = state.s
 internal fun statsTabOf(source: StatsSource, stats: SubjectStats): SubjectStatsTab =
     SubjectStatsTab(
         subject = source.subject,
-        score = stats.score,
+        calculated = stats,
         ratingSplit = source.ratingSplit,
         episodeHeat = whenSettled(source.episodes) { stats.episodeHeat },
         series = source.series,
         // 一生的骨架是各集；各段均分（透视页）、收藏速度与续作晚到时先空着，到了补上（没缓存的透视页服务端要算上一分多钟）
         lifeline = whenSettled(source.episodes) { stats.lifeline },
         recentCollectTimes = source.recentCollectTimes,
-        flow = stats.flow,
         recs = source.recs,
     )
 
 /** [source] 有了结果（就绪或取不到）才给出 [value]，否则还在等。 */
 private fun <T> whenSettled(source: Load<*>, value: () -> T): Load<T> =
-    if (source is Load.Pending) Load.Pending else Load.Ready(value())
+    when (source) { Load.Pending -> Load.Pending; is Load.Failed -> source; is Load.Ready -> Load.Ready(value()) }
 
 /**
  * 系列这一块的三态（概览与统计 tab 共用）：系列取不到只因为本页的关联取不到，重试在关联那一块，这里不另画重试，整块不出现。

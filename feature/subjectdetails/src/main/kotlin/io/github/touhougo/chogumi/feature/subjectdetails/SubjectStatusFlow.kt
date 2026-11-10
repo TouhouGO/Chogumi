@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -15,13 +16,16 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.touhougo.chogumi.core.model.statistics.FlowCard
 import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.SubjectType
+import io.github.touhougo.chogumi.core.model.statistics.FlowCard
 import io.github.touhougo.chogumi.core.model.subjectTypeSpec
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.chart.ChartLayout
+import io.github.touhougo.chogumi.core.ui.chart.ChartMark
 import io.github.touhougo.chogumi.core.ui.chart.TapChart
+import io.github.touhougo.chogumi.core.ui.chart.chartFraction
+import io.github.touhougo.chogumi.core.ui.chart.chartFractions
 import io.github.touhougo.chogumi.core.ui.composables.colors
 import io.github.touhougo.chogumi.core.ui.composables.formatOneDecimal
 import io.github.touhougo.chogumi.core.ui.composables.labelResFor
@@ -82,6 +86,7 @@ internal fun flowTitle(subjectType: SubjectType): String =
 
 @Composable
 internal fun StatusFlow(card: FlowCard, subjectType: SubjectType, modifier: Modifier = Modifier) {
+    val progress = chartFractions()
     val startedLabel = stringResource(R.string.stats_flow_started, stringResource(subjectTypeSpec(subjectType).verb.rootRes()))
     val names = card.branches.map { stringResource(it.type.labelResFor(subjectType)) }
     val shares = card.branches.map { stringResource(R.string.stats_share_percent, formatShare(it.share)) }
@@ -109,7 +114,7 @@ internal fun StatusFlow(card: FlowCard, subjectType: SubjectType, modifier: Modi
         val space = 4.dp.toPx()
         val corner = CornerRadius(3.dp.toPx())
         fun baselineAt(center: Float) = center + countStyle.fontSize.toPx() / 3
-        ChartLayout(emptyList()) {
+        ChartLayout(rows.mapIndexed { i, row -> ChartMark(Rect(nodeLeft, row.top, widthPx, row.top + row.height), branchTips[i]) }) {
             drawRoundRect(trunk, Offset.Zero, Size(trunkRight, total), CornerRadius(4.dp.toPx()))
             var fromTop = 0f
             card.branches.forEachIndexed { i, branch ->
@@ -124,8 +129,8 @@ internal fun StatusFlow(card: FlowCard, subjectType: SubjectType, modifier: Modi
                     cubicTo(mid, toTop + row.node, mid, fromTop + from, trunkRight, fromTop + from)
                     close()
                 }
-                drawPath(ribbon, colors[i].copy(alpha = FLOW_RIBBON_ALPHA))
-                drawRoundRect(colors[i], Offset(nodeLeft, toTop), Size(FLOW_NODE_WIDTH.toPx(), row.node), corner)
+                drawPath(ribbon, colors[i].copy(alpha = FLOW_RIBBON_ALPHA * progress.chartFraction(i)))
+                drawRoundRect(colors[i], Offset(nodeLeft, toTop), Size(FLOW_NODE_WIDTH.toPx(), row.node * progress.chartFraction(i)), corner)
                 val baseline = baselineAt(row.top + row.height / 2)
                 val shareWidth = textWidth(shares[i], shareStyle)
                 val nameWidth = textWidth(names[i], nameStyle)
