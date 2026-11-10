@@ -3,7 +3,7 @@ package io.github.touhougo.chogumi.core.netroute
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.network.OkHttpCustomizer
-import io.github.touhougo.chogumi.core.network.createImageOkHttpClient
+import io.github.touhougo.chogumi.core.network.createProbeOkHttpClient
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -25,13 +25,13 @@ enum class CheckSite(val host: String) {
 }
 
 /**
- * 「检查连接」：按现在的线路给 [CheckSite] 的一个站点发一次 HTTPS 请求（HEAD），量从发出到收到响应头的毫秒数，含拨号与握手
+ * 「检查连接」：按现在的线路给 [CheckSite] 的一个站点发一次 HTTPS 请求（HEAD），量从发出到收到第一个响应头的毫秒数（不跟随跳转），含拨号与握手
  * （自己的连接池，每轮开始前清空：测的是一次真正的连接，不是复用应用开着的连接）。走的是应用发请求的那条路：网络层的全部
  * 调整（直连、代理）都套上。只看一眼，不改任何设置。
  */
 class RouteCheck internal constructor(customizers: List<OkHttpCustomizer>) {
     private val pool = ConnectionPool()
-    private val client: OkHttpClient = createImageOkHttpClient(customizers).newBuilder().connectionPool(pool).build()
+    private val client: OkHttpClient = createProbeOkHttpClient(customizers).newBuilder().connectionPool(pool).build()
 
     /** 新的一轮开始：清掉上一轮的连接。 */
     fun startRound() = pool.evictAll()
@@ -44,9 +44,9 @@ class RouteCheck internal constructor(customizers: List<OkHttpCustomizer>) {
     }
 }
 
-/** 经候选的代理试连一次 bgm.tv，不经网络层的线路调整（这一组还没用上）。 */
+/** 经候选的代理试连一次 bgm.tv，不经网络层的线路调整（这一组还没用上）；第一个响应就算连上，不跟随跳转。 */
 internal object OkHttpProxyProbe : ProxyProbe {
-    private val base by lazy { createImageOkHttpClient(emptyList()) }
+    private val base by lazy { createProbeOkHttpClient(emptyList()) }
 
     override suspend fun reach(server: ProxyServer): Outcome<Unit> = outcomeOf {
         base.newBuilder().proxy(server.toProxy()).build().newCall(headOf(CheckSite.WEB.host)).await().close()

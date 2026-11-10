@@ -1,5 +1,12 @@
 package io.github.touhougo.chogumi.feature.settings
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.netroute.CheckSite
+import io.github.touhougo.chogumi.core.netroute.LOCAL_NETWORK_PERMISSION
 import io.github.touhougo.chogumi.core.netroute.ProxyType
 import io.github.touhougo.chogumi.core.netroute.RouteMode
 import io.github.touhougo.chogumi.core.res.R
@@ -48,7 +57,33 @@ import org.koin.compose.viewmodel.koinViewModel
 internal fun NetworkSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val viewModel: NetworkSettingsViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    NetworkSettingsContent(uiState, viewModel, viewModel.failures, onBack, modifier)
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+    // 这一页里拒绝过局域网权限：系统不再弹框时（拒绝过两次），再点「连接」只剩系统设置里本应用的那一页
+    var deniedOnce by rememberSaveable { mutableStateOf(false) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            viewModel.onProxyConnect()
+        } else {
+            deniedOnce = true
+            viewModel.onLocalNetworkDenied()
+        }
+    }
+    val connect = {
+        when {
+            !viewModel.localNetworkMissing() -> viewModel.onProxyConnect()
+            deniedOnce && activity?.shouldShowRequestPermissionRationale(LOCAL_NETWORK_PERMISSION) == false -> openAppDetails(context)
+            else -> permission.launch(LOCAL_NETWORK_PERMISSION)
+        }
+    }
+    NetworkSettingsContent(uiState, viewModel, viewModel.failures, onBack, onConnect = connect, modifier = modifier)
+}
+
+/** 系统设置里本应用的那一页（权限在那里打开）。 */
+private fun openAppDetails(context: Context) {
+    context.startActivity(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
 }
 
 /** 「网络」分类页的无状态内容层。 */
@@ -58,6 +93,8 @@ internal fun NetworkSettingsContent(
     actions: NetworkSettingsActions,
     failures: FailureNotices,
     onBack: () -> Unit,
+    /** 点「连接」：页面先看要不要局域网权限，再交给 [NetworkSettingsActions.onProxyConnect]。 */
+    onConnect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
@@ -90,7 +127,7 @@ internal fun NetworkSettingsContent(
                 } else {
                     null
                 },
-                SettingsGroup(key = "proxy", title = null, rows = proxyRows(state, actions)),
+                SettingsGroup(key = "proxy", title = null, rows = proxyRows(state, actions, onConnect)),
                 SettingsGroup(
                     key = "check",
                     title = null,
@@ -115,7 +152,7 @@ internal fun NetworkSettingsContent(
 }
 
 /** 代理那一块：开关；打开时下面是类型、地址与端口、状态行与「连接」。 */
-private fun proxyRows(state: NetworkSettingsUiState, actions: NetworkSettingsActions): List<SettingsRow> {
+private fun proxyRows(state: NetworkSettingsUiState, actions: NetworkSettingsActions, onConnect: () -> Unit): List<SettingsRow> {
     val switch: SettingsRow = { index, count ->
         SwitchRow(
             index = index,
@@ -141,14 +178,14 @@ private fun proxyRows(state: NetworkSettingsUiState, actions: NetworkSettingsAct
                 onSelect = actions::onProxyType,
             )
         },
-        { index, count -> ProxyFieldsRow(index, count, state, actions) },
-        { index, count -> ProxyConnectRow(index, count, state, actions) },
+        { index, count -> ProxyFieldsRow(index, count, state, actions, onConnect) },
+        { index, count -> ProxyConnectRow(index, count, state, onConnect) },
     )
 }
 
 /** 地址与端口并排：地址只收主机，端口只收数字（过滤在 ViewModel，规则在 core:netroute）。 */
 @Composable
-private fun ProxyFieldsRow(index: Int, count: Int, state: NetworkSettingsUiState, actions: NetworkSettingsActions) {
+private fun ProxyFieldsRow(index: Int, count: Int, state: NetworkSettingsUiState, actions: NetworkSettingsActions, onConnect: () -> Unit) {
     val failed = state.connecting == ProxyConnecting.FAILED
     SegmentedItem(index = index, count = count, onClick = null, modifier = Modifier.fillMaxWidth()) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -168,7 +205,7 @@ private fun ProxyFieldsRow(index: Int, count: Int, state: NetworkSettingsUiState
                 placeholder = "1080",
                 isError = failed,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { actions.onProxyConnect() }),
+                keyboardActions = KeyboardActions(onDone = { if (state.canConnect) onConnect() }),
                 modifier = Modifier.width(PortFieldWidth),
             )
         }
@@ -177,7 +214,7 @@ private fun ProxyFieldsRow(index: Int, count: Int, state: NetworkSettingsUiState
 
 /** 状态行与「连接」：在连、点不了（没填好、或就是正在用的那一组）时按钮不可点。 */
 @Composable
-private fun ProxyConnectRow(index: Int, count: Int, state: NetworkSettingsUiState, actions: NetworkSettingsActions) {
+private fun ProxyConnectRow(index: Int, count: Int, state: NetworkSettingsUiState, onConnect: () -> Unit) {
     val status = state.proxyStatus
     SegmentedItem(
         index = index,
@@ -185,7 +222,7 @@ private fun ProxyConnectRow(index: Int, count: Int, state: NetworkSettingsUiStat
         onClick = null,
         modifier = Modifier.fillMaxWidth(),
         trailingContent = {
-            Button(onClick = actions::onProxyConnect, enabled = state.canConnect) { Text(stringResource(R.string.network_proxy_connect)) }
+            Button(onClick = onConnect, enabled = state.canConnect) { Text(stringResource(R.string.network_proxy_connect)) }
         },
     ) {
         Text(
@@ -193,6 +230,7 @@ private fun ProxyConnectRow(index: Int, count: Int, state: NetworkSettingsUiStat
                 when (status) {
                     ProxyStatus.CONNECTING -> R.string.network_proxy_connecting
                     ProxyStatus.UNREACHABLE -> R.string.network_proxy_unreachable
+                    ProxyStatus.NO_LOCAL_NETWORK -> R.string.network_proxy_no_local_network
                     ProxyStatus.CONNECTED -> R.string.network_proxy_connected
                     ProxyStatus.CHANGED -> R.string.network_proxy_changed
                     ProxyStatus.FILL_IN -> R.string.network_proxy_fill
@@ -200,7 +238,7 @@ private fun ProxyConnectRow(index: Int, count: Int, state: NetworkSettingsUiStat
             ),
             style = MaterialTheme.typography.bodyMedium,
             color = when (status) {
-                ProxyStatus.UNREACHABLE -> MaterialTheme.colorScheme.error
+                ProxyStatus.UNREACHABLE, ProxyStatus.NO_LOCAL_NETWORK -> MaterialTheme.colorScheme.error
                 ProxyStatus.CONNECTED -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
