@@ -34,7 +34,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,11 +119,11 @@ class ShelfSaveTest {
         h.dao.gate.complete(Unit)
         jobs.finished()
         assertEquals(draft, h.state.value.editor)
-        assertNull(h.state.value.closing, "失败不得请求关闭编辑面板")
+        assertTrue(h.state.value.closing.isEmpty(), "失败不得请求关闭编辑面板")
         assertNotNull(h.failures.current.value)
         h.dao.fail = false
         h.actionJobs { h.arranger.save("保留的草稿") }.finished()
-        assertEquals(ArrangeSheet.EDITOR, h.state.value.closing, "只有成功后关闭")
+        assertEquals(setOf(ArrangeSheet.EDITOR), h.state.value.closing, "只有成功后关闭")
         assertEquals(2, h.dao.attempts.get())
     }
 
@@ -135,10 +135,10 @@ class ShelfSaveTest {
         h.dao.gate.complete(Unit)
         jobs.finished()
         assertEquals(draft, h.state.value.editor)
-        assertNull(h.state.value.closing, "移除失败必须留在编辑面板")
+        assertTrue(h.state.value.closing.isEmpty(), "移除失败必须留在编辑面板")
         h.dao.fail = false
         h.actionJobs { h.arranger.removeEdited() }.finished()
-        assertEquals(ArrangeSheet.EDITOR, h.state.value.closing)
+        assertEquals(setOf(ArrangeSheet.EDITOR), h.state.value.closing)
     }
 
     @Test

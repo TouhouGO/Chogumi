@@ -83,7 +83,7 @@ internal fun ArrangeSheets(
             type = state.selectedType,
             today = state.today,
             layout = state.layoutOf(state.selectedType),
-            hideRequested = arrange.closing == ArrangeSheet.ADDING,
+            hideRequested = arrange.hides(ArrangeSheet.ADDING),
             arranger = arranger,
         )
     }
@@ -91,7 +91,7 @@ internal fun ArrangeSheets(
         is ShelfEditor.Works -> WorksEditorSheet(
             editor = editor,
             title = editorTitle(editor, state),
-            hideRequested = arrange.closing == ArrangeSheet.EDITOR,
+            hideRequested = arrange.hides(ArrangeSheet.EDITOR),
             saving = arrange.saving,
             currentYear = currentYear,
             arranger = arranger,
@@ -100,7 +100,7 @@ internal fun ArrangeSheets(
             editor = editor,
             title = editorTitle(editor, state),
             typeContent = state.contentOf(editor.type),
-            hideRequested = arrange.closing == ArrangeSheet.EDITOR,
+            hideRequested = arrange.hides(ArrangeSheet.EDITOR),
             saving = arrange.saving,
             arranger = arranger,
         )
