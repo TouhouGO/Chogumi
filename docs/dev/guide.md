@@ -16,7 +16,7 @@
 | 仓库、缓存、DTO 映射 | core:data 的 `repository/`、`db/mapper/`（写入时刻显式传入） |
 | 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 清理失败时读取仍先认持久归属，下一次会话变化或记录搜索再清；会话本身读不出时维护结束、不崩，之后只靠记录搜索再清 |
 | 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
-| 统计模块、争议度与布局 | core:model `SubjectStatsLayout` / `SubjectStatsCalculator`（12种数据及全部画法目录，统一可用性与总体标准差）；core:data `StatsLayoutRepository`（全局一份、本地逐行JSON、未知行跳过）；feature:subjectdetails `StatsModuleDrawing`（页面与缩略图的唯一分派），`StatsArranger`（统计领域草稿） |
+| 统计模块、争议度与布局 | core:model `SubjectStatsLayout` / `SubjectStatsCalculator`（12种数据及全部画法目录，统一可用性与总体标准差）；core:data `StatsLayoutRepository`（全局一份、本地逐行JSON、未知行跳过）；feature:subjectdetails `StatsModuleDrawing`（页面与缩略图的唯一分派），`visibleStatsModules` / `statsTabItems`（画哪些模块、页面的列表项），`StatsArranger`（统计领域草稿） |
 | 整理（长按标题、拖拽排序、左滑移除、编辑、添加与缩略图） | core:ui `arrange/`（通用列表、面板骨架、状态机）；feature:explore 和 feature:subjectdetails 只提供领域数据与动作 |
 | 封面下标签收展 | core:model `subjectTagRow` 保持顺序；feature:subjectdetails `BudgetTagLayout` 按真实标签和+N尺寸预算排一行，展开状态按作品身份保存 |
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/`；章节格子的形状、集号强调、静止与预览描边只在 `TileStyle`，真实网格、演示与进度尺共用，演示的格子种类也由 core:model `EpisodeTracking.episodeGrid` 推导 |
@@ -264,7 +264,7 @@ flowchart LR
 
 争议度是十档评分的总体标准差，100票起显示。分档左闭右开：小于1众口一词，1至不足1.2意见集中，1.2至不足1.4略有分歧，1.4至不足1.6褒贬不一，1.6及以上两极分化。四画法同读一个结果；Oklab主色到第三色插值、五档等宽刻度与σ0.96参考曲线是应用设计决定（not in M3）。
 
-布局全局一份，按实际数据过滤；音乐有曲目讨论时显示「每首讨论」。默认七模块保留评分、状态均分、流向、一生、讨论、系列、推荐的顺序；评分保留大分数排名，尺子保留「你」，网页按钮固定末尾。长按模块标题进整理，无独立开关。
+布局全局一份，按实际数据过滤；音乐有曲目讨论时显示「每首讨论」。默认七模块保留评分、状态均分、流向、一生、讨论、系列、推荐的顺序；评分保留大分数排名，尺子保留「你」，网页按钮固定末尾。长按模块标题进整理，无独立开关；一个模块也画不出来时（全移除、只留这部作品没有的数据）页面上给一个进整理的入口。布局读到之前画骨架，不先画默认布局。
 
 ### 1.11 直连（ECH）的事实（2026-11-09 线上实测）
 

@@ -138,7 +138,7 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 
 探索货架和作品统计模块同用 core:ui `arrange/` 的 `arrangeOnLongPress`、`ArrangeList`、`ArrangeEditorSheet`、`ArrangeAddSheet`、`ArrangeChoiceRow`、`StyleOptions` 与 `ArrangeMachine`。调用方只提供领域草稿、目录和持久化动作；拖拽与左滑沿 `ReorderableList`，顶栏沿 `ArrangeBar`。不在feature另写整理行、面板骨架或保存代次，不让feature互相依赖。
 
-模块图的分派只在 `StatsModuleDrawing`，页面与真画法缩略图同读。首次可见事件启动进场，播放记录和进度留在懒列表上方按模块id持有，滚回、切tab或换画法不重播。几何走 `LocalAppMotion` 空间规格，透明度走效果规格，错开经 `stagger`，移除动画直接画终态。
+统计 tab 上画哪些模块只由 `visibleStatsModules` 定（页面与整理列表同读）；页面只调 `statsTabItems`：布局读到之前一块骨架，一个模块也画不出来时给说明和进整理的入口，测试驱动的也是它。模块图的分派只在 `StatsModuleDrawing`，页面与真画法缩略图同读；统计只有一份（`SubjectStatsTab.calculated`）。首次可见事件启动进场，播放记录和进度留在懒列表上方按模块id持有，滚回、切tab或换画法不重播。几何走 `LocalAppMotion` 空间规格，透明度走效果规格，错开经 `stagger`，移除动画直接画终态。
 
 ## 可点块、FAB、海报：各一种实现
 
