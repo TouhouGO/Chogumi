@@ -529,7 +529,9 @@ cp <主工作目录>/{local,oauth-app}.properties <worktree>/
 ### 4.2 模拟器
 
 - 本机有一个模拟器池（两台同配置的 Android Studio 模拟器），设备名、AVD 名、锁路径只写在 `tools/device/device.sh`，
-  `tools/device/device.sh status` 列出每台在不在线、谁占着。几条会话可以同时上真机，每条占一台：
+  `tools/device/device.sh status` 列出每台在不在线、谁占着。它不光认序列号，还核对这台自报的 AVD 名（`ro.boot.qemu.avd_name`）：
+  别的模拟器（MuMu 之类）占了池里 AVD 的默认端口时序列号一样，`status` 写明「不是那台 AVD（型号 …）」，`claim` 不发它，`start` 报占用。
+  几条会话可以同时上真机，每条占一台：
   - 拿设备：`SERIAL=$(tools/device/device.sh claim "<线程>，<分支>")`，打出一台在线且空闲的设备并上锁；
     退出码 1 是都被占着，先做不碰设备的活，过会儿再拿。要指定某台就把设备名加在最后。
   - 整个设备步骤（装包、adb、仪器测试、截图、录屏、logcat）每条命令都带 `ANDROID_SERIAL=$SERIAL`，
