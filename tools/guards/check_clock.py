@@ -31,6 +31,8 @@ ALLOWED = {
     "core/foundation/src/main/kotlin/io/github/touhougo/chogumi/core/foundation/BangumiZone.kt": "ZoneId.systemDefault",
     # 进度提交时刻的单调钟：界面倒计时与真正提交共用这一个
     "core/model/src/main/kotlin/io/github/touhougo/chogumi/core/model/CommitClock.kt": "System.nanoTime",
+    # 网络页「检查连接」量一次请求的耗时（单调，只算差值，不是时刻）
+    "core/netroute/src/main/kotlin/io/github/touhougo/chogumi/core/netroute/RouteCheck.kt": "System.nanoTime",
 }
 
 # 成员访问：`.` 或方法引用的 `::`，两侧可以换行

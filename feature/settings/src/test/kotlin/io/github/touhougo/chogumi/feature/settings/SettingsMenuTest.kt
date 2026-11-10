@@ -32,7 +32,7 @@ class SettingsMenuTest {
         override fun logout() = Unit
     }
 
-    private fun showSections(networkSection: Boolean, onSection: (SettingsSection) -> Unit) {
+    private fun showSections(onSection: (SettingsSection) -> Unit) {
         compose.setContent {
             MaterialTheme {
                 SettingsContent(
@@ -46,7 +46,6 @@ class SettingsMenuTest {
                     onAbout = {},
                     isLoggedIn = true,
                     showDebugTools = false,
-                    networkSection = networkSection,
                 )
             }
         }
@@ -55,7 +54,7 @@ class SettingsMenuTest {
     @Test
     fun 每个分类行打开它自己的分类页() {
         val opened = mutableListOf<SettingsSection>()
-        showSections(networkSection = true) { opened += it }
+        showSections { opened += it }
 
         listOf("外观", "首页与进度", "评分与社区", "内容过滤", "通知", "更新", "网络").forEach { title ->
             // 惰性列表：靠下的分类行要先滚到，才在组合里
@@ -64,16 +63,6 @@ class SettingsMenuTest {
         }
 
         assertEquals(SettingsSection.entries, opened)
-    }
-
-    @Test
-    fun 设备不支持直连时没有网络分类() {
-        showSections(networkSection = false) {}
-        // 分类组下面紧接着「使用技巧」：滚到它，分类组的末尾也在组合里，「网络」不在才说明真没有
-        compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText("使用技巧"))
-
-        compose.onNodeWithText("更新").assertExists()
-        compose.onNodeWithText("网络").assertDoesNotExist()
     }
 
     @Test
@@ -116,7 +105,6 @@ class SettingsMenuTest {
                     onAbout = {},
                     isLoggedIn = isLoggedIn,
                     showDebugTools = false,
-                    networkSection = false,
                 )
             }
         }

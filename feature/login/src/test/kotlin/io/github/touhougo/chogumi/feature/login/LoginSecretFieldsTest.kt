@@ -128,7 +128,7 @@ class LoginSecretFieldsTest {
         compose.setContent {
             val login = remember { LoginViewModel(repository, NoDirectRoute).also { viewModel = it } }
             ChogumiTheme {
-                LoginScreen(login, onBack = {}, onNetworkClick = null, onSettingsClick = {}, modifier = Modifier)
+                LoginScreen(login, onBack = {}, onNetworkClick = {}, onSettingsClick = {}, modifier = Modifier)
             }
         }
 
@@ -158,7 +158,7 @@ class LoginSecretFieldsTest {
         compose.setContent {
             val login = remember { LoginViewModel(repository, NoDirectRoute).also { viewModel = it } }
             ChogumiTheme {
-                LoginScreen(login, onBack = {}, onNetworkClick = null, onSettingsClick = {}, modifier = Modifier)
+                LoginScreen(login, onBack = {}, onNetworkClick = {}, onSettingsClick = {}, modifier = Modifier)
             }
         }
 

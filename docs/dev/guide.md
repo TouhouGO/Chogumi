@@ -33,7 +33,7 @@
 | 桌面小组件 | feature:home 的 `widget/`：内容与首页同一个 `prepareSectionCandidates`（`WidgetWorksSource`）、热力图与生涯同一份统计、今日放送与本周追番与每日放送页同一个 `followedWorksOf` → `calendarWeek`（`WidgetCalendarSource`）；+1 只经 `EpTapCoordinator`（`ProgressOrigin.WIDGET`）；什么时候重画只经 `WidgetUpdates`；配色 `WidgetPalette` 经 `appColorScheme` |
 | 系统通知（设置 › 通知：社区提醒、放送提醒） | 发什么、撤什么、几点发只在 core:model `SystemNotifications.kt`（`noticeRoundOf`、`messageRoundOf`、`airingRemindersOf`、`airingScheduleOf`、`lastDailyMillisOf`、`nextDailyMillisOf`）；记账（社区提醒的基线与短信条数、今天发过的放送提醒）只在 core:data `SystemNoticeLedger`；通知类别、发与撤、点开的意图、系统设置页只在 core:ui `SystemNotices`；社区提醒的后台检查在 feature:community `notice/CommunityNotices`（WorkManager，按用户选的间隔），放送提醒在 feature:home `notice/AiringReminders`（读小组件同一份 `WidgetCalendarSource`，一个不精确闹钟加每小时的刷新），两者都由 `App.kt` 的 `watch` 跟着开关与账号；「看过了」经 `WidgetProgressActions.advanceEpisode`（`ProgressOrigin.NOTIFICATION`）。点开通知进 `AppActivity.handleIntent`：标已读、打开铃铛面板（`InboxRequests`）或那一页。设置页是 feature:settings `NotificationSettings.kt`（§2.8） |
 | 检查更新、应用内下载 | 要不要提示、到没到检查时间、更新说明去标记只在 core:model `updateOfferOf` / `updateCheckDue` / `releaseNotesTextOf`；检查、忽略、下载与 sha256 校验只在 core:data `AppUpdates`（应用作用域，`App.kt` 按回到前台调 `watch`）；提示框与安装在 app 的 `AppUpdateDialog` / `installApk`；设置页是 feature:settings `UpdateSettings.kt`。数据源是最新正式 Release 附带的 `release.json`（开了「接收预发布版」时是 GitHub 接口最近几个 Release 里最新一个的，选哪一个只在 `AppUpdates` 的 `newestPublishedOf`）：`versionName`、`versionCode`、`sha256` 是客户端契约，安装包 = `sha256` 表里唯一的 `.apk`，改 `formal_release.py` 的结构或附件命名前先看 `releaseOf`（§4.5） |
-| 连 bgm.tv 走哪条线路（系统网络 / 直连） | core:netroute：线路设置与核心起停 `NetRoute`、给网络层的调整 `DirectRouting`、边缘地址来源 `EdgeAddresses`、设备支不支持 `directRouteSupported`；网络层只认 core:network 的 `OkHttpCustomizer`（三个接口客户端与图片加载都套上）。直连核心的 Go 源码在 `core/netroute/go/`，改了跑 `tools/echcore/build.sh` 重新生成 `core/netroute/libs/echcore.aar`；别处不引用核心（`python3 tools/guards/check_netroute.py`）。设置页「网络」与登录页的地球、「试试直连」都读同一份设置（§1.11） |
+| 连 bgm.tv 走哪条线路（系统网络 / 直连 / 代理） | core:netroute：线路设置、核心起停与代理 `NetRoute`、给网络层的调整 `DirectRouting` 与 `ProxyRouting`、检查连接 `RouteCheck`、代理输入规则 `ProxyServer.kt`、边缘地址来源 `EdgeAddresses`、设备支不支持 `directRouteSupported`；网络层只认 core:network 的 `OkHttpCustomizer`（三个接口客户端与图片加载都套上）。直连核心的 Go 源码在 `core/netroute/go/`，改了跑 `tools/echcore/build.sh` 重新生成 `core/netroute/libs/echcore.aar`；别处不引用核心（`python3 tools/guards/check_netroute.py`）。设置页「网络」（直连、代理、检查连接三块）与登录页的地球、「试试直连」都读同一份设置（§1.11、§1.12） |
 | 字符串、图标 | core:res（字符串中英两份；图标只经 `tools/icons/material_symbols.py`） |
 | 路由 → 页面、导航状态 | app 的 `AppEntries.kt`；core:ui 的 `AppNavigator` |
 | 一个页面 | `feature/<名字>/`：Screen + ViewModel + `di/<名字>Module.kt`，feature 之间不互相依赖 |
@@ -305,6 +305,21 @@ flowchart LR
   cloudflare-dns.com 的 DoH 连不上。所以边缘地址内置，不靠 DNS。
 - 直连只管 OkHttp 发往 bgm.tv（含子域名）的请求（接口客户端与图片加载）。应用里的 WebView（回帖的人机验证页）与浏览器（浏览器授权、打开网页）不经过它；
   检查与下载更新发往 GitHub，也不经过它，设置 › 更新的「自动检查更新」下面写着这一点。
+
+### 1.12 代理线路的事实
+
+- 代理开着并连上时，应用里每个 OkHttp 请求（接口、网页会话、图片，所有主机，不只 bgm.tv）都经那个代理。类型只有 HTTP 与 SOCKS5，
+  只收主机与端口，没有账号密码、订阅、HTTPS 代理。两种都由代理那边解析站点名：HTTP 代理收 CONNECT（https）或绝对地址（http），
+  SOCKS5 收域名原样，本机 DNS 不经手 bgm.tv。
+- 应用里的 WebView（回帖的人机验证页）经 androidx.webkit 的 `ProxyController` 用同一个代理（WebView 太旧、不支持代理覆盖时跟系统）；
+  浏览器授权与「在浏览器打开」由浏览器自己联网，不经过它。
+- 「连接」先经填好的那一组对 `https://bgm.tv/` 发一次 HEAD，收到任何 HTTP 响应算连上；连上了才换过去，并把类型、主机、端口存进
+  core:netroute 的 DataStore。连不上时旧的那一组照用。关掉开关后存下的那一组留着，再打开时带出来并自动连一次；冷启动时设置是代理，
+  直接用存下的那一组。
+- 开关开着而还没连上时，所有请求失败，不改走系统网络；关掉开关回到系统网络。
+- 换了线路，开着的连接不再接新请求（`ProxyRouting` 每个请求比一次连接走的代理），换之前的连接上还在跑的请求跑完。
+- 「检查连接」按现在的线路对 bgm.tv、api、next、lain 四个主机各发一次 HEAD，量从发出到收到响应头的毫秒数，含拨号与握手
+  （自己的连接池，每轮开始前清空）；线路换了，上一轮的结果清掉。
 
 ## 2. 排版框架级的坑
 

@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.res.R
-import io.github.touhougo.chogumi.core.netroute.directRouteSupported
 import io.github.touhougo.chogumi.core.ui.common.navigation.SettingsSection
 import io.github.touhougo.chogumi.core.ui.composables.ConfirmDialog
 import io.github.touhougo.chogumi.core.ui.composables.ConnectedChoiceGroup
@@ -83,7 +82,6 @@ fun SettingsScreen(
         onAbout = onAbout,
         isLoggedIn = isLoggedIn,
         showDebugTools = debuggable,
-        networkSection = directRouteSupported,
     )
 }
 
@@ -101,8 +99,6 @@ fun SettingsContent(
     isLoggedIn: Boolean,
     /** 调试区（按链接跳转、上次崩溃），只在可调试构建里显示。 */
     showDebugTools: Boolean,
-    /** 「网络」分类：设备支持直连时才有（core:netroute `directRouteSupported`）。 */
-    networkSection: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // 退出登录先确认：点错一下就要重新走一遍登录（验证码、浏览器授权）。
@@ -129,7 +125,7 @@ fun SettingsContent(
                 SettingsGroup(
                     key = "sections",
                     title = null,
-                    rows = shownSections(isLoggedIn, networkSection).map<SettingsSection, SettingsRow> { section ->
+                    rows = shownSections(isLoggedIn).map<SettingsSection, SettingsRow> { section ->
                         { index, count ->
                             LinkRow(index, count, stringResource(section.title), section.icon) { onSection(section) }
                         }
@@ -194,13 +190,9 @@ fun SettingsContent(
     }
 }
 
-/** 一级菜单里有哪些分类：「通知」只给登录了的（两类提醒都按账号），「网络」只在设备支持直连时有。 */
-private fun shownSections(isLoggedIn: Boolean, networkSection: Boolean): List<SettingsSection> = SettingsSection.entries.filter {
-    when (it) {
-        SettingsSection.NOTIFICATIONS -> isLoggedIn
-        SettingsSection.NETWORK -> networkSection
-        else -> true
-    }
+/** 一级菜单里有哪些分类：「通知」只给登录了的（两类提醒都按账号）。 */
+private fun shownSections(isLoggedIn: Boolean): List<SettingsSection> = SettingsSection.entries.filter {
+    it != SettingsSection.NOTIFICATIONS || isLoggedIn
 }
 
 /**
