@@ -364,6 +364,8 @@ flowchart LR
 - bgm.tv 没有推送：社区提醒只能本机按间隔去问（未读提醒 `/p1/notify?unread=true`，一次最多 40 条；未读短信网页的 `/json/notify`）。WorkManager 的周期任务最短
   15 分钟，系统省电时往后推；放行电池优化（设置 › 通知 › 后台运行）能让它准一些，厂商系统另有自启动与后台限制，只能把用户带到那一页
   （`SystemNotices.openBackgroundSettings`，找不到就打开应用信息）。
+  多数国产系统从最近任务里划掉 App、一键清理等于强行停止：排着的检查与闹钟全被取消，用户下次打开 App 时 `watch` 才重新排上（被清理后第一次打开时
+  马上跑的那一轮 App 在前台，只记不发）。没开自启动的，到点也拉不起进程。App 没有接口申请或读取自启动，只能带用户去那一页；常驻进程同样会被清掉，不做。
 - 通知栏里还挂着哪些只从系统读（`NotificationManager.activeNotifications`，按 tag + id）：用户划掉的、点开的不用另记，下一轮看不见就不撤。
 - Android 12 起不许通知点开先进广播再开页面（trampoline）：点开的意图直接是 `AppActivity`，由它标已读、跳页（`EXTRA_NOTICE_ID`、`EXTRA_INBOX`）；
   只有不开页面的按钮（「标为已读」「看过了」）是广播，挂起到写完再结束（`goAsync`，同小组件的 +1，§2.6）。
@@ -371,6 +373,11 @@ flowchart LR
   晚了一小时以上的不补发（`AIRING_REMINDER_GRACE_MILLIS`）。每小时的刷新与 App 启动都会补排闹钟，所以不用开机广播。
 - 一次检查（放送提醒是一次跑）会被几处同时触发（闹钟、每小时的任务、App 启动时的跟随），还会撞上关开关、登出时的撤：两类都各有一把锁，
   一次跑与一次撤一个接一个。不然两次跑读到同一份「还没发」各发一遍，撤完之后在途的那次（正在取头像、封面）又把通知与基线写回来。
+- 测试时不用等真的回复或开播：调试包里有一条 adb 命令立刻发通知（app 的 debug 源码集 `NoticeSampleReceiver`，正式包里没有），
+  `adb shell am broadcast -n io.github.touhougo.chogumi.debug/io.github.touhougo.chogumi.debug.NoticeSampleReceiver --es kind <kind>`，
+  kind 是 `community`（最近 3 条提醒，已读的也算）、`message`（未读短信，`--ei count` 定条数）、`airing`（在追作品每部一条）、`digest`（每日汇总）。
+  发的是真的数据，照真的样子发（`CommunityNotices.postSamples`、`AiringReminders.postSamples`），点开与按钮和真的同一条路；不看设置里的开关。
+  测整条链路用 `check`（立刻跑一轮真的社区提醒检查）、`run`（立刻跑一次真的放送提醒）：照真的规矩，开关关着、刚打开的第一轮、App 在前台都不发。
 - 每天定时的「上一次」「下一次」按设备时区的日历日子算（`lastDailyMillisOf` / `nextDailyMillisOf`），不加减 24 小时：夏令时切换那天是 23 或 25 小时。
 - Android 13 起发通知要用户允许（`POST_NOTIFICATIONS`）：第一次打开任一提醒时问；拒绝过、系统不再弹的，打开系统的通知设置页。
   系统里关掉通知时开关显示为关、写原因，设置本身不改：回来打开系统通知就接着发。

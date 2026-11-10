@@ -159,6 +159,28 @@ class AiringReminders internal constructor(
     }
 
     /**
+     * 调试包的 adb 入口（app 的 debug 源码集 `NoticeSampleReceiver`）：把在追作品的放送提醒照真的样子发出来，不看开关、时刻与发过没有；
+     * [digest] 为真时发一条汇总，否则每部一条。取今天的，今天没有就取这一周里最近有的那一天。返回提醒了几部。
+     */
+    suspend fun postSamples(digest: Boolean): Int {
+        val calendar = calendarSource.load() as? WidgetCalendar.Ready ?: return 0
+        val reminders = (0L until DAYS_PER_WEEK).asSequence()
+            .map { offset ->
+                val date = calendar.date.plusDays(offset)
+                airingRemindersOf(calendar.week[date.dayOfWeek.value] ?: EMPTY_DAY, calendar.followed, date)
+            }
+            .firstOrNull { it.isNotEmpty() }
+            ?: return 0
+        SystemNotices.ensureChannels(context)
+        if (digest) {
+            SystemNotices.post(context, SystemNotices.DIGEST_TAG, DIGEST_ID, digestNotification(reminders))
+        } else {
+            reminders.forEach { SystemNotices.post(context, SystemNotices.AIRING_TAG, it.subject.id, reminderNotification(it, calendar.works)) }
+        }
+        return reminders.size
+    }
+
+    /**
      * 一部：标题是作品名，正文「第 8 集 23:00 开播」（没有时刻的「今天更新」），右边是封面；点开打开作品页。
      * 这一集正是首页 +1 要标的那一集时带「看过了」。
      */
@@ -246,6 +268,8 @@ class AiringReminders internal constructor(
         const val ICON_TIMEOUT_MILLIS = 5_000L
 
         val EMPTY_DAY = CalendarDaySections(emptyList(), emptyList(), emptyList())
+
+        const val DAYS_PER_WEEK = 7L
     }
 }
 
