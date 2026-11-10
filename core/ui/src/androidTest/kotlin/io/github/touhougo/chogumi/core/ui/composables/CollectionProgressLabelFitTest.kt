@@ -33,12 +33,22 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
+import org.junit.rules.ExternalResource
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CollectionProgressLabelFitTest {
-    @get:Rule val compose = createComposeRule()
+    /** 整模块跑时，前面的测试早已让 UiAutomation 连上、Activity 才打开：先连上，单跑与整模块跑是同一个条件。 */
+    @get:Rule(order = 0)
+    val automationFirst = object : ExternalResource() {
+        override fun before() {
+            checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation)
+        }
+    }
+
+    @get:Rule(order = 1)
+    val compose = createComposeRule()
     private var clicks = 0
 
     @Test
