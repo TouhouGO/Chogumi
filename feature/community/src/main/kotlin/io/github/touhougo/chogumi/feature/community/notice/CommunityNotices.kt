@@ -76,12 +76,15 @@ class CommunityNotices(
             .collect { plan ->
                 val switched = lastAccount != null && plan.account != lastAccount
                 lastAccount = plan.account
-                if (plan.enabled && !switched) {
-                    schedule(plan.interval)
-                } else {
-                    stop()
-                    // 换了号还开着：清掉上一个账号的之后，按新账号重新排
-                    if (plan.enabled) schedule(plan.interval)
+                // 排任务、撤通知出错（WorkManager 没起来、系统服务报错）只丢这一拍，跟随接着走
+                outcomeOf {
+                    if (plan.enabled && !switched) {
+                        schedule(plan.interval)
+                    } else {
+                        stop()
+                        // 换了号还开着：清掉上一个账号的之后，按新账号重新排
+                        if (plan.enabled) schedule(plan.interval)
+                    }
                 }
             }
     }

@@ -88,15 +88,19 @@ class AiringReminders internal constructor(
             // 读不出本机的设置：跟随到此为止，进程不崩；已排上的每小时检查照常跑，每次自己再读一次设置
             .catch { e -> if (e !is Exception) throw e }
             .collect { plan ->
-                // 换了号：上一个账号的提醒不留在通知栏里
-                if (lastAccount != null && plan.account != lastAccount) cancelShown()
+                val switched = lastAccount != null && plan.account != lastAccount
                 lastAccount = plan.account
-                if (plan.settings.airing && plan.account != null) {
-                    WorkManager.getInstance(context)
-                        .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, AiringReminderWorker.request())
-                    run()
-                } else {
-                    stop()
+                // 排任务、闹钟、撤通知出错（WorkManager 没起来、系统服务报错）只丢这一拍，跟随接着走
+                outcomeOf {
+                    // 换了号：上一个账号的提醒不留在通知栏里
+                    if (switched) cancelShown()
+                    if (plan.settings.airing && plan.account != null) {
+                        WorkManager.getInstance(context)
+                            .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, AiringReminderWorker.request())
+                        run()
+                    } else {
+                        stop()
+                    }
                 }
             }
     }

@@ -5,11 +5,13 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.model.AiringReminderMode
@@ -55,6 +57,11 @@ class NotificationSettingsContentTest {
         }
     }
 
+    /** 设置页是惰性列表：靠下的行要先滚到，才在组合里。 */
+    private fun scrollTo(text: String) {
+        compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText(text))
+    }
+
     @Test
     fun 专注模式下社区提醒灰着写原因_放送提醒照样能拨() {
         val switches = mutableListOf<Pair<NoticeSwitch, Boolean>>()
@@ -95,9 +102,9 @@ class NotificationSettingsContentTest {
         compose.onNodeWithTag(CommunitySwitchTag).assertIsOn()
         compose.onNodeWithTag(AiringSwitchTag).assertIsOn()
         compose.onNodeWithText("检查间隔").assertExists()
-        compose.onNodeWithText("提醒时间").assertExists()
-        compose.onNodeWithText("通知类别").assertExists()
-        compose.onNodeWithText("省电时提醒会晚到，点这里放行").assertExists()
+        scrollTo("提醒时间")
+        scrollTo("通知类别")
+        scrollTo("省电时提醒会晚到，点这里放行")
     }
 
     @Test
@@ -108,8 +115,8 @@ class NotificationSettingsContentTest {
         )
 
         compose.onNodeWithText("提醒方式").assertExists()
+        scrollTo("后台运行")
         compose.onNodeWithText("提醒时间").assertDoesNotExist()
-        compose.onNodeWithText("后台运行").assertExists()
         compose.onNodeWithText("省电时提醒会晚到，点这里放行").assertDoesNotExist()
     }
 }

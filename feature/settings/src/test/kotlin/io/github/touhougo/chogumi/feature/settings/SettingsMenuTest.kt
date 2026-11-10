@@ -4,8 +4,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.foundation.Load
@@ -56,6 +58,8 @@ class SettingsMenuTest {
         showSections(networkSection = true) { opened += it }
 
         listOf("外观", "首页与进度", "评分与社区", "内容过滤", "通知", "更新", "网络").forEach { title ->
+            // 惰性列表：靠下的分类行要先滚到，才在组合里
+            compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText(title) and hasClickAction())
             compose.onNode(hasText(title) and hasClickAction()).performClick()
         }
 
@@ -65,6 +69,8 @@ class SettingsMenuTest {
     @Test
     fun 设备不支持直连时没有网络分类() {
         showSections(networkSection = false) {}
+        // 分类组下面紧接着「使用技巧」：滚到它，分类组的末尾也在组合里，「网络」不在才说明真没有
+        compose.onNodeWithTag(SettingsListTag).performScrollToNode(hasText("使用技巧"))
 
         compose.onNodeWithText("更新").assertExists()
         compose.onNodeWithText("网络").assertDoesNotExist()
