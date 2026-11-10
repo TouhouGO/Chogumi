@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.data.repository.AuthRepository
 import io.github.touhougo.chogumi.core.data.repository.CollectionObserver
 import io.github.touhougo.chogumi.core.data.repository.CollectionProgressUpdate
 import io.github.touhougo.chogumi.core.data.repository.HomeRepository
+import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Failure
@@ -13,7 +14,6 @@ import io.github.touhougo.chogumi.core.foundation.businessDateOf
 import io.github.touhougo.chogumi.core.foundation.settled
 import io.github.touhougo.chogumi.core.model.EpButtonState
 import io.github.touhougo.chogumi.core.model.ProgressCount
-import io.github.touhougo.chogumi.core.model.SessionState
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.feature.home.HomeProgressCard
 import io.github.touhougo.chogumi.feature.home.HomeSectionCandidates
@@ -38,7 +38,7 @@ internal sealed interface WidgetWorks {
     data object SignedOut : WidgetWorks
 
     /** 在看的作品，[works] 为空就是「还没有在看的作品」。 */
-    data class Ready(val works: List<WidgetWork>, val today: LocalDate) : WidgetWorks
+    data class Ready(val works: List<WidgetWork>, val today: LocalDate, val session: AccountSession) : WidgetWorks
 
     /** 本机一份进度都读不出来（没有缓存、网络也不通）。 */
     data class Failed(val failure: Failure) : WidgetWorks
@@ -74,13 +74,15 @@ internal class WidgetWorksSource(
     private val authRepository: AuthRepository,
     private val clock: AppClock,
 ) {
-    suspend fun load(): WidgetWorks {
+    suspend fun load(): WidgetWorks = when (val captured = authRepository.currentSession()) {
+        is Outcome.Failed -> WidgetWorks.Failed(captured.failure)
+        is Outcome.Success -> load(captured.value)
+    }
+
+    suspend fun load(session: AccountSession): WidgetWorks {
         val result = outcomeOf {
-            when (widgetSignInOf(authRepository)) {
-                WidgetSignIn.SIGNED_IN -> Unit
-                WidgetSignIn.SIGNED_OUT -> return@outcomeOf WidgetWorks.SignedOut
-                WidgetSignIn.UNREADABLE -> return@outcomeOf WidgetWorks.Failed(Failure.Storage)
-            }
+            authRepository.withSession(session) { }
+            if (!session.authenticated) return@outcomeOf WidgetWorks.SignedOut
             val items = when (val read = homeRepository.getHomeProgress().settled()) {
                 is Outcome.Success -> read.value
                 is Outcome.Failed -> return@outcomeOf WidgetWorks.Failed(read.failure)
@@ -100,24 +102,11 @@ internal class WidgetWorksSource(
                 // 小组件不画追更时间表，时刻只用在那里
                 broadcastStarts = emptyMap(),
             )
-            WidgetWorks.Ready(widgetWorksOf(candidates), today)
+            authRepository.withSession(session) { WidgetWorks.Ready(widgetWorksOf(candidates), today, session) }
         }
         return when (result) {
             is Outcome.Success -> result.value
             is Outcome.Failed -> WidgetWorks.Failed(result.failure)
         }
-    }
-}
-
-/** 小组件读数据之前先看登没登录：没登录画登录按钮，本机会话读不出来画「读不出来」。 */
-internal enum class WidgetSignIn { SIGNED_IN, SIGNED_OUT, UNREADABLE }
-
-internal suspend fun widgetSignInOf(authRepository: AuthRepository): WidgetSignIn {
-    // App 没开过时会话还没读：先读一次（读过就立刻返回）
-    authRepository.ensureInitialized()
-    return when (authRepository.sessionState.value) {
-        is SessionState.Authenticated -> WidgetSignIn.SIGNED_IN
-        SessionState.Unauthenticated -> WidgetSignIn.SIGNED_OUT
-        SessionState.Initializing, SessionState.InitializationError -> WidgetSignIn.UNREADABLE
     }
 }

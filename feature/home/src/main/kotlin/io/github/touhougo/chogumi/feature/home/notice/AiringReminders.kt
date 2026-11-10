@@ -91,7 +91,6 @@ class AiringReminders internal constructor(
         var lastAccount: Int? = null
         combine(preferences.notificationSettings, accounts()) { settings, account -> Plan(settings, account) }
             .distinctUntilChanged()
-            // 读不出本机的设置：跟随到此为止，进程不崩；已排上的每小时检查照常跑，每次自己再读一次设置
             .catch { e -> if (e !is Exception) throw e }
             .collect { plan ->
                 val switched = lastAccount != null && plan.account != lastAccount
@@ -120,7 +119,7 @@ class AiringReminders internal constructor(
         val settings = (outcomeOf { preferences.notificationSettings.first() } as? Outcome.Success)?.value ?: return
         if (!settings.airing) return
         val calendar = calendarSource.load() as? WidgetCalendar.Ready ?: return
-        val account = (authRepository.sessionState.value as? SessionState.Authenticated)?.account?.userId
+        val account = calendar.session.userId
         if (!calendar.signedIn || account == null) return
         outcomeOf {
             when (settings.airingMode) {
@@ -136,8 +135,12 @@ class AiringReminders internal constructor(
         val schedule = airingScheduleOf(reminders, date, ledger.airingPosted(account, date), clock.nowMillis())
         if (schedule.due.isNotEmpty()) SystemNotices.ensureChannels(context)
         schedule.due.forEach { reminder ->
-            ledger.markAiringPosted(account, date, reminder.subject.id)
-            SystemNotices.post(context, SystemNotices.AIRING_TAG, reminder.subject.id, reminderNotification(reminder, calendar.works))
+            val notification = reminderNotification(reminder, calendar.works)
+            authRepository.withSession(calendar.session) {
+                if (SystemNotices.post(context, SystemNotices.AIRING_TAG, reminder.subject.id, notification)) {
+                    ledger.markAiringPosted(account, date, reminder.subject.id)
+                }
+            }
         }
         setAlarm(schedule.next)
     }
@@ -148,11 +151,14 @@ class AiringReminders internal constructor(
         val date = airingDateOf(last)
         // 汇总的是上一次定时那一刻所在的放送日；读到的整周从今天的放送日起，跨过了北京时间 4 点就不补
         if (now - last <= AIRING_REMINDER_GRACE_MILLIS && date == calendar.date && SystemNoticeLedger.DIGEST !in ledger.airingPosted(account, date)) {
-            ledger.markAiringPosted(account, date, SystemNoticeLedger.DIGEST)
             val reminders = airingRemindersOf(calendar.week[calendar.today] ?: EMPTY_DAY, calendar.followed, date)
             if (reminders.isNotEmpty()) {
                 SystemNotices.ensureChannels(context)
-                SystemNotices.post(context, SystemNotices.DIGEST_TAG, DIGEST_ID, digestNotification(reminders))
+                authRepository.withSession(calendar.session) {
+                    if (SystemNotices.post(context, SystemNotices.DIGEST_TAG, DIGEST_ID, digestNotification(reminders))) {
+                        ledger.markAiringPosted(account, date, SystemNoticeLedger.DIGEST)
+                    }
+                }
             }
         }
         setAlarm(nextDailyMillisOf(now, settings.dailyMinute, displayZone()))
@@ -173,9 +179,12 @@ class AiringReminders internal constructor(
             ?: return 0
         SystemNotices.ensureChannels(context)
         if (digest) {
-            SystemNotices.post(context, SystemNotices.DIGEST_TAG, DIGEST_ID, digestNotification(reminders))
+            authRepository.withSession(calendar.session) { SystemNotices.post(context, SystemNotices.DIGEST_TAG, DIGEST_ID, digestNotification(reminders)) }
         } else {
-            reminders.forEach { SystemNotices.post(context, SystemNotices.AIRING_TAG, it.subject.id, reminderNotification(it, calendar.works)) }
+            for (reminder in reminders) {
+                val notification = reminderNotification(reminder, calendar.works)
+                authRepository.withSession(calendar.session) { SystemNotices.post(context, SystemNotices.AIRING_TAG, reminder.subject.id, notification) }
+            }
         }
         return reminders.size
     }

@@ -85,6 +85,16 @@ class AuthRepository(
         if (initialized is Outcome.Failed && initialized.failure != Failure.SessionChanged) setState(SessionState.InitializationError)
     }
 
+    /** 后台读取的操作归属：恢复本机会话后捕获一次，游客也是明确的会话。 */
+    suspend fun currentSession(): Outcome<AccountSession> = outcomeOf {
+        ensureInitialized()
+        tokenStore.session()
+    }
+
+    /** 只提交本机结果：归属校验与提交共用会话写锁，不在这里等待网络。 */
+    suspend fun <T> withSession(session: AccountSession, block: suspend () -> T): T =
+        tokenStore.commitForSession(session, block)
+
     /** 只有令牌与账号信息都齐才算登录；登录途中（令牌已写、账号信息未到）不算。 */
     private fun AccountSession.toState(): SessionState =
         if (authenticated) SessionState.Authenticated(SignedInAccount(userId!!, username!!)) else SessionState.Unauthenticated

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.first
 
 /**
  * 系统通知的记账：发过什么，下一轮从哪接着。只在本机，放在偏好 DataStore 里（键名真源 [PreferenceKeys]）；丢了只是下一轮从头记。
- * - 社区提醒按账号记基线（发过与跳过的最大提醒 id）与上一轮的未读短信条数，由 `noticeRoundOf` / `messageRoundOf` 读写；
+ * - 社区提醒按账号记基线（发过与跳过的最大提醒 id）与上一轮的未读短信条数及被系统阻止的提醒id，由 `noticeRoundOf` / `messageRoundOf` 读写；
  * - 放送提醒记今天（放送日）已经发过的作品，开播时与汇总都只发一次。
  *
  * 读写失败照常抛出：调用方（后台检查、闹钟接收器）经 `outcomeOf` 收住，这一轮不发。
@@ -19,10 +19,15 @@ class SystemNoticeLedger(private val dataStore: DataStore<Preferences>) {
 
     suspend fun notifiedMessages(accountId: Int): Int? = dataStore.data.first()[PreferenceKeys.notifiedMessagesKey(accountId)]
 
+    /** 上一轮没有交给系统的提醒：不因其他条目的成功推进基线而丢掉。 */
+    suspend fun deferredNotices(accountId: Int): Set<Int> = dataStore.data.first()[PreferenceKeys.deferredNoticesKey(accountId)]
+        .orEmpty().mapNotNullTo(HashSet()) { it.toIntOrNull() }
+
     /** 一轮检查做完：记下新的基线与短信条数（短信这一轮没读出来时 [messages] 为 null，不动）。 */
-    suspend fun recordRound(accountId: Int, baseline: Int, messages: Int?) {
+    suspend fun recordRound(accountId: Int, baseline: Int, messages: Int?, deferred: Set<Int>) {
         dataStore.edit {
             it[PreferenceKeys.noticeBaselineKey(accountId)] = baseline
+            it[PreferenceKeys.deferredNoticesKey(accountId)] = deferred.mapTo(HashSet()) { id -> id.toString() }
             if (messages != null) it[PreferenceKeys.notifiedMessagesKey(accountId)] = messages
         }
     }

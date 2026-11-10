@@ -79,16 +79,20 @@ object SystemNotices {
             .setSmallIcon(R.drawable.tv_24)
             .setAutoCancel(true)
 
-    /** 发一条（同一个标签与 id 的替换掉旧的）；系统里关了通知就不发。 */
-    fun post(context: Context, tag: String, id: Int, notification: Notification) {
-        if (!allowed(context)) return
+    /** 发一条：已交给系统为 true；权限或类别关闭为 false，调用者不能把它记成已发。 */
+    fun post(context: Context, tag: String, id: Int, notification: Notification): Boolean {
+        if (!allowed(context)) return false
         // 与 permissionNeeded 同一个判定，写在发的这一处：Android lint 只认同一个函数里的权限检查
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, PERMISSION) != PackageManager.PERMISSION_GRANTED
         ) {
-            return
+            return false
         }
+        if (channelsSupported && context.getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(notification.channelId)?.importance == NotificationManager.IMPORTANCE_NONE
+        ) return false
         NotificationManagerCompat.from(context).notify(tag, id, notification)
+        return true
     }
 
     fun cancel(context: Context, tag: String, id: Int) {

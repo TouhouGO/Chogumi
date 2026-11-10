@@ -240,3 +240,8 @@ dependencies {
     // 桌面入口的契约测试要等后台换图标落地：用 core:data 测试夹具里唯一的 awaitUntil
     testImplementation(testFixtures(projects.core.data))
 }
+
+dependencies {
+    testImplementation(libs.androidx.datastore.preferences)
+    testImplementation(libs.androidx.work.runtime)
+}

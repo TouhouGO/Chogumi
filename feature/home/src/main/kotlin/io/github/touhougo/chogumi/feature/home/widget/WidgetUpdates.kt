@@ -33,6 +33,8 @@ import io.github.touhougo.chogumi.core.data.repository.HomeRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.foundation.Failure
+import io.github.touhougo.chogumi.core.foundation.FailureException
+import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.model.EpButtonState
 import io.github.touhougo.chogumi.core.model.SessionState
@@ -198,6 +200,24 @@ class WidgetUpdates internal constructor(
         allWidgets().forEach { widget -> outcomeOf { widget.updateAll(context) } }
     }
 
+    /** 整帧的文字、进度与位图固定归属；封面挂起期间换号也不能交出旧帧。 */
+    internal suspend fun <T> currentAccountFrame(load: suspend () -> T): T {
+        while (true) {
+            val result = outcomeOf {
+                val session = when (val captured = authRepository.currentSession()) {
+                    is Outcome.Failed -> throw FailureException(captured.failure)
+                    is Outcome.Success -> captured.value
+                }
+                val frame = load()
+                authRepository.withSession(session) { frame }
+            }
+            when (result) {
+                is Outcome.Success -> return result.value
+                is Outcome.Failed -> if (result.failure != Failure.SessionChanged) throw FailureException(result.failure)
+            }
+        }
+    }
+
     private fun accounts() = authRepository.sessionState.map { (it as? SessionState.Authenticated)?.account }.distinctUntilChanged()
 
     private suspend fun anyPlaced(): Boolean {
@@ -250,7 +270,7 @@ internal suspend fun <T> GlanceAppWidget.provideLiveContent(
     load: suspend () -> T,
     content: @Composable (T) -> Unit,
 ): Nothing {
-    suspend fun frame() = WidgetPalette.of(context, preferences) to load()
+    suspend fun frame() = updates.currentAccountFrame { WidgetPalette.of(context, preferences) to load() }
     val seen = updates.revision.value
     val first = frame()
     provideContent {
