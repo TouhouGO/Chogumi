@@ -901,13 +901,13 @@
     <string name="gesture_tour_floor_title">楼层里还有更多</string>
     <string name="gesture_tour_floor_text">点一层就回复；按住可以贴贴、复制、举报，自己的楼层还能编辑和删除。</string>
     <string name="gesture_tour_arrange_title">探索页按你的口味排</string>
-    <string name="gesture_tour_arrange_text">按住任一模块的标题，调整顺序、隐藏或添加模块。</string>
+    <string name="gesture_tour_arrange_text">按住探索或统计模块的标题，调整顺序、名称和样式，或添加、移除模块。</string>
     <string name="settings_gesture_tour">使用技巧</string>
     <!-- 探索页整理模块：整理列表、编辑面板、添加模块 -->
     <string name="explore_arrange_title">整理模块</string>
     <string name="explore_arrange_enter">整理模块</string>
     <string name="explore_arrange_add">添加模块</string>
-    <string name="explore_arrange_done">完成</string>
+    <string name="arrange_done">完成</string>
     <string name="explore_arrange_empty">这一页没有模块，从「添加模块」放上来</string>
     <string name="explore_shelf_edit">编辑模块</string>
     <string name="explore_shelf_new_works">新建作品模块</string>
@@ -1541,4 +1541,79 @@
     </plurals>
     <string name="notify_digest_line">%1$s %2$s</string>
     <string name="notify_digest_line_episode">%1$s %2$s 第 %3$s 集</string>
+    <string name="stats_arrange_title">整理模块</string>
+    <string name="stats_arrange_add">添加模块</string>
+    <string name="stats_arrange_enter">整理模块</string>
+    <string name="stats_arrange_empty">没有模块，从添加模块放上来</string>
+    <string name="stats_module_edit">编辑模块</string>
+    <string name="stats_module_new">新建模块</string>
+    <string name="stats_module_remove">移除模块</string>
+    <string name="stats_module_name">名称</string>
+    <string name="stats_module_style">样式</string>
+    <string name="stats_data_rating">评分</string>
+    <string name="stats_data_status_rating">各状态的人打几分</string>
+    <string name="stats_data_controversy">争议度</string>
+    <string name="stats_data_air_phase">放送前后</string>
+    <string name="stats_data_total_collects">看得多的人怎么打</string>
+    <string name="stats_data_regdate">老用户与新用户</string>
+    <string name="stats_data_tags">大家打的标签</string>
+    <string name="stats_track_discussion">每首讨论</string>
+    <string name="stats_drawing_rating_bars">柱状</string>
+    <string name="stats_drawing_rating_rows">横条</string>
+    <string name="stats_drawing_rating_dots">点阵</string>
+    <string name="stats_drawing_status_ruler">尺子</string>
+    <string name="stats_drawing_status_delta">差值</string>
+    <string name="stats_drawing_collection_flow">流向</string>
+    <string name="stats_drawing_collection_bar">条形</string>
+    <string name="stats_drawing_collection_ring">环形</string>
+    <string name="stats_drawing_lifeline">时间线</string>
+    <string name="stats_drawing_episode_grid">格子</string>
+    <string name="stats_drawing_episode_bars">柱状</string>
+    <string name="stats_drawing_episode_line">曲线</string>
+    <string name="stats_drawing_series">系列</string>
+    <string name="stats_drawing_recommendations">作品行</string>
+    <string name="stats_drawing_controversy_spectrum">光谱</string>
+    <string name="stats_drawing_controversy_camps">两派</string>
+    <string name="stats_drawing_controversy_ridge">山脊</string>
+    <string name="stats_drawing_controversy_dial">表盘</string>
+    <string name="stats_drawing_phase_slope">斜率</string>
+    <string name="stats_drawing_phase_distributions">三条分布</string>
+    <string name="stats_drawing_collect_line">折线</string>
+    <string name="stats_drawing_collect_strip">色带</string>
+    <string name="stats_drawing_regdate_line">折线</string>
+    <string name="stats_drawing_regdate_delta">差值</string>
+    <string name="stats_drawing_tag_cloud">词云</string>
+    <string name="stats_drawing_tag_rank">排行</string>
+    <string name="stats_tier_unanimous">众口一词</string>
+    <string name="stats_tier_concentrated">意见集中</string>
+    <string name="stats_tier_some_disagreement">略有分歧</string>
+    <string name="stats_tier_mixed">褒贬不一</string>
+    <string name="stats_tier_polarized">两极分化</string>
+    <string name="stats_sigma">标准差 %1$s</string>
+    <string name="stats_collect_group_tip">收藏 %1$s 部</string>
+    <string name="stats_regdate_group_tip">注册 %1$s</string>
+    <string name="stats_tag_tip">%1$s：%2$d 人标注</string>
+    <string name="stats_controversy_tip">标准差 %1$s：%2$s（%3$s）</string>
+    <string name="stats_sigma_below">1.0 以下</string>
+    <string name="stats_sigma_concentrated">1.0 至不足 1.2</string>
+    <string name="stats_sigma_some">1.2 至不足 1.4</string>
+    <string name="stats_sigma_mixed">1.4 至不足 1.6</string>
+    <string name="stats_sigma_polarized">1.6 及以上</string>
+    <string name="stats_camp_tip">打 %1$s 分 %2$d 人（%3$s）</string>
+    <string name="stats_ridge_tip">均分 %1$s，%2$s 的人打在 %3$d–%4$d 分</string>
+    <string name="stats_tag_more">+%1$d</string>
+    <string name="stats_tag_collapse">收起</string>
+    <plurals name="stats_group_tip"><item quantity="other">%1$s：均分 %2$s（%3$d 人）</item></plurals>
+    <plurals name="stats_tag_expand_description"><item quantity="other">展开全部 %1$d 个标签</item></plurals>
+    <plurals name="stats_track_tip"><item quantity="other">第 %1$s 首：%2$d 条讨论</item></plurals>
+    <string name="stats_dots_tip">%1$d 分：%2$d%%</string>
+    <string name="stats_ridge_reference">意见一致时</string>
+    <string name="stats_collect_over">%1$d 以上</string>
+    <string name="stats_regdate_days">%1$d天</string>
+    <string name="stats_regdate_months">%1$d月</string>
+    <string name="stats_regdate_years">%1$d年</string>
+    <string name="stats_regdate_over_years">&gt;%1$d年</string>
+    <string name="stats_regdate_within">%1$s以内</string>
+    <string name="stats_layout_empty">这部作品没有能显示的统计模块</string>
+    <plurals name="stats_collection_tip"><item quantity="other">%1$s：%2$d 人（%3$s）</item></plurals>
 </resources>

@@ -57,6 +57,7 @@ fun HeatCells(
     maxCell: Dp = HEAT_CELL_MAX,
 ) {
     require(rowLabels.size == rows.size) { "每行一个标签" }
+    val progress = chartFractions()
     val empty = MaterialTheme.colorScheme.surfaceContainerHighest
     val tones = ordinalTones(HEAT_LEVELS)
     val inks = tones.map(::inkOn)
@@ -102,7 +103,9 @@ fun HeatCells(
                             if (heat.pending) {
                                 drawRoundRect(outline, rect.topLeft, rect.size, corner, style = stroke)
                             } else {
-                                drawRoundRect(if (level == 0) empty else tones[level - 1], rect.topLeft, rect.size, corner)
+                                val growth = progress.chartFraction(r * columns + c)
+                                val grown = Size(rect.width * growth, rect.height * growth)
+                                drawRoundRect(if (level == 0) empty else tones[level - 1], rect.center - Offset(grown.width / 2, grown.height / 2), grown, corner)
                             }
                             heat.label?.takeIf { textWidth(it, labelStyle) <= side - 2.dp.toPx() }?.let { text ->
                                 val ink = if (heat.pending || level == 0) labelColor else inks[level - 1]

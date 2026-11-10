@@ -63,6 +63,7 @@ CANCELLATION_FILES = {
 
 # （相对 core/data 包根的文件, 声明名）→ 为什么这里可以用 runCatching
 ALLOWED_RUN_CATCHING = {
+    ("db/stats/StatsModuleJson.kt", "toStatsModuleOrNull"): "同步解码本地模块 JSON，未知行跳过",
     ("db/mapper/ColumnJson.kt", "toStringList"): "解码本地 JSON 列，同步；读不懂的旧行按空列表",
     ("db/mapper/ColumnJson.kt", "toTagList"): "同上",
     ("db/mapper/ColumnJson.kt", "toInfoboxList"): "同上",

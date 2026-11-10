@@ -16,4 +16,8 @@ enum class AirPhase { BEFORE, AIRING, AFTER }
 data class SubjectRatingSplit(
     val byCollection: Map<CollectionType, List<Int>>,
     val byAirPhase: Map<AirPhase, List<Int>>,
+    /** 收藏数量的网页组编号（1、10、50、100、200、500、1000、1001），不是连续下标。 */
+    val byTotalCollects: Map<Int, List<Int>> = emptyMap(),
+    /** 注册时长的网页组编号（10、30、180、365、730、1095、1825）。 */
+    val byRegdate: Map<Int, List<Int>> = emptyMap(),
 )

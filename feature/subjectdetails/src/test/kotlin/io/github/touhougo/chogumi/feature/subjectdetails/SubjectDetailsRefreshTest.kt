@@ -7,9 +7,11 @@ import io.github.touhougo.chogumi.core.data.mark.StillCollectionMarker
 import io.github.touhougo.chogumi.core.data.progress.CommitGate
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeDao
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeWatchStateDao
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectSectionDao
 import io.github.touhougo.chogumi.core.data.repository.FakeUserCollectionDao
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.TestMain
 import io.github.touhougo.chogumi.core.data.repository.TestPreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.awaitUntil
@@ -121,7 +123,8 @@ class SubjectDetailsRefreshTest {
                 8, subRepo, collRepo.store, collRepo.observer, collRepo.watchStates, collRepo.editing(subRepo, orchestrator),
                 collRepo.epTapCoordinator(orchestrator, scope, { 0L }, CommitGate(open = true)::await),
                 prefs.repository, testAppTime(System.currentTimeMillis()), StillCollectionMarker(), SavedStateHandle(),
-            )
+            statsLayouts = StatsLayoutRepository(FakeStatsModuleDao()),
+        )
         }
     }
 

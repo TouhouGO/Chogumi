@@ -22,7 +22,7 @@ import kotlin.math.max
  * - 其余是对照（大众、全站）：空心 outline，字写在尺下方。
  * 「你」与其他角色的字分在尺的两侧；尺下方的字彼此让位，最多排两行。拥挤时省略放不下的字，完整文字仍可点按和读屏获取。
  */
-class ScoreMark(val label: String, val score: Double, val own: Boolean, val color: Color = Color.Unspecified)
+class ScoreMark(val label: String, val score: Double, val own: Boolean, val color: Color = Color.Unspecified, val tip: String = label)
 
 /** 尺下方的字最多排几行。 */
 private const val RULER_LABEL_ROWS = 2
@@ -34,6 +34,7 @@ private const val RULER_LABEL_ROWS = 2
  */
 @Composable
 fun ScoreRuler(marks: List<ScoreMark>, description: String, modifier: Modifier = Modifier) {
+    val progress = chartFractions()
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val ownColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.outline
@@ -64,7 +65,7 @@ fun ScoreRuler(marks: List<ScoreMark>, description: String, modifier: Modifier =
         val lineHeight = referenceStyle.lineHeight.toPx()
         val firstBaseline = axisY + RULER_BELOW_GAP.toPx() + lineHeight * 0.75f
         ChartLayout(
-            marks = listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), marks.joinToString("\n") { it.label }, multiline = true)),
+            marks = listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), marks.joinToString("\n") { it.tip }, multiline = true)),
         ) {
             drawLine(axisColor, Offset(left, axisY), Offset(right, axisY), 2.dp.toPx(), StrokeCap.Round)
             (1..10).forEach { score ->
@@ -74,7 +75,7 @@ fun ScoreRuler(marks: List<ScoreMark>, description: String, modifier: Modifier =
             label("1", 0f, axisY + 4.dp.toPx(), scale, muted, ha = 0f)
             label("10", widthPx, axisY + 4.dp.toPx(), scale, muted, ha = 1f)
             below.forEachIndexed { i, mark ->
-                val center = Offset(xOf(mark.score), axisY)
+                val center = Offset(xOf(1.0 + (mark.score - 1.0) * progress.chartFraction(i)), axisY)
                 drawCircle(halo, 8.dp.toPx(), center)
                 if (mark.color.isSpecified) {
                     drawCircle(mark.color, 6.dp.toPx(), center)
@@ -92,8 +93,8 @@ fun ScoreRuler(marks: List<ScoreMark>, description: String, modifier: Modifier =
                     )
                 }
             }
-            marks.filter { it.own }.forEach { mark ->
-                val center = Offset(xOf(mark.score), axisY)
+            marks.filter { it.own }.forEachIndexed { i, mark ->
+                val center = Offset(xOf(1.0 + (mark.score - 1.0) * progress.chartFraction(i)), axisY)
                 drawCircle(halo, 8.dp.toPx(), center)
                 drawCircle(ownColor, 6.dp.toPx(), center)
                 label(mark.label, center.x, axisY - 14.dp.toPx(), ownStyle, ink)
