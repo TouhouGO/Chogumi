@@ -128,6 +128,7 @@ fun ProgressScreen(
                             if (state.query.isEmpty()) {
                                 ProgressSortAction(
                                     type = PROGRESS_TYPES[state.selectedSubjectType],
+                                    publicRatings = state.publicRatings,
                                     order = state.pageOrder,
                                     onSelectSort = viewModel::onSelectSort,
                                     onSelectDirection = viewModel::onSelectDirection,

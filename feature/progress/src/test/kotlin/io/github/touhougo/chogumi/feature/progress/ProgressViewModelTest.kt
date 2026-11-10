@@ -422,7 +422,7 @@ class ProgressViewModelTest {
             onMain {
                 vm.onQueryChange("猫")
                 vm.onSelectSort(ProgressSort.TITLE)
-                vm.onSelectSort(ProgressSort.RATING)
+                vm.onSelectSort(ProgressSort.PUBLIC_RATING)
             }
             release.countDown()
             awaitUntil("最新筛选生效") { vm.uiState.value.pageEpochs == epochs.map { it + 2 } }
@@ -750,18 +750,20 @@ class ProgressViewModelTest {
         tags: List<String> = emptyList(),
         status: CollectionType = CollectionType.DOING,
         subjectType: SubjectType = SubjectType.ANIME,
+        rating: Double = 8.0,
+        rate: Int = 0,
     ) {
         subjectDao.upsert(
             SubjectEntity(
                 id = id, type = subjectType.value, name = title, nameCn = title,
-                ratingScore = 8.0, metaTagsJson = metaTags.joinToString(",", "[", "]") { "\"$it\"" },
+                ratingScore = rating, metaTagsJson = metaTags.joinToString(",", "[", "]") { "\"$it\"" },
                 updatedAt = System.currentTimeMillis(),
             ),
         )
         dao.upsert(
             UserCollectionEntity(
                 subjectId = id, subjectType = subjectType.value,
-                type = status.value, epStatus = 1, updatedAt = updatedAt,
+                type = status.value, epStatus = 1, rate = rate, updatedAt = updatedAt,
                 tagsJson = tags.joinToString(",", "[", "]") { "\"$it\"" }, accountId = ACCOUNT_ID,
             ),
         )
@@ -835,8 +837,43 @@ class ProgressViewModelTest {
         onMain { vm.onSelectSort(ProgressSort.TITLE) }
         assertEquals(ProgressOrder(ProgressSort.TITLE, reversed = true), vm.uiState.value.order, "点正在用的档不反转方向")
 
-        onMain { vm.onSelectSort(ProgressSort.RATING) }
-        assertEquals(ProgressOrder(ProgressSort.RATING, reversed = false), vm.uiState.value.order, "换档回到默认方向")
+        onMain { vm.onSelectSort(ProgressSort.PUBLIC_RATING) }
+        assertEquals(ProgressOrder(ProgressSort.PUBLIC_RATING, reversed = false), vm.uiState.value.order, "换档回到默认方向")
+    }
+
+    /** 个人评分读本地收藏里自己打的分（与公共评分顺序相反的两部），没打分的排在最后。 */
+    @Test
+    fun `个人评分按本地收藏里自己打的分排`() = runBlocking {
+        val vm = makeViewModel { respond(emptyCollectionsJson, HttpStatusCode.OK, jsonHeaders()) }
+        awaitUntil("初始同步完成") { !vm.uiState.value.isLoading }
+        seedCollection(1, updatedAt = 300L, rating = 9.0, rate = 5)
+        seedCollection(2, updatedAt = 200L, rating = 6.0, rate = 10)
+        seedCollection(3, updatedAt = 100L, rating = 7.0, rate = 0)
+        awaitUntil("三部到达") { vm.uiState.value.collections.size == 3 }
+        reorder(vm) { vm.onSelectSort(ProgressSort.MY_RATING) }
+        assertEquals(listOf(2, 1, 3), vm.uiState.value.collections.map { it.subjectId })
+    }
+
+    /** 关掉公共评分：选着「公共评分」时各页改按最近操作排、菜单显示最近操作；用户的选择留着，再打开又按公共评分排。 */
+    @Test
+    fun `关掉公共评分时选着的公共评分改按最近操作排 再打开恢复`() = runBlocking {
+        val vm = makeViewModel { respond(emptyCollectionsJson, HttpStatusCode.OK, jsonHeaders()) }
+        awaitUntil("初始同步完成") { !vm.uiState.value.isLoading }
+        // 最近操作是 1 在前，公共评分是 2 在前
+        seedCollection(1, updatedAt = 200L, rating = 6.0)
+        seedCollection(2, updatedAt = 100L, rating = 9.0)
+        awaitUntil("两部到达") { vm.uiState.value.collections.size == 2 }
+        reorder(vm) { vm.onSelectSort(ProgressSort.PUBLIC_RATING) }
+        assertEquals(listOf(2, 1), vm.uiState.value.collections.map { it.subjectId })
+
+        prefs.repository.setShowPublicRatings(false)
+        awaitUntil("改按最近操作排") { vm.uiState.value.collections.map { it.subjectId } == listOf(1, 2) }
+        assertEquals(ProgressOrder(), vm.uiState.value.pageOrder)
+        assertEquals(ProgressSort.PUBLIC_RATING, vm.uiState.value.order.sort, "用户的选择不因关掉公共评分丢掉")
+
+        prefs.repository.setShowPublicRatings(true)
+        awaitUntil("又按公共评分排") { vm.uiState.value.collections.map { it.subjectId } == listOf(2, 1) }
+        assertEquals(ProgressOrder(ProgressSort.PUBLIC_RATING), vm.uiState.value.pageOrder)
     }
 
     /** 书籍没有「最近更新」：那一页按最近操作排、菜单也显示最近操作；用户的选择留着，翻回动画页照旧。 */

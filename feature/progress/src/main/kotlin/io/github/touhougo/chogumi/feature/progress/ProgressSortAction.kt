@@ -13,11 +13,13 @@ import io.github.touhougo.chogumi.core.ui.composables.SortMenuAction
 
 /**
  * 进度页的排序按钮（搜索栏尾部）：全 App 同一个排序菜单 [SortMenuAction]，上一组是这一页有的档（[progressSortsFor]），
- * 分隔线下是这一档的两种顺序，直接点选。[order] 是这一页实际在用的（[ProgressUiState.pageOrder]）。
+ * 分隔线下是这一档的两种顺序，直接点选。[order] 是这一页实际在用的（[ProgressUiState.pageOrder]），
+ * [publicRatings] 是 [ProgressUiState.publicRatings]（关掉时没有「公共评分」档）。
  */
 @Composable
 internal fun ProgressSortAction(
     type: SubjectType?,
+    publicRatings: Boolean,
     order: ProgressOrder,
     onSelectSort: (ProgressSort) -> Unit,
     onSelectDirection: (reversed: Boolean) -> Unit,
@@ -25,7 +27,7 @@ internal fun ProgressSortAction(
     val (forward, backward) = progressDirectionLabels(order.sort)
     SortMenuAction(
         sort = order.sort,
-        options = progressSortsFor(type),
+        options = progressSortsFor(type, publicRatings),
         label = { stringResource(progressSortLabel(it, type)) },
         onSelect = onSelectSort,
         direction = SortDirection(
@@ -50,7 +52,8 @@ internal fun progressSortLabel(sort: ProgressSort, type: SubjectType?): Int = wh
         else -> R.string.sort_release_date
     }
     ProgressSort.TITLE -> R.string.sort_title
-    ProgressSort.RATING -> R.string.sort_rating
+    ProgressSort.PUBLIC_RATING -> R.string.sort_public_rating
+    ProgressSort.MY_RATING -> R.string.sort_my_rating
 }
 
 /**
@@ -59,6 +62,6 @@ internal fun progressSortLabel(sort: ProgressSort, type: SubjectType?): Int = wh
  */
 internal fun progressDirectionLabels(sort: ProgressSort): Pair<Int, Int> = when (sort) {
     ProgressSort.RECENT, ProgressSort.LATEST_AIRED, ProgressSort.DATE -> R.string.sort_new_to_old to R.string.sort_old_to_new
-    ProgressSort.RATING -> R.string.sort_high_to_low to R.string.sort_low_to_high
+    ProgressSort.PUBLIC_RATING, ProgressSort.MY_RATING -> R.string.sort_high_to_low to R.string.sort_low_to_high
     ProgressSort.TITLE -> R.string.sort_a_to_z to R.string.sort_z_to_a
 }
