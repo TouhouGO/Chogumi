@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
+import kotlin.math.min
 
 /** 十档柱的档数：1–10 分。 */
 private const val TEN_BARS_LEVELS = 10
@@ -47,7 +48,7 @@ fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, descr
     val axis = MaterialTheme.typography.labelSmall
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     TapChart(description, modifier.fillMaxWidth().height(height)) {
-        val gap = 6.dp.toPx()
+        val gap = min(6.dp.toPx(), widthPx / counts.size / 3)
         val barWidth = (widthPx - gap * (counts.size - 1)) / counts.size
         val base = heightPx - 20.dp.toPx()
         val tallest = base - 2.dp.toPx()
@@ -57,6 +58,17 @@ fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, descr
             if (n > 0) max(4.dp.toPx(), tallest * n / peakCount) else 2.dp.toPx()
         }
         fun leftOf(i: Int) = i * (barWidth + gap)
+        val shownLabels = BooleanArray(labels.size)
+        var end = Float.NEGATIVE_INFINITY
+        val lastLabelLeft = widthPx - textWidth(labels.last(), axis)
+        labels.forEachIndexed { i, text ->
+            val labelWidth = textWidth(text, axis)
+            val left = (leftOf(i) + barWidth / 2 - labelWidth / 2).coerceIn(0f, max(0f, widthPx - labelWidth))
+            if (i == labels.lastIndex || (left >= end + 4.dp.toPx() && left + labelWidth + 4.dp.toPx() <= lastLabelLeft)) {
+                shownLabels[i] = true
+                end = left + labelWidth
+            }
+        }
         ChartLayout(
             marks = counts.indices.map { i ->
                 ChartMark(
@@ -72,7 +84,7 @@ fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, descr
                     translate(leftOf(i), base - height) {
                         drawOutline(outline, if (i == peak && peakCount > 0) peakColor else restColor)
                     }
-                    label(labels[i], leftOf(i) + barWidth / 2, heightPx - 4.dp.toPx(), axis, muted)
+                    if (shownLabels[i]) label(labels[i], leftOf(i) + barWidth / 2, heightPx - 4.dp.toPx(), axis, muted)
                 }
             },
         )

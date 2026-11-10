@@ -75,6 +75,12 @@ class StatsModuleCapture {
                             "single" -> selectedModule?.let { module ->
                                 Column(Modifier.padding(vertical = 6.dp)) { StatsModuleBlock(module, tab.copy(series = Load.Ready(SubjectSeries(emptyList(), listOf(SubjectRelationBo(110467, subject.type, "系列示例", "", relationId = 3, score = 8.7))))), {}, {}, {}, {}, {}, {}) }
                             }
+                            "long" -> Column {
+                                val cells = List(100) { io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCell(it + 1, (it + 1).toDouble(), it + 1, false) }
+                                val heat = io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCard(cells)
+                                StatsModuleBlock(StatsModule("long", StatsData.EPISODE_DISCUSSION, StatsDrawing.EPISODE_BARS),
+                                    tab.copy(episodeHeat = Load.Ready(heat)), {}, {}, {}, {}, {}, {})
+                            }
                             "arrange" -> Column {
                                 ArrangeBar({}, {})
                                 ArrangeList(defaultStatsLayout(), { it.id }, { statsModuleName(it, tab.subject.type) }, { listOf(it.drawing.label()) }, { StatsModuleLead(it.data) }, {}, {}, {}, "没有模块", "stats_capture")
@@ -90,7 +96,7 @@ class StatsModuleCapture {
         val width = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
         for (isDark in listOf(false, true)) {
             compose.runOnIdle { dark = isDark }
-            for (screen in listOf("default", "all", "arrange", "edit", "add", "tags")) {
+            for (screen in listOf("default", "all", "long", "arrange", "edit", "add", "tags")) {
                 compose.runOnIdle {
                     actualArranger?.machine?.editorClosed()
                     actualArranger?.machine?.addingClosed()
