@@ -188,6 +188,7 @@
     <string name="settings_update_check_now">Check now</string>
     <string name="settings_update_checking">Checking</string>
     <string name="settings_update_up_to_date">Up to date</string>
+    <string name="settings_update_prerelease">Get pre-releases</string>
     <string name="settings_update_auto_check">Check for updates automatically</string>
     <string name="settings_update_interval">Check interval</string>
     <string name="settings_update_interval_every_launch">Every launch</string>
@@ -195,6 +196,8 @@
     <string name="settings_update_interval_weekly">Weekly</string>
     <string name="update_available_title">Version %1$s is available</string>
     <string name="update_available_body">You have %1$s. The system installer opens after the download and keeps your data.</string>
+    <string name="update_prerelease_title">Pre-release %1$s is available</string>
+    <string name="update_prerelease_body">You have %1$s. Pre-releases are for early testers and may still have bugs. The system installer opens after the download and keeps your data.</string>
     <string name="update_stop_prompting">Don\'t ask again</string>
     <string name="update_ignore">Ignore</string>
     <string name="update_download">Download</string>

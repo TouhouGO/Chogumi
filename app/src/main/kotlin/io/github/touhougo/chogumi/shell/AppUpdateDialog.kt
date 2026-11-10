@@ -46,10 +46,14 @@ internal fun AppUpdateDialog(prompt: AppUpdatePrompt, installedVersion: String, 
         AppUpdatePrompt.None -> Unit
         is AppUpdatePrompt.Offer -> AlertDialog(
             onDismissRequest = viewModel::dismiss,
-            title = { Text(stringResource(R.string.update_available_title, prompt.release.versionName)) },
+            title = {
+                val title = if (prompt.release.prerelease) R.string.update_prerelease_title else R.string.update_available_title
+                Text(stringResource(title, prompt.release.versionName))
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(R.string.update_available_body, installedVersion))
+                    val body = if (prompt.release.prerelease) R.string.update_prerelease_body else R.string.update_available_body
+                    Text(stringResource(body, installedVersion))
                     prompt.release.notes?.let { ReleaseNotes(it) }
                 }
             },

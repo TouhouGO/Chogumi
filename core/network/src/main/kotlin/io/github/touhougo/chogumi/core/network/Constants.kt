@@ -25,6 +25,12 @@ private const val RELEASES_URL = "https://github.com/TouhouGO/Chogumi/releases"
  */
 const val LATEST_RELEASE_MANIFEST_URL = "$RELEASES_URL/latest/download/release.json"
 
+/**
+ * GitHub 接口上本仓库最近发布的几个 Release（按建立时间从新到旧，正式版与预发布都在里面；未登录看不到草稿）：
+ * 预发布通道（设置「接收预发布版」）从这里找最新一版。未登录每个 IP 每小时 60 次，只在检查更新时读一次。
+ */
+const val RELEASE_LIST_API_URL = "https://api.github.com/repos/TouhouGO/Chogumi/releases?per_page=10"
+
 /** GitHub 接口上一个版本（标签 `v<versionName>`）的 Release：只读它的说明（`body`），检查更新的版本与安装包仍以 release.json 为准。 */
 fun releaseApiUrl(versionName: String): String = "https://api.github.com/repos/TouhouGO/Chogumi/releases/tags/v$versionName"
 

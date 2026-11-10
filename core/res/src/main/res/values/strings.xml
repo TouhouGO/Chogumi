@@ -196,6 +196,7 @@
     <string name="settings_update_check_now">立即检查</string>
     <string name="settings_update_checking">正在检查</string>
     <string name="settings_update_up_to_date">已是最新</string>
+    <string name="settings_update_prerelease">接收预发布版</string>
     <string name="settings_update_auto_check">自动检查更新</string>
     <string name="settings_update_interval">检查间隔</string>
     <string name="settings_update_interval_every_launch">每次打开</string>
@@ -203,6 +204,8 @@
     <string name="settings_update_interval_weekly">每周</string>
     <string name="update_available_title">有新版本 %1$s</string>
     <string name="update_available_body">当前是 %1$s。下载完会打开系统安装器，覆盖安装，数据都在。</string>
+    <string name="update_prerelease_title">有预发布版 %1$s</string>
+    <string name="update_prerelease_body">当前是 %1$s。预发布版先给想尝鲜的人试，可能还有问题。下载完会打开系统安装器，覆盖安装，数据都在。</string>
     <string name="update_stop_prompting">不再提示</string>
     <string name="update_ignore">忽略</string>
     <string name="update_download">下载</string>

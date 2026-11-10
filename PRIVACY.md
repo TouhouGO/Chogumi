@@ -7,7 +7,7 @@ Chogumi 是 bgm.tv（Bangumi）的第三方 Android 客户端，由个人维护�
 - 账号、收藏、进度、评论、短信等所有请求都直接发给 bgm.tv 的服务器（`api.bgm.tv`、`next.bgm.tv`、`bgm.tv`），图片从 `lain.bgm.tv` 取。
 - 每日放送与首页的放送时刻取自 bangumi-data 在 GitHub 上的公开数据文件（`raw.githubusercontent.com`），这个请求不带任何账号信息，由 GitHub 按其隐私政策处理。
 - 帖子正文里的图片按作者写的地址加载，那个地址可能在 bgm.tv 之外。
-- 检查更新（设置 › 更新，默认按天自动检查，可以关掉）：从 GitHub 读最新正式版的版本信息（`github.com`），有新版时再取那一版的更新说明（`api.github.com`）；点「下载」时安装包从 GitHub 下载（`github.com` 跳转到 GitHub 的文件服务器 `*.githubusercontent.com`）。这些请求不带任何账号信息，由 GitHub 按其隐私政策处理。
+- 检查更新（设置 › 更新，默认按天自动检查，可以关掉）：从 GitHub 读最新正式版的版本信息（`github.com`），有新版时再取那一版的更新说明（`api.github.com`）；开了「接收预发布版」时，版本信息与更新说明改从 GitHub 接口最近发布的几个版本里读（`api.github.com`）；点「下载」时安装包从 GitHub 下载（`github.com` 跳转到 GitHub 的文件服务器 `*.githubusercontent.com`）。这些请求不带任何账号信息，由 GitHub 按其隐私政策处理。
 - 换头像：只读你在系统选图器里选的那一张图，在本机裁成正方形、压小之后上传到 `bgm.tv`；不读相册里的其他图片，也不要存储权限。
 - 在站内发布内容时，bgm.tv 要求通过 Cloudflare Turnstile 人机验证：验证页面在 App 内的 WebView 中从 `challenges.cloudflare.com` 加载，由 Cloudflare 按其隐私政策处理。
 - 没有统计、广告、崩溃上报或任何第三方 SDK 向别处发送数据。开发者收不到任何使用数据。
