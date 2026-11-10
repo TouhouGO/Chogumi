@@ -56,6 +56,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -70,6 +72,8 @@ import org.koin.core.qualifier.named
  *
  * 只排一个闹钟：下一条该发的那一刻（系统允许推迟，省电时会晚到）。闹钟响、每小时的 [AiringReminderWorker]、设置变了、App 启动都跑一次
  * [run]：到点的发（记进 [SystemNoticeLedger]，一条只发一次）、排下一次。[watch] 跟着开关与账号：关掉、登出时取消、撤掉已发的；换号时撤掉上一个账号的。
+ *
+ * 一次跑与一次撤一个接一个（[lock]）：几处同时跑会读到同一份「还没发」各发一遍；撤掉之后，在途的那次也不会再把通知发回来。
  */
 class AiringReminders internal constructor(
     private val context: Context,
@@ -79,6 +83,8 @@ class AiringReminders internal constructor(
     private val authRepository: AuthRepository,
     private val clock: AppClock,
 ) {
+    private val lock = Mutex()
+
     /** 应用级：一直跟着开关、方式、时刻与账号（App 启动时开始，进程在就在）。 */
     suspend fun watch() {
         authRepository.ensureInitialized()
@@ -92,21 +98,25 @@ class AiringReminders internal constructor(
                 lastAccount = plan.account
                 // 排任务、闹钟、撤通知出错（WorkManager 没起来、系统服务报错）只丢这一拍，跟随接着走
                 outcomeOf {
-                    // 换了号：上一个账号的提醒不留在通知栏里
-                    if (switched) cancelShown()
-                    if (plan.settings.airing && plan.account != null) {
-                        WorkManager.getInstance(context)
-                            .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, AiringReminderWorker.request())
-                        run()
-                    } else {
-                        stop()
+                    lock.withLock {
+                        // 换了号：上一个账号的提醒不留在通知栏里
+                        if (switched) cancelShown()
+                        if (plan.settings.airing && plan.account != null) {
+                            WorkManager.getInstance(context)
+                                .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, AiringReminderWorker.request())
+                            runLocked()
+                        } else {
+                            stop()
+                        }
                     }
                 }
             }
     }
 
     /** 跑一次：到点的发、排下一次闹钟。读不出本机的数据时什么都不动（已排的闹钟留着），下一次再来。 */
-    suspend fun run() {
+    suspend fun run() = lock.withLock { runLocked() }
+
+    private suspend fun runLocked() {
         val settings = (outcomeOf { preferences.notificationSettings.first() } as? Outcome.Success)?.value ?: return
         if (!settings.airing) return
         val calendar = calendarSource.load() as? WidgetCalendar.Ready ?: return

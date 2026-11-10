@@ -188,4 +188,15 @@ class SystemNotificationsTest {
         assertEquals(ZonedDateTime.of(2026, 10, 15, 9, 0, 0, 0, zone).toInstant().toEpochMilli(), lastDailyMillisOf(after, 9 * 60, zone))
         assertEquals(ZonedDateTime.of(2026, 10, 14, 9, 0, 0, 0, zone).toInstant().toEpochMilli(), lastDailyMillisOf(before, 9 * 60, zone))
     }
+
+    @Test
+    fun `夏令时切换那天每天定时的上一次按日历往回退`() {
+        val zone = ZoneId.of("America/New_York")
+        fun at(month: Int, day: Int, hour: Int, minute: Int = 0) = ZonedDateTime.of(2026, month, day, hour, minute, 0, 0, zone).toInstant().toEpochMilli()
+
+        // 3 月 8 日只有 23 小时：9 点整这一刻就是今天的这一次
+        assertEquals(at(3, 8, 9), lastDailyMillisOf(at(3, 8, 9), 9 * 60, zone))
+        // 11 月 1 日有 25 小时：8 点半时今天的 9 点还没到，上一次是昨天的
+        assertEquals(at(10, 31, 9), lastDailyMillisOf(at(11, 1, 8, 30), 9 * 60, zone))
+    }
 }
