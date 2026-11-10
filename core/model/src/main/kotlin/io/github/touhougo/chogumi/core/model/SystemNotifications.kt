@@ -88,23 +88,24 @@ fun noticeChannelOf(kind: NoticeKind): NoticeChannel = when (kind) {
  * 社区提醒的一轮检查得出的事：[post] 是要新发的提醒，[cancel] 是已发、现在不再未读（在 App 或网页上读过）要撤掉的，
  * [baseline] 是下一轮的基线（发过与跳过的最大提醒 id）。
  */
-data class NoticeRound(val post: List<NoticeBo>, val cancel: Set<Int>, val baseline: Int)
+data class NoticeRound(val post: List<NoticeBo>, val cancel: Set<Int>, val baseline: Int, val deferred: Set<Int>)
 
 /**
  * 社区提醒一轮的决定（单一真源纯函数）：[unread] 是服务端此刻的未读提醒，[baseline] 是上一轮记下的基线（这个账号还没有基线时为 null），
  * [shown] 是通知栏里还挂着的提醒 id。
  * - 没有基线（刚打开开关、换了号）：什么都不发，基线记成现有未读里最大的 id：打开那一刻已有的未读不推，免得一下弹一串；
  * - 有基线：id 比基线大、还没挂着的发出去；提醒 id 由服务端递增分配，比基线小的都处理过了；
- * - 挂着的、已经不在未读里的撤掉。
+ * - [complete] 为 true 时，挂着的、已经不在未读里的撤掉；截断的一页不能用缺席证明已读。
  * [suppress] 为 true（App 在前台，角标已经在）时只推进基线、不发。
  */
-fun noticeRoundOf(unread: List<NoticeBo>, baseline: Int?, shown: Set<Int>, suppress: Boolean): NoticeRound {
+fun noticeRoundOf(unread: List<NoticeBo>, baseline: Int?, shown: Set<Int>, suppress: Boolean, complete: Boolean, deferred: Set<Int>): NoticeRound {
     val newest = maxOf(baseline ?: 0, unread.maxOfOrNull { it.id } ?: 0)
     val unreadIds = unread.mapTo(HashSet()) { it.id }
-    val cancel = shown - unreadIds
-    if (baseline == null || suppress) return NoticeRound(post = emptyList(), cancel = cancel, baseline = newest)
-    val post = unread.filter { it.id > baseline && it.id !in shown }.sortedBy { it.id }
-    return NoticeRound(post = post, cancel = cancel, baseline = newest)
+    val cancel = if (complete) shown - unreadIds else emptySet()
+    val retained = if (complete) deferred.intersect(unreadIds) else deferred
+    if (baseline == null || suppress) return NoticeRound(post = emptyList(), cancel = cancel, baseline = newest, deferred = retained - unreadIds)
+    val post = unread.filter { (it.id > baseline || it.id in deferred) && it.id !in shown }.sortedBy { it.id }
+    return NoticeRound(post = post, cancel = cancel, baseline = newest, deferred = retained - shown)
 }
 
 /** 未读短信这一轮怎么处理：发（或改成新的条数）、撤掉、不动。 */

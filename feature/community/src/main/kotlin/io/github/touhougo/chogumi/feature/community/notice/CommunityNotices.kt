@@ -16,6 +16,7 @@ import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.SystemNoticeLedger
 import io.github.touhougo.chogumi.core.data.repository.UnreadSnapshot
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.model.CommunityCheckInterval
 import io.github.touhougo.chogumi.core.model.MessageRound
@@ -34,7 +35,6 @@ import io.github.touhougo.chogumi.core.ui.common.labelRes
 import io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -71,13 +71,11 @@ class CommunityNotices(
         authRepository.ensureInitialized()
         var lastAccount: Int? = null
         combine(
-            preferences.notificationSettings,
-            preferences.appFeatures.map { it.community },
+            preferences.notificationSettings.recoverStorageReads(),
+            preferences.appFeatures.recoverStorageReads().map { it.community },
             accounts(),
         ) { settings, community, account -> Plan(settings.community && community && account != null, settings.interval, account) }
             .distinctUntilChanged()
-            // 读不出本机的设置：跟随到此为止，进程不崩；已排上的检查照常跑，每一轮自己再读一次设置
-            .catch { e -> if (e !is Exception) throw e }
             .collect { plan ->
                 val switched = lastAccount != null && plan.account != lastAccount
                 lastAccount = plan.account
@@ -117,9 +115,16 @@ class CommunityNotices(
      * 不看开关、基线与前台；点开与「标为已读」和真的同一条路。下一轮真的检查会撤掉其中已读的那些。返回发了几条。
      */
     suspend fun postSamples(): Int {
+        val session = when (val captured = authRepository.currentSession()) {
+            is Outcome.Failed -> return 0
+            is Outcome.Success -> captured.value
+        }
         val notices = (notificationRepository.getNotifications(limit = SAMPLE_COUNT) as? Outcome.Success)?.value.orEmpty()
         if (notices.isNotEmpty()) SystemNotices.ensureChannels(context)
-        notices.forEach { SystemNotices.post(context, SystemNotices.NOTICE_TAG, it.id, noticeNotification(it)) }
+        for (notice in notices) {
+            val notification = noticeNotification(notice)
+            authRepository.withSession(session) { SystemNotices.post(context, SystemNotices.NOTICE_TAG, notice.id, notification) }
+        }
         return notices.size
     }
 
@@ -131,26 +136,43 @@ class CommunityNotices(
 
     private suspend fun post(snapshot: UnreadSnapshot) {
         val suppress = foreground.first()
+        val baseline = ledger.noticeBaseline(snapshot.accountId)
+        val deferred = ledger.deferredNotices(snapshot.accountId)
         val round = noticeRoundOf(
             unread = snapshot.notices,
-            baseline = ledger.noticeBaseline(snapshot.accountId),
+            baseline = baseline,
             shown = SystemNotices.shownIds(context, SystemNotices.NOTICE_TAG),
             suppress = suppress,
+            complete = snapshot.complete,
+            deferred = deferred,
         )
-        round.cancel.forEach { SystemNotices.cancel(context, SystemNotices.NOTICE_TAG, it) }
+        notificationRepository.withUnreadSnapshot(snapshot) {
+            round.cancel.forEach { SystemNotices.cancel(context, SystemNotices.NOTICE_TAG, it) }
+        }
         if (round.post.isNotEmpty()) SystemNotices.ensureChannels(context)
-        round.post.forEach { SystemNotices.post(context, SystemNotices.NOTICE_TAG, it.id, noticeNotification(it)) }
+        val pending = round.deferred.toMutableSet()
+        for (notice in round.post) {
+            val notification = noticeNotification(notice)
+            val posted = notificationRepository.withUnreadSnapshot(snapshot) {
+                SystemNotices.post(context, SystemNotices.NOTICE_TAG, notice.id, notification)
+            }
+            if (posted) pending.remove(notice.id) else pending.add(notice.id)
+        }
+        var messageCount = snapshot.messages
         snapshot.messages?.let { count ->
             when (val messages = messageRoundOf(count, ledger.notifiedMessages(snapshot.accountId), suppress)) {
                 is MessageRound.Post -> {
                     SystemNotices.ensureChannels(context)
-                    SystemNotices.post(context, SystemNotices.MESSAGE_TAG, MESSAGE_ID, messageNotification(messages.count))
+                    val posted = notificationRepository.withUnreadSnapshot(snapshot) {
+                        SystemNotices.post(context, SystemNotices.MESSAGE_TAG, MESSAGE_ID, messageNotification(messages.count))
+                    }
+                    if (!posted) messageCount = null
                 }
-                MessageRound.Cancel -> SystemNotices.cancel(context, SystemNotices.MESSAGE_TAG, MESSAGE_ID)
+                MessageRound.Cancel -> notificationRepository.withUnreadSnapshot(snapshot) { SystemNotices.cancel(context, SystemNotices.MESSAGE_TAG, MESSAGE_ID) }
                 MessageRound.Keep -> Unit
             }
         }
-        ledger.recordRound(snapshot.accountId, round.baseline, snapshot.messages)
+        notificationRepository.withUnreadSnapshot(snapshot) { ledger.recordRound(snapshot.accountId, round.baseline, messageCount, pending) }
     }
 
     /**
