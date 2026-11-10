@@ -119,7 +119,7 @@ class NetworkSettingsViewModel(
     val failures = FailureNotices()
 
     private var connectJob: Job? = null
-    private var checkJobs: List<Job> = emptyList()
+    private var checkJob: Job? = null
 
     /** 存下的那一组（连上过的）；草稿还空着时第一次读到就带进输入框。 */
     private var saved: ProxyServer? = null
@@ -169,16 +169,18 @@ class NetworkSettingsViewModel(
 
     override fun onCheck() {
         if (currentState.checking) return
-        checkJobs.forEach { it.cancel() }
-        routeCheck.startRound()
+        checkJob?.cancel()
         updateState { it.copy(check = CheckSite.entries.associateWith { CheckResult.Pending }) }
-        checkJobs = CheckSite.entries.map { site ->
-            viewModelScope.launch {
-                val result = when (val measured = routeCheck.measure(site)) {
-                    is Outcome.Success -> CheckResult.Millis(measured.value)
-                    is Outcome.Failed -> CheckResult.Unreachable
+        checkJob = viewModelScope.launch {
+            routeCheck.startRound()
+            CheckSite.entries.forEach { site ->
+                launch {
+                    val result = when (val measured = routeCheck.measure(site)) {
+                        is Outcome.Success -> CheckResult.Millis(measured.value)
+                        is Outcome.Failed -> CheckResult.Unreachable
+                    }
+                    updateState { state -> state.copy(check = state.check?.plus(site to result)) }
                 }
-                updateState { state -> state.copy(check = state.check?.plus(site to result)) }
             }
         }
     }
@@ -215,7 +217,7 @@ class NetworkSettingsViewModel(
             .distinctUntilChanged()
             .drop(1)
             .onEach {
-                checkJobs.forEach { job -> job.cancel() }
+                checkJob?.cancel()
                 updateState { state -> state.copy(check = null) }
             }
             .launchIn(viewModelScope)
