@@ -50,4 +50,13 @@ class ProxyServerTest {
         listOf("127.0.0.1", "127.8.8.8", "localhost", "::1", "8.8.8.8", "172.32.0.1", "100.128.0.1", "2001:db8::1")
             .forEach { assertEquals("$it 不算局域网", false, needs(it)) }
     }
+
+    @Test
+    fun `IPv4 映射的 IPv6 按里面的 IPv4 判`() {
+        fun needs(host: String) = proxyServerOf(ProxyType.SOCKS5, host, "1080")!!.needsLocalNetwork()
+        listOf("::ffff:192.168.1.5", "::ffff:c0a8:105", "[::ffff:192.168.1.5]", "0:0:0:0:0:ffff:c0a8:105", "::ffff:10.0.0.1")
+            .forEach { assertEquals("$it 算局域网", true, needs(it)) }
+        listOf("::ffff:127.0.0.1", "::ffff:8.8.8.8", "0:0:0:0:0:0:0:1")
+            .forEach { assertEquals("$it 不算局域网", false, needs(it)) }
+    }
 }

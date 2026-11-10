@@ -203,7 +203,13 @@ class NetworkSettingsViewModel(
             saved = server
             if (server != null && currentState.draft == ProxyDraft()) updateState { it.copy(draft = draftOf(server)) }
         }
-        netRoute.activeProxy.onEach { active -> updateState { it.copy(active = active) } }.launchIn(viewModelScope)
+        // 用上的那一组缺局域网权限（冷启动用存下的那一组时，权限可能已在系统设置里被收回）：请求都会失败，不能说已连上，「连接」要能点
+        netRoute.activeProxy.onEach { active ->
+            updateState {
+                val revoked = active != null && it.connecting == ProxyConnecting.IDLE && localNetwork.missing(active)
+                it.copy(active = active, connecting = if (revoked) ProxyConnecting.NO_LOCAL_NETWORK else it.connecting)
+            }
+        }.launchIn(viewModelScope)
         // 线路换了（开关直连或代理、连上另一组代理），上一轮的结果不再说明现在的线路
         combine(netRoute.mode, netRoute.activeProxy) { mode, active -> mode to active }
             .distinctUntilChanged()
