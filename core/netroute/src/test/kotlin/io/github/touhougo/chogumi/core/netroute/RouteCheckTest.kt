@@ -58,12 +58,14 @@ class RouteCheckTest {
         server.start(InetAddress.getLoopbackAddress(), 0)
         try {
             server.enqueue(MockResponse())
+            // 字面的回环 IP：按「localhost」连时，解析出 ::1 与 127.0.0.1 的机器上先试的 ::1 被拒，多关一个套接字
+            val local = server.url("/").newBuilder().host(InetAddress.getLoopbackAddress().hostAddress!!).build()
             val sockets = CloseRecordingSockets()
-            val local = OkHttpCustomizer { builder ->
+            val toLocal = OkHttpCustomizer { builder ->
                 builder.proxy(Proxy.NO_PROXY).socketFactory(sockets)
-                builder.addInterceptor(Interceptor { chain -> chain.proceed(chain.request().newBuilder().url(server.url("/")).build()) })
+                builder.addInterceptor(Interceptor { chain -> chain.proceed(chain.request().newBuilder().url(local).build()) })
             }
-            val check = RouteCheck(listOf(local))
+            val check = RouteCheck(listOf(toLocal))
             assertTrue(check.measure(CheckSite.WEB) is Outcome.Success)
 
             val caller = Thread.currentThread()
