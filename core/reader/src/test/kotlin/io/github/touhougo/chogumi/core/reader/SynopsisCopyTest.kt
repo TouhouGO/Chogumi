@@ -3,6 +3,7 @@ package io.github.touhougo.chogumi.core.reader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.ui.test.TouchInjectionScope
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -38,12 +39,15 @@ class SynopsisCopyTest {
         }
     }
 
+    /** 第二行正文的中间、离链接远：链接的点按区域按最小触控尺寸向外扩，按在它附近的点与长按先被链接接住。 */
+    private fun TouchInjectionScope.bodyPoint() = percentOffset(0.5f, 0.8f)
+
     private fun clip(): String? = clipboard.primaryClip?.getItemAt(0)?.text?.toString()
 
     @Test
     fun 长按简介_复制去掉标记的全文() {
         show()
-        composeRule.onNodeWithTag(SynopsisTag).performTouchInput { longClick(percentOffset(0.05f, 0.8f)) }
+        composeRule.onNodeWithTag(SynopsisTag).performTouchInput { longClick(bodyPoint()) }
         composeRule.runOnIdle {
             assertEquals("出自原作\n粗体与链接", clip())
             assertEquals(0, toggles)
@@ -53,7 +57,7 @@ class SynopsisCopyTest {
     @Test
     fun 点简介_切换折叠不复制() {
         show()
-        composeRule.onNodeWithTag(SynopsisTag).performTouchInput { click(percentOffset(0.05f, 0.8f)) }
+        composeRule.onNodeWithTag(SynopsisTag).performTouchInput { click(bodyPoint()) }
         composeRule.runOnIdle {
             assertEquals(1, toggles)
             assertEquals(BEFORE, clip())
