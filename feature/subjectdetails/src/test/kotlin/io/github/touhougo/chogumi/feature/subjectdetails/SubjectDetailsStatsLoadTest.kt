@@ -1,18 +1,19 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
-import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
-
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleDao
+import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleEntity
 import io.github.touhougo.chogumi.core.data.mark.StillCollectionMarker
 import io.github.touhougo.chogumi.core.data.progress.CommitGate
+import io.github.touhougo.chogumi.core.data.repository.ConcurrentRequestRecorder
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeDao
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeWatchStateDao
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectSectionDao
 import io.github.touhougo.chogumi.core.data.repository.FakeUserCollectionDao
-import io.github.touhougo.chogumi.core.data.repository.ConcurrentRequestRecorder
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.TestMain
 import io.github.touhougo.chogumi.core.data.repository.TestPreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.WAIT_BUDGET_MS
@@ -25,6 +26,7 @@ import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.testing.testAppTime
 import io.github.touhougo.chogumi.core.model.CollectionType
+import io.github.touhougo.chogumi.core.model.defaultStatsLayout
 import io.github.touhougo.chogumi.core.network.api.CollectionApi
 import io.github.touhougo.chogumi.core.network.api.NextApi
 import io.github.touhougo.chogumi.core.network.api.SubjectApi
@@ -41,11 +43,14 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.runBlocking
@@ -109,6 +114,19 @@ class SubjectDetailsStatsLoadTest {
             (stats.ratingSplit as Load.Ready).value.byCollection[CollectionType.DONE],
         )
         assertEquals(listOf("https://bgm.tv/subject/8/stats"), webPages.toList())
+    }
+
+    @Test
+    fun `统计布局读到之前页面状态里没有布局，读到之后才有`() = runBlocking<Unit> {
+        val rows = MutableStateFlow<List<StatsModuleEntity>?>(null)
+        openPage(statsDao = object : StatsModuleDao by FakeStatsModuleDao() {
+            override fun observe() = rows.filterNotNull()
+        })
+        withTimeout(WAIT_BUDGET_MS) { vm.uiState.first { it.subject != null } }
+
+        assertNull(vm.uiState.value.statsLayout, "布局还没读到：不先给默认布局（改过布局的人会先看到默认的再整体重排）")
+        rows.value = emptyList()
+        assertEquals(defaultStatsLayout(), withTimeout(WAIT_BUDGET_MS) { vm.uiState.first { it.statsLayout != null } }.statsLayout)
     }
 
     @Test
@@ -231,7 +249,11 @@ class SubjectDetailsStatsLoadTest {
         return withTimeoutOrNull(WAIT_BUDGET_MS) { nineReleased.await() } != null
     }
 
-    private suspend fun openPage(savedState: SavedStateHandle = SavedStateHandle(), sections: FakeSubjectSectionDao = FakeSubjectSectionDao()) {
+    private suspend fun openPage(
+        savedState: SavedStateHandle = SavedStateHandle(),
+        sections: FakeSubjectSectionDao = FakeSubjectSectionDao(),
+        statsDao: StatsModuleDao = FakeStatsModuleDao(),
+    ) {
         val json = headersOf("Content-Type", "application/json")
         client = resources.apiClient(
             MockEngine { request ->
@@ -281,7 +303,7 @@ class SubjectDetailsStatsLoadTest {
                 8, subRepo, collRepo.store, collRepo.observer, collRepo.watchStates, collRepo.editing(subRepo, orchestrator),
                 collRepo.epTapCoordinator(orchestrator, scope, { 0L }, CommitGate(open = true)::await),
                 prefs.repository, testAppTime(System.currentTimeMillis()), StillCollectionMarker(), savedState,
-            statsLayouts = StatsLayoutRepository(FakeStatsModuleDao()),
+            statsLayouts = StatsLayoutRepository(statsDao),
         )
         }
     }

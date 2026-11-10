@@ -46,7 +46,7 @@ fun ArrangeBar(onAdd: () -> Unit, onDone: () -> Unit, modifier: Modifier = Modif
             Icon(painterResource(R.drawable.add_24), contentDescription = addLabel)
         }
         FilledIconButton(onClick = onDone, modifier = Modifier.testTag("${tagPrefix}_done")) {
-            Icon(painterResource(R.drawable.check_24), contentDescription = stringResource(R.string.explore_arrange_done))
+            Icon(painterResource(R.drawable.check_24), contentDescription = stringResource(R.string.arrange_done))
         }
     }
 }

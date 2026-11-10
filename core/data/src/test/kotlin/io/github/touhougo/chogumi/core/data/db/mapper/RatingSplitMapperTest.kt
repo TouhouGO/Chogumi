@@ -2,12 +2,12 @@ package io.github.touhougo.chogumi.core.data.db.mapper
 
 import io.github.touhougo.chogumi.core.model.AirPhase
 import io.github.touhougo.chogumi.core.model.CollectionType
-import io.github.touhougo.chogumi.core.network.model.web.StatsChartSet
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
+import io.github.touhougo.chogumi.core.network.model.web.StatsChartSet
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 
 class RatingSplitMapperTest {
 

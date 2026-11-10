@@ -12,6 +12,7 @@ import io.github.touhougo.chogumi.core.data.image.AvatarImages
 import io.github.touhougo.chogumi.core.data.image.DeviceAvatarImages
 import io.github.touhougo.chogumi.core.data.mark.CollectionMarkCoordinator
 import io.github.touhougo.chogumi.core.data.progress.EpTapCoordinator
+import io.github.touhougo.chogumi.core.data.repository.AccountMe
 import io.github.touhougo.chogumi.core.data.repository.AiringTimeRepository
 import io.github.touhougo.chogumi.core.data.repository.AuthRepository
 import io.github.touhougo.chogumi.core.data.repository.BlockedUsersFeed
@@ -29,7 +30,6 @@ import io.github.touhougo.chogumi.core.data.repository.CommunityRepositoryImpl
 import io.github.touhougo.chogumi.core.data.repository.DataStoreSyncPreferenceStore
 import io.github.touhougo.chogumi.core.data.repository.DisplayScaleRepository
 import io.github.touhougo.chogumi.core.data.repository.DraftRepository
-import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.ExploreLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.FriendsRepository
 import io.github.touhougo.chogumi.core.data.repository.GroupMuteRepository
@@ -48,11 +48,11 @@ import io.github.touhougo.chogumi.core.data.repository.NsfwPreferenceSynchronize
 import io.github.touhougo.chogumi.core.data.repository.OtherCareerDataSource
 import io.github.touhougo.chogumi.core.data.repository.OtherUserCollectionsCache
 import io.github.touhougo.chogumi.core.data.repository.PmRepository
-import io.github.touhougo.chogumi.core.data.repository.AccountMe
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.ProgressOrchestrator
 import io.github.touhougo.chogumi.core.data.repository.SearchRepository
 import io.github.touhougo.chogumi.core.data.repository.SmileyAssetStore
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectCommunityRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectCommunityRepositoryImpl
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository

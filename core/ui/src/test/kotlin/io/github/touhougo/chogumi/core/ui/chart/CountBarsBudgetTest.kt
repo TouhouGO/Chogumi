@@ -8,11 +8,11 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
-import kotlin.test.assertTrue
 
 /** 长篇章节的柱与点按区也必须落在宽度预算内。 */
 @RunWith(AndroidJUnit4::class)

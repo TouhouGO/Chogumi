@@ -1,7 +1,5 @@
 package io.github.touhougo.chogumi.feature.explore
 
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
-import io.github.touhougo.chogumi.core.ui.arrange.arrangeOnLongPress
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -29,6 +27,8 @@ import io.github.touhougo.chogumi.core.model.WorkShelfStyle
 import io.github.touhougo.chogumi.core.model.effectiveSort
 import io.github.touhougo.chogumi.core.model.isTagBrowse
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
+import io.github.touhougo.chogumi.core.ui.arrange.arrangeOnLongPress
 import io.github.touhougo.chogumi.core.ui.composables.COVER_STACK_COUNT
 import io.github.touhougo.chogumi.core.ui.composables.CoverStack
 import io.github.touhougo.chogumi.core.ui.composables.CoverStackSize

@@ -1,7 +1,5 @@
 package io.github.touhougo.chogumi.feature.explore
 
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeMachine
 import io.github.touhougo.chogumi.core.common.notice.FailureNotices
 import io.github.touhougo.chogumi.core.data.repository.ExploreLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.TagCatalogRepository
@@ -26,13 +24,15 @@ import io.github.touhougo.chogumi.core.model.WorkShelfEntry
 import io.github.touhougo.chogumi.core.model.WorkShelfSource
 import io.github.touhougo.chogumi.core.model.WorkShelfStyle
 import io.github.touhougo.chogumi.core.model.concreteOrNull
-import io.github.touhougo.chogumi.core.model.isPinnable
 import io.github.touhougo.chogumi.core.model.defaultTileKeys
+import io.github.touhougo.chogumi.core.model.isPinnable
 import io.github.touhougo.chogumi.core.model.reordered
 import io.github.touhougo.chogumi.core.model.withShown
 import io.github.touhougo.chogumi.core.model.withTileShelfSaved
 import io.github.touhougo.chogumi.core.model.withWorkShelfSaved
 import io.github.touhougo.chogumi.core.model.words
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeMachine
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

@@ -2,9 +2,9 @@ package io.github.touhougo.chogumi.core.data.db.mapper
 
 import io.github.touhougo.chogumi.core.model.AirPhase
 import io.github.touhougo.chogumi.core.model.CollectionType
+import io.github.touhougo.chogumi.core.model.REGDATE_GROUPS
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
 import io.github.touhougo.chogumi.core.model.TOTAL_COLLECT_GROUPS
-import io.github.touhougo.chogumi.core.model.REGDATE_GROUPS
 import io.github.touhougo.chogumi.core.network.model.web.StatsChartSet
 
 /** 透视页按打分人收藏状态拆的那张图；组编号就是收藏状态的接口值（1 想看 … 5 抛弃）。 */

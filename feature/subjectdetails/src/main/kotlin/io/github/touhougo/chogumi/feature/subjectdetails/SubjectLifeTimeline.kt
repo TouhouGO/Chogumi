@@ -26,11 +26,11 @@ import io.github.touhougo.chogumi.core.model.formatEpisodeSort
 import io.github.touhougo.chogumi.core.model.statistics.LifelineCard
 import io.github.touhougo.chogumi.core.model.statistics.PaceUnit
 import io.github.touhougo.chogumi.core.res.R
-import io.github.touhougo.chogumi.core.ui.chart.chartFractions
-import io.github.touhougo.chogumi.core.ui.chart.chartFraction
 import io.github.touhougo.chogumi.core.ui.chart.ChartLayout
 import io.github.touhougo.chogumi.core.ui.chart.ChartMark
 import io.github.touhougo.chogumi.core.ui.chart.TapChart
+import io.github.touhougo.chogumi.core.ui.chart.chartFraction
+import io.github.touhougo.chogumi.core.ui.chart.chartFractions
 import io.github.touhougo.chogumi.core.ui.chart.keepSeparated
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonBox
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPoster

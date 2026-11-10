@@ -8,10 +8,10 @@ import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.StatsDrawing
 import io.github.touhougo.chogumi.core.model.StatsModule
+import io.github.touhougo.chogumi.core.model.newStatsModule
 import io.github.touhougo.chogumi.core.model.reorderedStats
 import io.github.touhougo.chogumi.core.model.withStatsModule
 import io.github.touhougo.chogumi.core.model.withoutStatsModule
-import io.github.touhougo.chogumi.core.model.newStatsModule
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeMachine
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import kotlinx.coroutines.CoroutineScope

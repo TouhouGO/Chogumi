@@ -1,8 +1,8 @@
 package io.github.touhougo.chogumi.core.ui
 
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeMachine
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeSheet
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

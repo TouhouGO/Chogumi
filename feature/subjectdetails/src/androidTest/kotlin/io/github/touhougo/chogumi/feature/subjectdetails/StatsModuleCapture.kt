@@ -1,36 +1,42 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
-import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
-import io.github.touhougo.chogumi.core.common.notice.FailureNotices
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
-import io.github.touhougo.chogumi.core.model.StatsDrawing
-import io.github.touhougo.chogumi.core.model.StatsData
-import io.github.touhougo.chogumi.core.model.SubjectSeries
-import io.github.touhougo.chogumi.core.model.SubjectRelationBo
-import io.github.touhougo.chogumi.core.foundation.Load
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
+import io.github.touhougo.chogumi.core.common.notice.FailureNotices
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
+import io.github.touhougo.chogumi.core.foundation.Load
+import io.github.touhougo.chogumi.core.model.AppFeatures
+import io.github.touhougo.chogumi.core.model.StatsData
+import io.github.touhougo.chogumi.core.model.StatsDrawing
 import io.github.touhougo.chogumi.core.model.StatsModule
+import io.github.touhougo.chogumi.core.model.SubjectRelationBo
+import io.github.touhougo.chogumi.core.model.SubjectSeries
 import io.github.touhougo.chogumi.core.model.defaultStatsLayout
+import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCard
+import io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCell
 import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
 import io.github.touhougo.chogumi.core.ui.testing.PageSheetTestHost
 import io.github.touhougo.chogumi.core.ui.testing.VisualCapture
@@ -50,7 +56,7 @@ class StatsModuleCapture {
     private var arrange by mutableStateOf(ArrangeState<StatsEditor>())
     private var selectedModule by mutableStateOf<StatsModule?>(null)
     private var actualArranger: StatsArranger? = null
-    private var captureList: androidx.compose.foundation.lazy.LazyListState? = null
+    private var captureList: LazyListState? = null
 
     @Test
     fun 默认加满整理编辑添加与标签收展() {
@@ -62,10 +68,10 @@ class StatsModuleCapture {
                         val repository = remember { StatsLayoutRepository(FakeStatsModuleDao()) }
                         val arranger = remember { StatsArranger(scope, repository, { arrange }, { arrange = it(arrange) }, { defaultStatsLayout() }, FailureNotices()) }
                         actualArranger = arranger
-                        StatsArrangeSheets(arrange, arranger, tab)
+                        StatsArrangeSheets(arrange, arranger, tab, snackbar = null)
                         when (mode) {
                             "default", "all" -> {
-                                val state = androidx.compose.foundation.lazy.rememberLazyListState()
+                                val state = rememberLazyListState()
                                 captureList = state
                                 LazyColumn(Modifier.fillMaxSize(), state = state) {
                                 val rows = if (mode == "default") defaultStatsLayout() else StatsData.entries.flatMap { data -> data.drawings.map { StatsModule("${data.name}:${it.name}", data, it) } }
@@ -76,8 +82,8 @@ class StatsModuleCapture {
                                 Column(Modifier.padding(vertical = 6.dp)) { StatsModuleBlock(module, tab.copy(series = Load.Ready(SubjectSeries(emptyList(), listOf(SubjectRelationBo(110467, subject.type, "系列示例", "", relationId = 3, score = 8.7))))), {}, {}, {}, {}, {}, {}) }
                             }
                             "long" -> Column {
-                                val cells = List(100) { io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCell(it + 1, (it + 1).toDouble(), it + 1, false) }
-                                val heat = io.github.touhougo.chogumi.core.model.statistics.EpisodeHeatCard(cells)
+                                val cells = List(100) { EpisodeHeatCell(it + 1, (it + 1).toDouble(), it + 1, false) }
+                                val heat = EpisodeHeatCard(cells)
                                 StatsModuleBlock(StatsModule("long", StatsData.EPISODE_DISCUSSION, StatsDrawing.EPISODE_BARS),
                                     tab.copy(episodeHeat = Load.Ready(heat)), {}, {}, {}, {}, {}, {})
                             }
@@ -87,13 +93,13 @@ class StatsModuleCapture {
                             }
                             "edit", "add" -> Unit
                             "tags" -> SubjectDetailsHeader(subject, 24.dp,
-                                io.github.touhougo.chogumi.core.model.AppFeatures(true, true, true, true), {}, {}, {})
+                                AppFeatures(true, true, true, true), {}, {}, {})
                         }
                     }
                 }
             }
         }
-        val width = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
+        val width = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
         for (isDark in listOf(false, true)) {
             compose.runOnIdle { dark = isDark }
             for (screen in listOf("default", "all", "long", "arrange", "edit", "add", "tags")) {

@@ -845,7 +845,7 @@
     <string name="explore_arrange_title">Arrange sections</string>
     <string name="explore_arrange_enter">Arrange sections</string>
     <string name="explore_arrange_add">Add section</string>
-    <string name="explore_arrange_done">Done</string>
+    <string name="arrange_done">Done</string>
     <string name="explore_arrange_empty">No sections on this page. Add some with Add section</string>
     <string name="explore_shelf_edit">Edit section</string>
     <string name="explore_shelf_new_works">New works section</string>
@@ -1603,4 +1603,14 @@
     <plurals name="stats_group_tip"><item quantity="one">%1$s: mean %2$s (%3$d voter)</item><item quantity="other">%1$s: mean %2$s (%3$d voters)</item></plurals>
     <plurals name="stats_tag_expand_description"><item quantity="one">Expand all %1$d tag</item><item quantity="other">Expand all %1$d tags</item></plurals>
     <plurals name="stats_track_tip"><item quantity="one">Track %1$s: %2$d comment</item><item quantity="other">Track %1$s: %2$d comments</item></plurals>
+    <string name="stats_dots_tip">Score %1$d: %2$d%%</string>
+    <string name="stats_ridge_reference">If everyone agreed</string>
+    <string name="stats_collect_over">Over %1$d</string>
+    <string name="stats_regdate_days">%1$dd</string>
+    <string name="stats_regdate_months">%1$dmo</string>
+    <string name="stats_regdate_years">%1$dy</string>
+    <string name="stats_regdate_over_years">&gt;%1$dy</string>
+    <string name="stats_regdate_within">Within %1$s</string>
+    <string name="stats_layout_empty">No stats modules to show for this work</string>
+    <plurals name="stats_collection_tip"><item quantity="one">%1$s: %2$d person (%3$s)</item><item quantity="other">%1$s: %2$d people (%3$s)</item></plurals>
 </resources>

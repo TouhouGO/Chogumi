@@ -7,19 +7,19 @@ import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.EpisodeBo
 import io.github.touhougo.chogumi.core.model.EpisodeStatus
 import io.github.touhougo.chogumi.core.model.EpisodeTracking
+import io.github.touhougo.chogumi.core.model.REGDATE_GROUPS
+import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
 import io.github.touhougo.chogumi.core.model.SubjectRelationBo
 import io.github.touhougo.chogumi.core.model.SubjectSeries
-import io.github.touhougo.chogumi.core.model.collectionCountOf
-import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.TOTAL_COLLECT_GROUPS
-import io.github.touhougo.chogumi.core.model.REGDATE_GROUPS
 import io.github.touhougo.chogumi.core.model.TagBo
+import io.github.touhougo.chogumi.core.model.collectionCountOf
 import java.time.LocalDate
-import kotlin.math.sqrt
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.sqrt
 
 // 作品详情「统计」tab 的各张卡（唯一计算处）：界面只画这里的结果，一张卡没有数据就是 null，整张不画。
 
@@ -34,7 +34,7 @@ fun subjectStatsVisible(ratingTotal: Int?, features: AppFeatures): Boolean =
     features.publicRatings && (ratingTotal == null || ratingTotal >= STATS_MIN_RATINGS)
 
 /** 一组人的平均分。 */
-data class GroupMean<K>(val group: K, val mean: Double, val count: Int = 0, val counts: List<Int> = emptyList())
+data class GroupMean<K>(val group: K, val mean: Double, val count: Int, val counts: List<Int>)
 
 /** 人群维度最少20票；统计 tab 本身的10票门槛独立保留。 */
 const val STATS_MIN_GROUP_RATINGS = 20
@@ -129,11 +129,11 @@ data class SubjectStats(
     val episodeHeat: EpisodeHeatCard?,
     val lifeline: LifelineCard?,
     val flow: FlowCard?,
-    val controversy: RatingControversy? = null,
-    val airPhases: List<GroupMean<AirPhase>> = emptyList(),
-    val totalCollects: List<GroupMean<Int>> = emptyList(),
-    val regdate: List<GroupMean<Int>> = emptyList(),
-    val tags: List<TagBo> = emptyList(),
+    val controversy: RatingControversy?,
+    val airPhases: List<GroupMean<AirPhase>>,
+    val totalCollects: List<GroupMean<Int>>,
+    val regdate: List<GroupMean<Int>>,
+    val tags: List<TagBo>,
 )
 
 /**

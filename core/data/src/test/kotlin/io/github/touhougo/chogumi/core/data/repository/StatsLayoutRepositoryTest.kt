@@ -6,11 +6,11 @@ import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.StatsDrawing
 import io.github.touhougo.chogumi.core.model.defaultStatsLayout
 import io.github.touhougo.chogumi.core.model.newStatsModule
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 
 class StatsLayoutRepositoryTest {
     private val dao = FakeStatsModuleDao()

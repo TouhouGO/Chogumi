@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.test.platform.app.InstrumentationRegistry
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.model.FixedWorkShelf
 import io.github.touhougo.chogumi.core.model.SubjectBo
@@ -48,7 +49,7 @@ class ExploreArrangeCapture {
                 }
             }
         }
-        val width = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
+        val width = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
         listOf(false, true).forEach {
             compose.runOnIdle { dark = it }
             compose.waitForIdle()

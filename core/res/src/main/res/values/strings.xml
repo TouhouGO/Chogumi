@@ -907,7 +907,7 @@
     <string name="explore_arrange_title">整理模块</string>
     <string name="explore_arrange_enter">整理模块</string>
     <string name="explore_arrange_add">添加模块</string>
-    <string name="explore_arrange_done">完成</string>
+    <string name="arrange_done">完成</string>
     <string name="explore_arrange_empty">这一页没有模块，从「添加模块」放上来</string>
     <string name="explore_shelf_edit">编辑模块</string>
     <string name="explore_shelf_new_works">新建作品模块</string>
@@ -1606,4 +1606,14 @@
     <plurals name="stats_group_tip"><item quantity="other">%1$s：均分 %2$s（%3$d 人）</item></plurals>
     <plurals name="stats_tag_expand_description"><item quantity="other">展开全部 %1$d 个标签</item></plurals>
     <plurals name="stats_track_tip"><item quantity="other">第 %1$s 首：%2$d 条讨论</item></plurals>
+    <string name="stats_dots_tip">%1$d 分：%2$d%%</string>
+    <string name="stats_ridge_reference">意见一致时</string>
+    <string name="stats_collect_over">%1$d 以上</string>
+    <string name="stats_regdate_days">%1$d天</string>
+    <string name="stats_regdate_months">%1$d月</string>
+    <string name="stats_regdate_years">%1$d年</string>
+    <string name="stats_regdate_over_years">&gt;%1$d年</string>
+    <string name="stats_regdate_within">%1$s以内</string>
+    <string name="stats_layout_empty">这部作品没有能显示的统计模块</string>
+    <plurals name="stats_collection_tip"><item quantity="other">%1$s：%2$d 人（%3$s）</item></plurals>
 </resources>

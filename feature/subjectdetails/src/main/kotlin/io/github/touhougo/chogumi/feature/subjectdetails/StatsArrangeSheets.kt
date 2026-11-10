@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,13 +33,13 @@ import io.github.touhougo.chogumi.core.ui.composables.FormTextField
 
 /** 通用整理面板的统计调用方，只提供数据目录、名字和真实画法，不复制骨架。 */
 @Composable
-internal fun StatsArrangeSheets(state: ArrangeState<StatsEditor>, arranger: StatsArranger, tab: SubjectStatsTab?, snackbar: SnackbarHostState? = null) {
+internal fun StatsArrangeSheets(state: ArrangeState<StatsEditor>, arranger: StatsArranger, tab: SubjectStatsTab?, snackbar: SnackbarHostState?) {
     if (tab == null) return
     if (state.adding) {
         val choices = StatsData.entries.filter { it in tab.availableData() }
         val details = choices.associateWith { data -> data.drawings.map { it.label() }.joinToString("、") }
         ArrangeAddSheet(stringResource(R.string.stats_arrange_add), state.closing == ArrangeSheet.ADDING,
-            arranger.machine::addingClosed, action = { Button(onClick = arranger.machine::finishAdding) { Text(stringResource(R.string.explore_arrange_done)) } }, tag = "stats_add_list", snackbar = snackbar) {
+            arranger.machine::addingClosed, action = { Button(onClick = arranger.machine::finishAdding) { Text(stringResource(R.string.arrange_done)) } }, tag = "stats_add_list", snackbar = snackbar) {
             itemsIndexed(choices, key = { _, data -> data.name }) { index, data ->
                 ArrangeChoiceRow(index, choices.size, statsDataName(data, tab.subject.type), details[data], { arranger.add(data) },
                     modifier = Modifier.testTag("stats_add_${data.name}"), leading = { StatsModuleLead(data) },

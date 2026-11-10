@@ -1,8 +1,5 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
-import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
-
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import io.github.touhougo.chogumi.core.common.notice.NoticeText
@@ -10,9 +7,11 @@ import io.github.touhougo.chogumi.core.data.mark.StillCollectionMarker
 import io.github.touhougo.chogumi.core.data.progress.CommitGate
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeDao
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeWatchStateDao
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectSectionDao
 import io.github.touhougo.chogumi.core.data.repository.FakeUserCollectionDao
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.TestMain
 import io.github.touhougo.chogumi.core.data.repository.TestPreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.awaitUntil

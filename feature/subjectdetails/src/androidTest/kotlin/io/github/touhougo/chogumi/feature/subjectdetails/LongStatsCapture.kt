@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.test.platform.app.InstrumentationRegistry
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.StatsDrawing
@@ -40,7 +41,7 @@ class LongStatsCapture {
                 }
             }
         }
-        val width = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
+        val width = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.screenWidthDp
         for (value in listOf(false, true)) {
             compose.runOnIdle { dark = value }
             compose.waitForIdle()

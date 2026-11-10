@@ -1,9 +1,5 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
-import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
-
-import java.util.concurrent.atomic.AtomicInteger
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import io.github.touhougo.chogumi.core.common.notice.NoticeText
@@ -12,16 +8,18 @@ import io.github.touhougo.chogumi.core.data.db.subject.SubjectEntity
 import io.github.touhougo.chogumi.core.data.mark.StillCollectionMarker
 import io.github.touhougo.chogumi.core.data.progress.CommitGate
 import io.github.touhougo.chogumi.core.data.progress.EpTapCoordinator
-import io.github.touhougo.chogumi.core.data.repository.TestCollections
 import io.github.touhougo.chogumi.core.data.repository.ConcurrentRequestRecorder
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeDao
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeWatchStateDao
+import io.github.touhougo.chogumi.core.data.repository.FakeStatsModuleDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectDao
 import io.github.touhougo.chogumi.core.data.repository.FakeSubjectSectionDao
 import io.github.touhougo.chogumi.core.data.repository.FakeUserCollectionDao
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.ProgressOrchestrator
+import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository
+import io.github.touhougo.chogumi.core.data.repository.TestCollections
 import io.github.touhougo.chogumi.core.data.repository.TestMain
 import io.github.touhougo.chogumi.core.data.repository.TestPreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.WAIT_BUDGET_MS
@@ -32,8 +30,8 @@ import io.github.touhougo.chogumi.core.data.repository.testSubjectRepository
 import io.github.touhougo.chogumi.core.data.repository.testTokenStore
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.foundation.orEmpty
-import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.foundation.testing.testAppTime
+import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.model.CollectionEdits
 import io.github.touhougo.chogumi.core.model.CollectionProgress
 import io.github.touhougo.chogumi.core.model.CollectionType
@@ -55,6 +53,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test

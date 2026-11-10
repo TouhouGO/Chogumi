@@ -10,9 +10,6 @@ import io.github.touhougo.chogumi.core.data.progress.ProgressSubject
 import io.github.touhougo.chogumi.core.data.repository.CollectionObserver
 import io.github.touhougo.chogumi.core.data.repository.CollectionStore
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
-import io.github.touhougo.chogumi.core.model.StatsModule
-import io.github.touhougo.chogumi.core.model.defaultStatsLayout
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import io.github.touhougo.chogumi.core.data.repository.StatsLayoutRepository
 import io.github.touhougo.chogumi.core.data.repository.SubjectRepository
 import io.github.touhougo.chogumi.core.data.repository.WatchStateStore
@@ -37,6 +34,7 @@ import io.github.touhougo.chogumi.core.model.EpisodeStatus
 import io.github.touhougo.chogumi.core.model.EpisodeTracking
 import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
 import io.github.touhougo.chogumi.core.model.RelatedPersonBo
+import io.github.touhougo.chogumi.core.model.StatsModule
 import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.SubjectInfoPartition
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
@@ -44,11 +42,13 @@ import io.github.touhougo.chogumi.core.model.SubjectRelationBo
 import io.github.touhougo.chogumi.core.model.SubjectSeries
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.UserCollectionBo
+import io.github.touhougo.chogumi.core.model.defaultStatsLayout
 import io.github.touhougo.chogumi.core.model.displayNameOf
 import io.github.touhougo.chogumi.core.model.statistics.subjectStatsOf
 import io.github.touhougo.chogumi.core.model.subjectInfoPartition
 import io.github.touhougo.chogumi.core.model.subjectTypeSpec
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeState
 import io.github.touhougo.chogumi.core.ui.collection.CollectionSheetController
 import io.github.touhougo.chogumi.core.ui.collection.CollectionSheetState
 import io.github.touhougo.chogumi.core.ui.collection.CollectionWorkSource
@@ -128,7 +128,7 @@ data class SubjectDetailsUiState(
      */
     val features: AppFeatures = AppFeatures(community = true, publicRatings = true, coverScores = true, friendMarks = true),
     val isRefreshing: Boolean = false,
-    val statsLayoutLoad: Load<List<StatsModule>> = Load.Ready(defaultStatsLayout()),
+    val statsLayoutLoad: Load<List<StatsModule>> = Load.Pending,
     val statsArrange: ArrangeState<StatsEditor> = ArrangeState(),
     /** 收藏面板（开没开、暂存的修改、保存在途），只由 [CollectionSheetController] 改。 */
     val collectionSheet: CollectionSheetState = CollectionSheetState(),
@@ -140,7 +140,13 @@ data class SubjectDetailsUiState(
     /** 关联作品海报的长按标记（标的是关联的那一部），只由 [SubjectDetailsViewModel.posterMarks] 改。 */
     val posterMarks: PosterMarkState = PosterMarkState(),
 ) {
-    val statsLayout: List<StatsModule> get() = statsLayoutLoad.valueOrNull() ?: defaultStatsLayout()
+    /** 统计 tab 的模块布局：读到之前为 null（画骨架，不先画默认布局再整体重排）；读不出来退回默认布局。 */
+    val statsLayout: List<StatsModule>?
+        get() = when (statsLayoutLoad) {
+            Load.Pending -> null
+            is Load.Failed -> defaultStatsLayout()
+            is Load.Ready -> statsLayoutLoad.value
+        }
 
     val subject: SubjectBo? get() = subjectLoad.valueOrNull()
 
@@ -269,7 +275,7 @@ class SubjectDetailsViewModel(
     internal val statsArranger = StatsArranger(viewModelScope, statsLayouts,
         read = { currentState.statsArrange },
         write = { change -> updateState { it.copy(statsArrange = change(it.statsArrange)) } },
-        currentLayout = { currentState.statsLayout }, failures = failures)
+        currentLayout = { currentState.statsLayout.orEmpty() }, failures = failures)
 
     init {
         launchSection("stats-layout", failures, { statsLayouts.observe().storageAsLoad() }, { it.statsLayoutLoad }) { copy(statsLayoutLoad = it) }

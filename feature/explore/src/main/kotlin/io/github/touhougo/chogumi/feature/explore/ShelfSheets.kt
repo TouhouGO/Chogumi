@@ -1,13 +1,5 @@
 package io.github.touhougo.chogumi.feature.explore
 
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeSheet
-
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeAddSheet
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeChoiceRow
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeEditorSheet
-import io.github.touhougo.chogumi.core.ui.arrange.EditorSection
-import io.github.touhougo.chogumi.core.ui.arrange.RemoveEntryButton
-import io.github.touhougo.chogumi.core.ui.arrange.StyleOptions
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,11 +20,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,6 +52,13 @@ import io.github.touhougo.chogumi.core.model.shelfTitleOf
 import io.github.touhougo.chogumi.core.model.tileCandidates
 import io.github.touhougo.chogumi.core.model.tileDrawingsFor
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeAddSheet
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeChoiceRow
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeEditorSheet
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeSheet
+import io.github.touhougo.chogumi.core.ui.arrange.EditorSection
+import io.github.touhougo.chogumi.core.ui.arrange.RemoveEntryButton
+import io.github.touhougo.chogumi.core.ui.arrange.StyleOptions
 import io.github.touhougo.chogumi.core.ui.composables.BusyButton
 import io.github.touhougo.chogumi.core.ui.composables.ConnectedChoiceGroup
 import io.github.touhougo.chogumi.core.ui.composables.FormTextField
@@ -334,7 +333,7 @@ private fun AddShelfSheet(
     val choices = remember(type, layout.shelfLayout) { shelfChoicesFor(type, layout.shelfLayout) }
     ArrangeAddSheet(
         title = stringResource(R.string.explore_arrange_add), onDismiss = arranger::addingClosed, hideRequested = hideRequested,
-        action = { Button(onClick = arranger::finishAdding, modifier = Modifier.testTag("add_shelf_done")) { Text(stringResource(R.string.explore_arrange_done)) } },
+        action = { Button(onClick = arranger::finishAdding, modifier = Modifier.testTag("add_shelf_done")) { Text(stringResource(R.string.arrange_done)) } },
         tag = "add_shelf_list",
     ) {
             item(key = "new_works") {

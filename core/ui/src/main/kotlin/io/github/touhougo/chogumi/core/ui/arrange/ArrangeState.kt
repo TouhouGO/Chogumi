@@ -1,5 +1,7 @@
 package io.github.touhougo.chogumi.core.ui.arrange
 
+
+
 /** 两类整理共用的面板身份。 */
 enum class ArrangeSheet { EDITOR, ADDING }
 

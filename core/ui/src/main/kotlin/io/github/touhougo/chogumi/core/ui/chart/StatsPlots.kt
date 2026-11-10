@@ -1,5 +1,6 @@
 package io.github.touhougo.chogumi.core.ui.chart
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -16,8 +17,13 @@ import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import io.github.touhougo.chogumi.core.model.statistics.ControversyTier
 import io.github.touhougo.chogumi.core.model.statistics.RatingControversy
+import io.github.touhougo.chogumi.core.res.R
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
@@ -68,7 +74,7 @@ fun StatsRows(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
                 if (reference != null) drawLine(outline, Offset(mid, y - 9.dp.toPx()), Offset(mid, y + 9.dp.toPx()), 1.dp.toPx())
                 val color = if (p.color != Color.Unspecified) p.color else if (reference != null && dv < 0) tertiary else if (i == 0) primary else secondary
                 drawRoundRect(color, Offset(min(from, to), y - 5.dp.toPx()), Size(kotlin.math.abs(to - from), 10.dp.toPx()), CornerRadius(5.dp.toPx()))
-                val value = p.displayValue ?: if (reference == null) p.value.toInt().toString() else String.format(java.util.Locale.ROOT, "%+.2f", dv)
+                val value = p.displayValue ?: if (reference == null) p.value.toInt().toString() else String.format(Locale.ROOT, "%+.2f", dv)
                 label(value, widthPx, y + style.lineHeight.toPx() / 3, style, muted, ha = 1f)
             }
         }
@@ -94,7 +100,7 @@ fun StatsLine(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
             Rect(x(i) - 5.dp.toPx(), y(p.value) - 5.dp.toPx(), x(i) + 5.dp.toPx(), y(p.value) + 5.dp.toPx())) }) {
             reference?.let {
                 drawLine(muted, Offset(0f, y(it)), Offset(widthPx, y(it)), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())))
-                label(String.format(java.util.Locale.ROOT, "%.1f", it), widthPx, y(it) - 5.dp.toPx(), style, muted, ha = 1f)
+                label(String.format(Locale.ROOT, "%.1f", it), widthPx, y(it) - 5.dp.toPx(), style, muted, ha = 1f)
             }
             drawPath(revealedPath(path, progress.chartFraction(0)), primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
             points.forEachIndexed { i, p ->
@@ -125,7 +131,7 @@ fun StatsStrip(points: List<PlotPoint>, reference: Double, modifier: Modifier = 
                 val color = controversyColor(surface, if (p.value >= reference) primary else tertiary, 0.18f + f * 0.7f)
                 val left = i * (width + gap)
                 drawRoundRect(color.copy(alpha = effects), Offset(left, 0f), Size(width, heightPx), CornerRadius(6.dp.toPx()))
-                label(String.format(java.util.Locale.ROOT, "%.1f", p.value), left + width / 2, 30.dp.toPx(), style, ink, maxWidthPx = width)
+                label(String.format(Locale.ROOT, "%.1f", p.value), left + width / 2, 30.dp.toPx(), style, ink, maxWidthPx = width)
                 label(p.label, left + width / 2, 53.dp.toPx(), style, ink, maxWidthPx = width)
             }
         }
@@ -144,11 +150,12 @@ fun RatingDots(counts: List<Int>, tips: List<String>, modifier: Modifier = Modif
     val surface = MaterialTheme.colorScheme.surfaceContainerHighest
     val progress = chartFractions()
     val labelStyle = MaterialTheme.typography.labelSmall
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth()) {
+    val dotTips = cells.mapIndexed { score, share -> stringResource(R.string.stats_dots_tip, score + 1, share) }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
     val gridHeight = maxWidth / 20 * 5 + 24.dp
     TapChart(tips.joinToString(), Modifier.fillMaxWidth().height(gridHeight)) {
         val step = widthPx / 20
-        val marks = dots.mapIndexed { i, score -> ChartMark(Rect((i % 20) * step, (i / 20) * step, (i % 20 + 1) * step, (i / 20 + 1) * step), "${score + 1}：${cells[score]}%") }
+        val marks = dots.mapIndexed { i, score -> ChartMark(Rect((i % 20) * step, (i / 20) * step, (i % 20 + 1) * step, (i / 20 + 1) * step), dotTips[score]) }
         ChartLayout(marks) {
             dots.forEachIndexed { i, score ->
                 drawCircle(controversyColor(surface, primary, 0.12f + (score / 9f).toDouble().let { it * it }.toFloat() * 0.88f),
@@ -171,6 +178,8 @@ fun ControversyGauge(value: RatingControversy, tip: String, dial: Boolean, modif
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val style = MaterialTheme.typography.labelSmall
     val progress = chartFractions().chartFraction(0)
+    val lowEnd = ControversyTier.UNANIMOUS.label()
+    val highEnd = ControversyTier.POLARIZED.label()
     TapChart(tip, modifier.fillMaxWidth().height(if (dial) 160.dp else 50.dp)) {
         ChartLayout(listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), tip))) {
             if (dial) {
@@ -181,7 +190,7 @@ fun ControversyGauge(value: RatingControversy, tip: String, dial: Boolean, modif
                 val angle = PI * (1 - value.gaugePosition * progress)
                 drawLine(ink, center, Offset(center.x + cos(angle).toFloat() * (radius - 14.dp.toPx()), center.y - sin(angle).toFloat() * (radius - 14.dp.toPx())), 4.dp.toPx(), StrokeCap.Round)
                 drawCircle(ink, 8.dp.toPx(), center)
-                label(String.format(java.util.Locale.ROOT, "%.2f", value.sigma), center.x, center.y - radius * 0.35f, style, ink)
+                label(String.format(Locale.ROOT, "%.2f", value.sigma), center.x, center.y - radius * 0.35f, style, ink)
             } else {
                 val gap = 2.dp.toPx()
                 val w = (widthPx - gap * 4) / 5
@@ -189,8 +198,8 @@ fun ControversyGauge(value: RatingControversy, tip: String, dial: Boolean, modif
                     Offset(i * (w + gap), 8.dp.toPx()), Size(w, 8.dp.toPx()), CornerRadius(4.dp.toPx())) }
                 val x = (value.gaugePosition * progress).toFloat() * widthPx
                 drawLine(ink, Offset(x, 0f), Offset(x, 24.dp.toPx()), 4.dp.toPx(), StrokeCap.Round)
-                label("众口一词", 0f, heightPx - 4.dp.toPx(), style, muted, ha = 0f)
-                label("两极分化", widthPx, heightPx - 4.dp.toPx(), style, muted, ha = 1f)
+                label(lowEnd, 0f, heightPx - 4.dp.toPx(), style, muted, ha = 0f)
+                label(highEnd, widthPx, heightPx - 4.dp.toPx(), style, muted, ha = 1f)
             }
         }
     }
@@ -237,6 +246,7 @@ fun ControversyRidge(counts: List<Int>, value: RatingControversy, tip: String, m
     val color = controversyColor(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary, value.tier.ordinal / 4f)
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val style = MaterialTheme.typography.labelSmall
+    val referenceLabel = stringResource(R.string.stats_ridge_reference)
     val progress = chartFractions().chartFraction(0)
     TapChart(tip, modifier.fillMaxWidth().height(128.dp)) {
         val reference = List(91) { i -> val v = 1 + i / 10.0; exp(-((v - value.mean) * (v - value.mean)) / (2 * 0.96 * 0.96)) / (0.96 * sqrt(2 * PI)) }
@@ -269,7 +279,7 @@ fun ControversyRidge(counts: List<Int>, value: RatingControversy, tip: String, m
             drawPath(ref, muted, style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))))
             drawPath(revealedPath(path, progress), color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
             (1..10).forEach { label(it.toString(), x(it.toDouble()), heightPx - 4.dp.toPx(), style, muted) }
-            label("意见一致时", 6.dp.toPx(), 16.dp.toPx(), style, muted, ha = 0f)
+            label(referenceLabel, 6.dp.toPx(), 16.dp.toPx(), style, muted, ha = 0f)
         }
     }
 }
@@ -318,7 +328,7 @@ fun StatsTagCloud(points: List<PlotPoint>, modifier: Modifier = Modifier) {
     TapChart(points.joinToString { it.tip }, modifier.fillMaxWidth().height(180.dp)) {
         val peak = points.maxOfOrNull { it.value }?.coerceAtLeast(1.0) ?: 1.0
         val order = points.withIndex().sortedWith(compareBy({ it.index % 2 }, { it.index })).map { it.value }
-        val placements = mutableListOf<Triple<PlotPoint, Rect, androidx.compose.ui.text.TextStyle>>()
+        val placements = mutableListOf<Triple<PlotPoint, Rect, TextStyle>>()
         var x = 0f
         var y = 0f
         var rowHeight = 0f
@@ -361,7 +371,7 @@ fun ControversyCamps(value: RatingControversy, tips: List<String>, modifier: Mod
         ChartLayout(tips.mapIndexed { i, tip -> ChartMark(Rect(i * widthPx / 3, 0f, (i + 1) * widthPx / 3, heightPx), tip) }) {
             val colors = listOf(tertiary, middle, primary)
             shares.forEachIndexed { i, share ->
-                val text = if (share > 0 && share < 0.01) "<1%" else String.format(java.util.Locale.ROOT, "%.0f%%", share * 100)
+                val text = if (share > 0 && share < 0.01) "<1%" else String.format(Locale.ROOT, "%.0f%%", share * 100)
                 label(text, centers[i], if (i == 1) 45.dp.toPx() else 34.dp.toPx(), if (i == 1) small else big,
                     if (i == 1) muted else colors[i], ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
                 label(labels[i], centers[i], 59.dp.toPx(), small, muted, ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
@@ -377,3 +387,13 @@ fun ControversyCamps(value: RatingControversy, tips: List<String>, modifier: Mod
         }
     }
 }
+
+/** 争议度分档的名字（统计页的文字、光谱两端的标注同读这一份）。 */
+@Composable
+fun ControversyTier.label(): String = stringResource(when (this) {
+    ControversyTier.UNANIMOUS -> R.string.stats_tier_unanimous
+    ControversyTier.CONCENTRATED -> R.string.stats_tier_concentrated
+    ControversyTier.SOME_DISAGREEMENT -> R.string.stats_tier_some_disagreement
+    ControversyTier.MIXED -> R.string.stats_tier_mixed
+    ControversyTier.POLARIZED -> R.string.stats_tier_polarized
+})

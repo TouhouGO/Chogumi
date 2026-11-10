@@ -1,17 +1,12 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
-
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,7 +18,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -35,19 +32,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
-import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
-import io.github.touhougo.chogumi.core.ui.chart.ChartEntrance
-import io.github.touhougo.chogumi.core.ui.chart.LocalChartEntrance
-import androidx.compose.foundation.lazy.items
-import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.snapshotFlow
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,9 +68,11 @@ import io.github.touhougo.chogumi.core.reader.CommentUserCard
 import io.github.touhougo.chogumi.core.reader.rememberReactionUsersState
 import io.github.touhougo.chogumi.core.reader.rememberUserCardState
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.arrange.ArrangeList
 import io.github.touhougo.chogumi.core.ui.collection.CollectionSheetHost
 import io.github.touhougo.chogumi.core.ui.collection.PosterMarkHost
 import io.github.touhougo.chogumi.core.ui.common.rememberLoginGate
+import io.github.touhougo.chogumi.core.ui.composables.ArrangeBar
 import io.github.touhougo.chogumi.core.ui.composables.ChogumiPullToRefreshBox
 import io.github.touhougo.chogumi.core.ui.composables.CollapsibleHeaderState
 import io.github.touhougo.chogumi.core.ui.composables.ContentLoadingIndicator
@@ -262,12 +251,10 @@ fun SubjectDetailsScreen(
     var statsTab by remember(subjectId) { mutableStateOf<SubjectStatsTab?>(null) }
     if (uiState.selectedSection == SubjectDetailsSection.STATS) {
         val latestStats by viewModel.stats.collectAsStateWithLifecycle()
-        androidx.compose.runtime.SideEffect { statsTab = latestStats }
+        SideEffect { statsTab = latestStats }
     }
     val statsArranger = viewModel.statsArranger
-    val chartEntrances = remember(subjectId) { mutableStateMapOf<String, ChartEntrance>() }
-    val chartPlayed = remember(subjectId) { mutableSetOf<String>() }
-    val chartScope = rememberCoroutineScope()
+    val statsEntrances = rememberStatsEntrances(subjectId)
     BackHandler(uiState.statsArrange.active) { statsArranger.machine.exit() }
     // 写操作（收藏、标进度、贴贴）的登录门：未登录点了去登录页
     val loginGate = rememberLoginGate(isLoggedIn, onLogin)
@@ -375,7 +362,7 @@ fun SubjectDetailsScreen(
                 when {
                     subject != null && uiState.statsArrange.active && statsTab != null -> {
                         val tab = requireNotNull(statsTab)
-                        ArrangeList(rows = uiState.statsLayout.filter { !it.hidden && it.data in tab.availableData() }, key = { it.id },
+                        ArrangeList(rows = visibleStatsModules(uiState.statsLayout.orEmpty(), tab, tab.availableData()), key = { it.id },
                             title = { statsModuleName(it, subject.type) },
                             detail = { listOfNotNull(statsDataName(it.data, subject.type).takeIf { _ -> it.name.isNotBlank() }, it.drawing.label()) },
                             leading = { StatsModuleLead(it.data) }, onMove = statsArranger::move,
@@ -496,25 +483,15 @@ fun SubjectDetailsScreen(
                                         SubjectDetailsSection.STATS -> {
                                             val tab = statsTab
                                             if (tab != null) {
-                                                val visible = uiState.statsLayout.filter { !it.hidden && (it.data in tab.availableData() || tab.waitingOrFailed(it.data)) }
-                                                items(visible, key = { it.id }) { module ->
-                                                    val motion = LocalAppMotion.current
-                                                    val entrance = chartEntrances.getOrPut(module.id) { ChartEntrance(elements = module.entranceElements(tab), finished = motion.stagger(1) == 0L) }
-                                                    LaunchedEffect(module.id, module.data in tab.availableData()) {
-                                                        snapshotFlow { sectionLists.getValue(section).layoutInfo.visibleItemsInfo.any { it.key == module.id } }
-                                                            .filter { it }.first()
-                                                        if (module.data in tab.availableData() && chartPlayed.add(module.id)) {
-                                                            chartScope.launch { entrance.play(motion, module.drawing.entranceStagger()) }
-                                                        }
-                                                    }
-                                                    CompositionLocalProvider(LocalChartEntrance provides entrance) {
-                                                        Column(Modifier.padding(vertical = 6.dp)) {
-                                                            StatsModuleBlock(module, tab, statsArranger.machine::enter, onSubjectClick,
-                                                                viewModel::retryRatingSplit, viewModel::retryRecs, viewModel::retryRecentCollectTimes, viewModel::retryEpisodes)
-                                                        }
-                                                    }
-                                                }
-                                                item(key = "stats-web") { StatsWebButton(subject.id) }
+                                                statsTabItems(
+                                                    tab, uiState.statsLayout, sectionLists.getValue(section), statsEntrances,
+                                                    onArrange = statsArranger.machine::enter,
+                                                    onSubjectClick = onSubjectClick,
+                                                    onRetryRatingSplit = viewModel::retryRatingSplit,
+                                                    onRetryRecs = viewModel::retryRecs,
+                                                    onRetryRecentCollectTimes = viewModel::retryRecentCollectTimes,
+                                                    onRetryEpisodes = viewModel::retryEpisodes,
+                                                )
                                             }
                                         }
                                     }

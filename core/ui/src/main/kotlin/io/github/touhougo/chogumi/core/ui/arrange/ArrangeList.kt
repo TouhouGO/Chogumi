@@ -23,11 +23,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.res.R
-import io.github.touhougo.chogumi.core.ui.composables.containerColor
 import io.github.touhougo.chogumi.core.ui.composables.EmptyLine
 import io.github.touhougo.chogumi.core.ui.composables.MetaText
 import io.github.touhougo.chogumi.core.ui.composables.ReorderableList
 import io.github.touhougo.chogumi.core.ui.composables.SegmentedItem
+import io.github.touhougo.chogumi.core.ui.composables.containerColor
 
 /**
  * 长按进入整理：按住时有一下触感；读屏用长按动作。只旁听标题这一块：标题行尾的箭头按钮自己消费了按下，长按箭头不算。

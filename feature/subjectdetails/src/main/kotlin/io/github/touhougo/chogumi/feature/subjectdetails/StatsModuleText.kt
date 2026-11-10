@@ -6,7 +6,6 @@ import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.StatsDrawing
 import io.github.touhougo.chogumi.core.model.StatsModule
 import io.github.touhougo.chogumi.core.model.SubjectType
-import io.github.touhougo.chogumi.core.model.statistics.ControversyTier
 import io.github.touhougo.chogumi.core.res.R
 
 /** 数据名字仅在这里选择，音乐的讨论按曲目说；可用性不按作品种类硬编码。 */
@@ -59,15 +58,6 @@ internal fun StatsDrawing.label(): String = stringResource(when (this) {
     StatsDrawing.TAG_RANK -> R.string.stats_drawing_tag_rank
 })
 
-@Composable
-internal fun ControversyTier.label(): String = stringResource(when (this) {
-    ControversyTier.UNANIMOUS -> R.string.stats_tier_unanimous
-    ControversyTier.CONCENTRATED -> R.string.stats_tier_concentrated
-    ControversyTier.SOME_DISAGREEMENT -> R.string.stats_tier_some_disagreement
-    ControversyTier.MIXED -> R.string.stats_tier_mixed
-    ControversyTier.POLARIZED -> R.string.stats_tier_polarized
-})
-
 /** 组内错开的间隔来自各画法的设计编排（not in M3），实际延迟经 AppMotion.stagger。 */
 internal fun StatsDrawing.entranceStagger(): Long = when (this) {
     StatsDrawing.RATING_DOTS -> 5
@@ -87,11 +77,11 @@ internal fun StatsDrawing.entranceStagger(): Long = when (this) {
 internal fun StatsModule.entranceElements(tab: SubjectStatsTab): Int = when (drawing) {
     StatsDrawing.RATING_DOTS -> 100
     StatsDrawing.RATING_BARS, StatsDrawing.RATING_ROWS -> 10
-    StatsDrawing.EPISODE_GRID, StatsDrawing.EPISODE_BARS, StatsDrawing.EPISODE_LINE -> tab.calculated?.episodeHeat?.cells?.size ?: 1
+    StatsDrawing.EPISODE_GRID, StatsDrawing.EPISODE_BARS, StatsDrawing.EPISODE_LINE -> tab.calculated.episodeHeat?.cells?.size ?: 1
     StatsDrawing.COLLECT_LINE, StatsDrawing.COLLECT_STRIP -> 8
     StatsDrawing.REGDATE_LINE, StatsDrawing.REGDATE_DELTA -> 7
     StatsDrawing.STATUS_RULER, StatsDrawing.STATUS_DELTA, StatsDrawing.COLLECTION_FLOW, StatsDrawing.COLLECTION_BAR, StatsDrawing.COLLECTION_RING -> 5
     StatsDrawing.PHASE_DISTRIBUTIONS -> 3
-    StatsDrawing.LIFELINE -> tab.calculated?.lifeline?.episodes?.size ?: 1
+    StatsDrawing.LIFELINE -> tab.calculated.lifeline?.episodes?.size ?: 1
     else -> 1
 }.coerceAtLeast(1)

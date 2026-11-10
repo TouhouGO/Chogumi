@@ -6,6 +6,7 @@ import io.github.touhougo.chogumi.core.model.CollectionType
 import io.github.touhougo.chogumi.core.model.EpisodeBo
 import io.github.touhougo.chogumi.core.model.EpisodeStatus
 import io.github.touhougo.chogumi.core.model.EpisodeType
+import io.github.touhougo.chogumi.core.model.StatsData
 import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.SubjectRatingSplit
 import io.github.touhougo.chogumi.core.model.SubjectRelationBo
@@ -259,16 +260,16 @@ class SubjectStatsCalculatorTest {
         fun votes(n: Int) = List(10) { if (it == 7) n else 0 }
         val subject = subject(counts = votes(100), done = 100)
         val empty = stats(SubjectStatsInput(subject))
-        assertEquals(setOf(io.github.touhougo.chogumi.core.model.StatsData.RATING,
-            io.github.touhougo.chogumi.core.model.StatsData.COLLECTION,
-            io.github.touhougo.chogumi.core.model.StatsData.CONTROVERSY), availableStatsData(empty, false, false))
+        assertEquals(setOf(StatsData.RATING,
+            StatsData.COLLECTION,
+            StatsData.CONTROVERSY), availableStatsData(empty, false, false))
         val split = SubjectRatingSplit(emptyMap(), mapOf(AirPhase.AIRING to votes(19)),
             byTotalCollects = mapOf(1 to votes(19), 1001 to votes(20)), byRegdate = mapOf(1825 to votes(20)))
         val result = stats(SubjectStatsInput(subject, split))
         val available = availableStatsData(result, false, false)
-        assertTrue(io.github.touhougo.chogumi.core.model.StatsData.TOTAL_COLLECTS in available)
-        assertTrue(io.github.touhougo.chogumi.core.model.StatsData.REGDATE in available)
-        assertFalse(io.github.touhougo.chogumi.core.model.StatsData.AIR_PHASE in available)
+        assertTrue(StatsData.TOTAL_COLLECTS in available)
+        assertTrue(StatsData.REGDATE in available)
+        assertFalse(StatsData.AIR_PHASE in available)
         assertEquals(listOf(1001), result.totalCollects.map { it.group })
         assertEquals(20, result.totalCollects.single().count)
     }

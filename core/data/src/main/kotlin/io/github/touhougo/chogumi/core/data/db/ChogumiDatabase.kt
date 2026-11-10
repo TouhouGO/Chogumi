@@ -1,7 +1,5 @@
 package io.github.touhougo.chogumi.core.data.db
 
-import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleDao
-import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleEntity
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
@@ -30,6 +28,8 @@ import io.github.touhougo.chogumi.core.data.db.search.RecentSearchDao
 import io.github.touhougo.chogumi.core.data.db.search.RecentSearchEntity
 import io.github.touhougo.chogumi.core.data.db.search.SearchFirstPageDao
 import io.github.touhougo.chogumi.core.data.db.search.SearchFirstPageEntity
+import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleDao
+import io.github.touhougo.chogumi.core.data.db.stats.StatsModuleEntity
 import io.github.touhougo.chogumi.core.data.db.subject.EpisodeDao
 import io.github.touhougo.chogumi.core.data.db.subject.EpisodeEntity
 import io.github.touhougo.chogumi.core.data.db.subject.FetchStampEntity

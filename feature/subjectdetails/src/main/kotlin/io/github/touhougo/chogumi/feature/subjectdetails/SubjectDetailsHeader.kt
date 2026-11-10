@@ -1,15 +1,10 @@
 package io.github.touhougo.chogumi.feature.subjectdetails
 
-import androidx.compose.foundation.background
-import androidx.compose.ui.unit.constrainHeight
-import androidx.compose.material3.Icon
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.layout.size
 import androidx.compose.animation.animateContentSize
-import androidx.compose.ui.layout.SubcomposeLayout
-import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -18,10 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ShapeDefaults
@@ -29,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -38,7 +36,11 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.model.AppFeatures
 import io.github.touhougo.chogumi.core.model.SearchCriteria
@@ -60,7 +63,6 @@ import io.github.touhougo.chogumi.core.model.subjectTagRow
 import io.github.touhougo.chogumi.core.model.tagSearchCriteria
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.copyOnLongPress
-import io.github.touhougo.chogumi.core.ui.composables.keyedListSaver
 import io.github.touhougo.chogumi.core.ui.composables.CoverWash
 import io.github.touhougo.chogumi.core.ui.composables.HeaderChip
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonBox
@@ -68,9 +70,11 @@ import io.github.touhougo.chogumi.core.ui.composables.SkeletonText
 import io.github.touhougo.chogumi.core.ui.composables.SubjectMetaText
 import io.github.touhougo.chogumi.core.ui.composables.SubjectPoster
 import io.github.touhougo.chogumi.core.ui.composables.formatScore
+import io.github.touhougo.chogumi.core.ui.composables.keyedListSaver
 import io.github.touhougo.chogumi.core.ui.composables.subjectRatingText
 import io.github.touhougo.chogumi.core.ui.image.ImageViewer
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
+import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 
 /** 详情页首屏各区块的 testTag：真实内容与骨架共用，几何测试据此对位。 */
 internal const val DetailsBannerTag = "details_banner"
@@ -326,7 +330,7 @@ internal fun SubjectDetailsHeaderSkeleton(
             MetaLine(slots.meta)
             HeaderChips(ratingText = null, onRatingClick = null, onInfoClick = {}, skeleton = true)
         },
-        tags = { TagRow(fill = slots.tags, onTagClick = {}) },
+        tags = { TagRow(fill = slots.tags, onTagClick = {}, expanded = false, onExpand = {}) },
     )
 }
 
@@ -443,20 +447,37 @@ private fun HeaderChips(
     }
 }
 
-/** 一行按实际尺寸预算放标签与末尾+N；展开原位多行，顺序来自 subjectTagRow。 */
+/**
+ * 一行按实际尺寸预算放标签与末尾+N；展开原位多行，顺序来自 subjectTagRow。只有展开、收起动画高度：
+ * 宽度变了、骨架换成真标签时换一个新的 `animateContentSize`（它没有上一次的尺寸，直接到位），不让它把先量再定的重排也动画一遍
+ * （规范「Compose 的老坑」）。
+ */
 @Composable
 private fun TagRow(fill: SlotFill<List<SubjectTagChip>>, onTagClick: (SubjectTagChip) -> Unit,
-    expanded: Boolean = false, onExpand: (Boolean) -> Unit = {}) {
+    expanded: Boolean, onExpand: (Boolean) -> Unit) {
     if (fill == SlotFill.Absent) return
     val motion = LocalAppMotion.current
-    Box(Modifier.testTag(DetailsTagsTag).fillMaxWidth().padding(top = 6.dp, start = 16.dp, end = 16.dp)
-        .animateContentSize(motion.scheme.defaultSpatialSpec())) {
-        when (fill) {
-            is SlotFill.Real -> BudgetTagLayout(fill.value, expanded, onExpand, onTagClick)
-            SlotFill.Placeholder -> BudgetTagLayout(List(SKELETON_TAG_CHIP_COUNT) { SubjectTagChip("", false) }, false, {}, {}, skeleton = true)
-            SlotFill.Absent -> Unit
+    BoxWithConstraints(Modifier.testTag(DetailsTagsTag).fillMaxWidth().padding(top = 6.dp, start = 16.dp, end = 16.dp)) {
+        key(maxWidth, fill is SlotFill.Real) {
+            Box(Modifier.fillMaxWidth().animateContentSize(motion.scheme.defaultSpatialSpec())) {
+                when (fill) {
+                    is SlotFill.Real -> BudgetTagLayout(fill.value, expanded, onExpand, onTagClick)
+                    SlotFill.Placeholder -> BudgetTagLayout(List(SKELETON_TAG_CHIP_COUNT) { SubjectTagChip("", false) }, false, {}, {}, skeleton = true)
+                    SlotFill.Absent -> Unit
+                }
+            }
         }
     }
+}
+
+/** 一枚标签（量尺寸和真正摆出来的同一份）。 */
+@Composable
+private fun TagChip(chip: SubjectTagChip, index: Int, skeleton: Boolean, onTagClick: (SubjectTagChip) -> Unit) {
+    if (skeleton) TagChipSkeleton(skeletonTagChipWidth(index)) else AssistChip(
+        onClick = { onTagClick(chip) }, modifier = Modifier.testTag("details_tag_$index"),
+        label = { Text(chip.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            style = if (chip.isMeta) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium) },
+        colors = AssistChipDefaults.assistChipColors(labelColor = if (chip.isMeta) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant))
 }
 
 /** 一次测量出标签真实宽度与剩余数的按钮宽度；+N不足时逐个减少前面的标签。 */
@@ -468,18 +489,12 @@ private fun BudgetTagLayout(chips: List<SubjectTagChip>, expanded: Boolean, onEx
         val gap = 8.dp.roundToPx()
         val tags = chips.mapIndexed { index, chip ->
             subcompose("tag:$index") {
-                Box(Modifier.clearAndSetSemantics {}) {
-                if (skeleton) TagChipSkeleton(skeletonTagChipWidth(index)) else AssistChip(
-                    onClick = { onTagClick(chip) }, modifier = Modifier.testTag("details_tag_$index"),
-                    label = { Text(chip.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = if (chip.isMeta) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium) },
-                    colors = AssistChipDefaults.assistChipColors(labelColor = if (chip.isMeta) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant))
-                }
+                Box(Modifier.clearAndSetSemantics {}) { TagChip(chip, index, skeleton, onTagClick) }
             }.single().measure(loose)
         }
         val allWidth = tags.sumOf { it.width } + gap * (tags.size - 1).coerceAtLeast(0)
         var visible = tags.size
-        var toggle: androidx.compose.ui.layout.Placeable? = null
+        var toggle: Placeable? = null
         if (!skeleton && (expanded || allWidth > constraints.maxWidth)) {
             if (!expanded) {
                 visible = tags.size - 1
@@ -499,13 +514,7 @@ private fun BudgetTagLayout(chips: List<SubjectTagChip>, expanded: Boolean, onEx
             while (visible < tags.size && used + tags[visible].width <= constraints.maxWidth) { used += tags[visible].width + gap; visible++ }
         }
         val realTags = chips.take(visible.coerceAtLeast(0)).mapIndexed { index, chip ->
-            subcompose("visible:$index") {
-                if (skeleton) TagChipSkeleton(skeletonTagChipWidth(index)) else AssistChip(onClick = { onTagClick(chip) },
-                    modifier = Modifier.testTag("details_tag_$index"),
-                    label = { Text(chip.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = if (chip.isMeta) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium) },
-                    colors = AssistChipDefaults.assistChipColors(labelColor = if (chip.isMeta) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant))
-            }.single().measure(loose)
+            subcompose("visible:$index") { TagChip(chip, index, skeleton, onTagClick) }.single().measure(loose)
         }
         val realToggle = toggle?.let { subcompose("visible-toggle") {
             TagToggle(if (expanded) stringResource(R.string.stats_tag_collapse) else stringResource(R.string.stats_tag_more, chips.size - visible),
@@ -527,7 +536,7 @@ private fun BudgetTagLayout(chips: List<SubjectTagChip>, expanded: Boolean, onEx
 
 @Composable
 private fun TagToggle(label: String, expanded: Boolean, total: Int, onClick: () -> Unit) {
-    val description = if (expanded) label else androidx.compose.ui.res.pluralStringResource(R.plurals.stats_tag_expand_description, total, total)
+    val description = if (expanded) label else pluralStringResource(R.plurals.stats_tag_expand_description, total, total)
     AssistChip(onClick = onClick, label = { Text(label, maxLines = 1) },
         trailingIcon = { Icon(painterResource(if (expanded) R.drawable.expand_less_24 else R.drawable.expand_more_24), null, Modifier.size(AssistChipDefaults.IconSize)) },
         modifier = Modifier.testTag(if (expanded) "details_tags_collapse" else "details_tags_expand").semantics {

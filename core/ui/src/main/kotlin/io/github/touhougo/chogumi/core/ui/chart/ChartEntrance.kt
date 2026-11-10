@@ -3,8 +3,8 @@ package io.github.touhougo.chogumi.core.ui.chart
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
-import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import io.github.touhougo.chogumi.core.ui.theme.AppMotion
+import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
