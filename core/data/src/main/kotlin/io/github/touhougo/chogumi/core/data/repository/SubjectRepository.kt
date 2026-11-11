@@ -17,6 +17,7 @@ import io.github.touhougo.chogumi.core.data.db.subject.getBySubjectIdsChunked
 import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.token.withSessionToken
+import io.github.touhougo.chogumi.core.data.util.storageAsLoad
 import io.github.touhougo.chogumi.core.data.util.CacheTtl
 import io.github.touhougo.chogumi.core.data.util.LruMap
 import io.github.touhougo.chogumi.core.data.util.cachedNetworkCall
@@ -127,11 +128,11 @@ class SubjectRepository(
      * 本地已存的章节，只读、不取网络：[subjectIds] 里本地有章节的那几部，各自按 sort 排好；章节表一有写入就重算一拍。
      * 给只拿本地数据算进度的页面用（每日放送「我在追」）：本地没有章节的部不在结果里，由调用方按收藏记录兜底。
      */
-    fun observeCachedEpisodes(subjectIds: Set<Int>): Flow<Map<Int, List<EpisodeBo>>> =
+    fun observeCachedEpisodes(subjectIds: Set<Int>): Flow<Load<Map<Int, List<EpisodeBo>>>> =
         episodeDao.observeLastWrite().map {
             if (subjectIds.isEmpty()) emptyMap()
             else episodeDao.getBySubjectIdsChunked(subjectIds.toList()).groupBy({ it.subjectId }, { it.toBo() })
-        }.flowOn(computationDispatcher)
+        }.storageAsLoad().flowOn(computationDispatcher)
 
     /**
      * 关联条目（p1）：按页取全，每页上限 100；缓存规则见 [sectionCall]。

@@ -66,6 +66,7 @@ data class CalendarUiState(
 }
 
 /** 每日放送 ViewModel（星期 1=周一…7=周日，与 API key 对齐） */
+@OptIn(ExperimentalCoroutinesApi::class)
 class CalendarViewModel(
     private val calendarRepository: CalendarRepository,
     private val airingTimeRepository: AiringTimeRepository,
@@ -102,6 +103,9 @@ class CalendarViewModel(
      */
     private val airingEpisodes = MutableStateFlow<Map<Int, List<EpisodeBo>>?>(null)
 
+    /** 完整章节失败时保留上一拍，提示重试重建这一条观察。 */
+    private val localEpisodes = MutableStateFlow<Map<Int, List<EpisodeBo>>?>(null)
+
     /** 放送时刻表（条目 id → 每周首播时刻）；表还没读到或读不出时为空，作品都归「时刻未知」。 */
     private val broadcastStarts = MutableStateFlow<Map<Int, Long>>(emptyMap())
 
@@ -114,6 +118,11 @@ class CalendarViewModel(
         }
         follow(failures, { airingTimeRepository.observeBroadcastStarts() }) { starts -> broadcastStarts.value = starts }
         follow(failures, { homeRepository.observeCachedEpisodes() }) { episodes -> airingEpisodes.value = episodes }
+        follow(failures, {
+            localProgress.filterNotNull().map { snapshot ->
+                snapshot.collections.filter { it.type == CollectionType.DOING }.mapTo(HashSet()) { it.subjectId }
+            }.distinctUntilChanged().flatMapLatest { ids -> subjectRepository.observeCachedEpisodes(ids) }
+        }) { episodes -> localEpisodes.value = episodes }
         // 放送时刻表顺带跟上：到期才取、取不到不提示（AiringTimeRepository），表一变 broadcastStarts 自己跟上
         viewModelScope.launch { airingTimeRepository.keepFresh(appTime.now) }
         // 观察本地收藏、逐集状态快照与本地章节，由 EpisodeTracking.progressCount 计算进度单一真源
@@ -135,17 +144,12 @@ class CalendarViewModel(
      * 判哪天播读与首页同一份（[airingEpisodes]），进度读本地全章节（[SubjectRepository.observeCachedEpisodes]），
      * 都不借首页进度那条会取网络的流；本地没有章节的在追作品按收藏记录给进度（「看过 N / M 集」），不会停在加载骨架上。
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun observeCalendar() {
-        val doing = localProgress.filterNotNull().map { snapshot -> snapshot.collections.filter { it.type == CollectionType.DOING } }
-        val localEpisodes = doing.map { rows -> rows.mapTo(HashSet()) { it.subjectId } }
-            .distinctUntilChanged()
-            .flatMapLatest { ids -> subjectRepository.observeCachedEpisodes(ids) }
         val today = appTime.now.map(::airingDateOf).distinctUntilChanged()
         combine(
             combine(uiState.map { it.rawCalendar }.distinctUntilChanged(), today, ::Pair),
             localProgress.filterNotNull(),
-            localEpisodes,
+            localEpisodes.filterNotNull(),
             airingEpisodes.filterNotNull(),
             broadcastStarts,
         ) { (rawCalendar, date), snapshot, episodesBySubject, airingEpisodesBySubject, starts ->
