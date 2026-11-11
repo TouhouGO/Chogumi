@@ -416,3 +416,6 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 `directRouteSupported`，代理地址与端口的输入规则只在 core:netroute（`proxyHostInput`、`proxyPortInput`、`proxyServerOf`）。直连核心
 （Go，`echcore.aar`）只有 core:netroute 引用。直连与代理失败时都只报失败，绝不退回系统网络或普通 SNI（事实在[开发须知](dev/guide.md)
 §1.11、§1.12）。门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_netroute.py`。
+
+一次请求经过线路链只决定一次线路（`RequestRoute`）：改写、代理选择、连接检查共读，核心回环必须明确不经代理。
+公开启动入口收到的系统通知参数不是授权；远程已读动作必须验证 `TokenStore` 签发的会话与提醒 id 凭据，不能只检查 extras 或 action 字符串。
