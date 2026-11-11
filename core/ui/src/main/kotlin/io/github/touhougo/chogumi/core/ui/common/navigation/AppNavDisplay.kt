@@ -40,8 +40,8 @@ fun AppNavDisplay(
                 entries = navigator.entries(entryProvider, sheets),
                 transitionSpec = { chogumiTransition(navigator.transitionKind(back = false, targetState, initialState), page, direction) },
                 popTransitionSpec = { chogumiTransition(navigator.transitionKind(back = true, targetState, initialState), page, direction) },
-                predictivePopTransitionSpec = { _ ->
-                    chogumiPredictivePopTransition(navigator.transitionKind(back = true, targetState, initialState), page, direction, shiftPx)
+                predictivePopTransitionSpec = { swipeEdge ->
+                    chogumiPredictivePopTransition(navigator.transitionKind(back = true, targetState, initialState), page, direction, shiftPx, swipeEdge)
                 },
                 onBack = navigator::goBack,
             )

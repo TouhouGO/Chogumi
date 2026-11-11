@@ -382,11 +382,13 @@ private fun PageExpandHost.mark(token: String, shape: Shape, end: ContainerEnd):
     val registry = LocalPageExpandRegistry.current
     val page = LocalAppMotion.current.page
     val flight = PagePreviewCorner
-    // 预测性返回时整个转换跟着手势进度走（被拖动），这时边界先只缩成预览大小，见 PageMotion.containerGesture
+    // 手指拖出来的预测性返回时整个转换跟着手势进度走（被拖动），这时边界先只缩成预览大小，见 PageMotion.containerGesture；
+    // 返回键触发的没有手指可跟，直接缩回封面
     val back = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
     val bounds = remember(page, back) {
         BoundsTransform { initial, target ->
-            val dragging = back?.transitionState?.value is NavigationEventTransitionState.InProgress
+            val gesture = back?.transitionState?.value as? NavigationEventTransitionState.InProgress
+            val dragging = gesture != null && followsFinger(gesture.latestEvent.swipeEdge)
             if (dragging && initial.width > target.width) page.containerGesture(initial.scaledBy(page.previewScale)) else page.container
         }
     }

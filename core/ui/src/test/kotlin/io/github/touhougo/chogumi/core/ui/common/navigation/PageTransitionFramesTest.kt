@@ -180,7 +180,7 @@ class PageTransitionFramesTest {
                             onBack = { backStack.removeAt(backStack.lastIndex) },
                             transitionSpec = { chogumiTransition(kind, page, 1) },
                             popTransitionSpec = { chogumiTransition(if (kind == PageTransitionKind.Forward) PageTransitionKind.Back else kind, page, 1) },
-                            predictivePopTransitionSpec = { _ -> chogumiPredictivePopTransition(kind, page, 1, shiftPx) },
+                            predictivePopTransitionSpec = { edge -> chogumiPredictivePopTransition(kind, page, 1, shiftPx, edge) },
                             entryProvider = { key ->
                                 NavEntry(key) {
                                     Box(Modifier.fillMaxSize().testTag(key.toString()).background(colorOf(key))) {

@@ -55,7 +55,7 @@ class TabRootBackTest {
                     entries = navigator.entries({ key -> NavEntry(key) { Box(Modifier.fillMaxSize().background(if (key == Route.Home) Color.Red else Color.Blue)) } }, sheets),
                     transitionSpec = { chogumiTransition(PageTransitionKind.TopLevel, page, 1) },
                     popTransitionSpec = { chogumiTransition(PageTransitionKind.TopLevel, page, 1) },
-                    predictivePopTransitionSpec = { _ -> chogumiPredictivePopTransition(PageTransitionKind.Back, page, 1, shiftPx) },
+                    predictivePopTransitionSpec = { edge -> chogumiPredictivePopTransition(PageTransitionKind.Back, page, 1, shiftPx, edge) },
                     onBack = navigator::goBack,
                 )
             }
