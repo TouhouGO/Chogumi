@@ -382,6 +382,15 @@ flowchart LR
 
 ### 2.6 桌面小组件（Glance）
 
+- Glance 用 provider 的运行时类名登记实例，五个具体 `GlanceAppWidget` 必须由 feature:home 的 consumer rules 保留独立身份与稳定名称，不能合并。
+  全局更新按 `widgetReceivers` 的系统 Receiver 身份取实例，再定向发系统更新广播，由 Glance 重登记映射、启动正确组件；启动时判断有无实例也走同一路，
+  不依赖可能仍保存混淆类名的 Glance 反向映射。压缩产物要核对 Receiver 实际构造的类，debug 的不同类不算证据。
+- 系统恢复的旧新 ID 由 `SubjectWidgetRestoreWorker` 迁移作品选择：先将整批旧选择落入恢复日志，逐目标原子写选择和批次标记，失败退避重试。
+  交叉 ID 不边读边写；重复批次不覆盖用户后来重新选择的作品。恢复日志及临时文件不备份，旧 RemoteViews 布局不迁移，新主机重新排版。
+- 作品行的横向预算由 `widgetRowLayout` 共用：在看、今日放送、单部作品都传实际内宽；先留文字和进度操作，窄时不画封面，时刻并入标题。
+  不缩小字体或抬高 XML 最小宽度掩盖零宽标题。文字按钮按当前系统字体度量，空间不足用 +1；没有操作不预留按钮宽度。
+- 热力图真实 frame 边距与内容预算共用常量，月/年单格向下取整到主机像素，避免每格四舍五入累计越界；标题高度也从共用 HeaderHeight 扣减。
+
 - 一次读取与整帧（文字、进度、位图）固定同一个 `AccountSession`：来源末尾与发布前校验归属，通知与小组件共享
   `WidgetCalendarSource` / `WidgetWorksSource`，换号期间取到的混合结果不交出去；小组件整帧换号时重新取当前账号，本机会话读不出来时照常交出来源画的「读不出来」
   （`AuthRepository.currentSession` 的失败是 `Failure.Storage`），不让小组件变成系统的加载失败框。
