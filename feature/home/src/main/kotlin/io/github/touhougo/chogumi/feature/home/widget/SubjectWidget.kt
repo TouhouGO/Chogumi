@@ -51,6 +51,12 @@ import io.github.touhougo.chogumi.core.ui.composables.collectionProgressLabel
 import io.github.touhougo.chogumi.feature.home.R as HomeR
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.core.qualifier.named
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import io.github.touhougo.chogumi.core.data.util.outcomeOf
 
 /** 单部作品这一次画的东西。 */
 internal sealed interface SubjectContent {
@@ -65,7 +71,7 @@ internal sealed interface SubjectContent {
 }
 
 /** 每个单部作品小组件选的是哪部（Glance 给每个小组件的那份状态）。 */
-private val SubjectKey = intPreferencesKey("subjectId")
+internal val SubjectKey = intPreferencesKey("subjectId")
 
 /** 单部作品在一个尺寸下的排法：矮的是一行，宽的是左边大封面，其余是封面铺满整块的海报。 */
 internal enum class SubjectLayout { ROW, SIDE, POSTER }
@@ -156,7 +162,7 @@ internal class SubjectWidget : GlanceAppWidget(), KoinComponent {
                 )
                 is SubjectContent.Work -> if (row) {
                     val button = if (size.width >= SIDE_MIN_WIDTH) ButtonShape.LABELED else ButtonShape.PLUS_ONE
-                    WorkRow(content.work, content.failed, content.cover, min(size.height - vertical * 2, ROW_COVER_MAX), button)
+                    WorkRow(content.work, content.failed, content.cover, min(size.height - vertical * 2, ROW_COVER_MAX), size.width - FRAME_PADDING * 2, button)
                 } else {
                     SubjectSide(content, size.height - vertical * 2, size.width - FRAME_PADDING * 2)
                 }
@@ -281,5 +287,19 @@ internal suspend fun chooseSubject(context: Context, appWidgetId: Int, subjectId
 }
 
 class SubjectWidgetReceiver : ChogumiWidgetReceiver() {
+    private val scope: CoroutineScope by inject(named("appScope"))
+
+    override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
+        val pending = goAsync()
+        scope.launch {
+            try {
+                // 广播结束前确保 WorkManager 已把恢复任务落盘，真正迁移由可重试 Worker 执行。
+                outcomeOf { withContext(Dispatchers.IO) { SubjectWidgetRestoreWorker.enqueue(context, oldWidgetIds, newWidgetIds)?.result?.get() } }
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
     override val glanceAppWidget: GlanceAppWidget = SubjectWidget()
 }

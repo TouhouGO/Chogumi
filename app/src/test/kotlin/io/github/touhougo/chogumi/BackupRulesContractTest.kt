@@ -15,6 +15,8 @@ class BackupRulesContractTest {
     private val expected = setOf(
         "file:datastore/${TOKENS_DATASTORE_NAME}.preferences_pb",
         "file:datastore/${TOKENS_DATASTORE_NAME}.preferences_pb.tmp",
+        "file:datastore/subject-widget-restores.preferences_pb",
+        "file:datastore/subject-widget-restores.preferences_pb.tmp",
         "database:.",
         "file:bangumi_smiley/",
         "file:crash/",

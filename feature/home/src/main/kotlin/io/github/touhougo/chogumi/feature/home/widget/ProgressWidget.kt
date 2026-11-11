@@ -79,6 +79,7 @@ internal class ProgressWidget : GlanceAppWidget(), KoinComponent {
                                 work.subjectId in content.failed,
                                 content.covers[work.subjectId],
                                 layout.coverHeight,
+                                LocalSize.current.width - 32.dp,
                                 ButtonShape.PLUS_ONE,
                                 GlanceModifier.height(layout.rowHeight),
                             )
