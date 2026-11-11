@@ -14,9 +14,9 @@
 | 失败与加载形态 | core:foundation 的 `Failure` / `Outcome` / `Load`；异常 → `Failure` 只在 core:network `toFailure()`，`Failure` → 文案只在 core:ui |
 | 进度写入（「+」、章节方格） | core:data 的 `EpTapCoordinator` → `ProgressOrchestrator`；协调器的应用级会话投影经 `TokenStore.recoveringSessions`，冷读失败后退避恢复 |
 | 仓库、缓存、DTO 映射 | core:data 的 `repository/`、`db/mapper/`（写入时刻显式传入） |
-| 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 清理失败时读取仍先认持久归属，下一次会话变化或记录搜索再清；会话本身读不出时维护结束、不崩，之后只靠记录搜索再清 |
+| 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 清理失败时读取仍先认持久归属，下一次会话变化或记录搜索再清；会话本身读不出时退避重读（`TokenStore.recoveringSessions`），读出来之后接着清 |
 | 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
-| 统计模块、争议度与布局 | core:model `SubjectStatsLayout` / `SubjectStatsCalculator`（12种数据及全部画法目录，统一可用性与总体标准差）；core:data `StatsLayoutRepository`（全局一份、本地逐行JSON、未知行跳过）；feature:subjectdetails `StatsModuleDrawing`（页面与缩略图的唯一分派），`visibleStatsModules` / `statsTabItems`（画哪些模块、页面的列表项），`StatsArranger`（统计领域草稿） |
+| 统计模块、争议度与布局 | core:model `SubjectStatsLayout` / `SubjectStatsCalculator`（12种数据及全部画法目录，统一可用性与总体标准差）；core:data `StatsLayoutRepository`（全局一份、本地逐行JSON、未知行跳过）；feature:subjectdetails `StatsModuleDrawing`（页面与缩略图的唯一分派），`visibleStatsModules` / `statsTabItems`（画哪些模块、页面的列表项），`StatsArranger`（统计领域草稿）；图的点按层是 core:ui `chart/TapChart.kt`（标记自己画自己，点中谁只由 `markAt` 判，模型在文件开头与[代码规范](../code-standards.md)「统计图」） |
 | 整理（长按标题、拖拽排序、左滑移除、编辑、添加与缩略图） | core:ui `arrange/`（通用列表、面板骨架、状态机）；feature:explore 和 feature:subjectdetails 只提供领域数据与动作 |
 | 封面下标签收展 | core:model `subjectTagRow` 保持顺序；feature:subjectdetails `BudgetTagLayout` 按真实标签和+N尺寸预算排一行，展开状态按作品身份保存 |
 | 共享组件（按钮组、EP 按钮、章节方格、骨架、面板、分页、可点块） | core:ui 的 `composables/`、`common/`；章节格子的形状、集号强调、静止与预览描边只在 `TileStyle`，真实网格、演示与进度尺共用，演示的格子种类也由 core:model `EpisodeTracking.episodeGrid` 推导 |
@@ -396,7 +396,8 @@ flowchart LR
   `WidgetCalendarSource` / `WidgetWorksSource`，换号期间取到的混合结果不交出去；小组件整帧换号时重新取当前账号，本机会话读不出来时照常交出来源画的「读不出来」
   （`AuthRepository.currentSession` 的失败是 `Failure.Storage`），不让小组件变成系统的加载失败框。
 - 小组件配色、两类通知设置的持续读取经 core:data `recoverStorageReads`：读失败后按 1、2、4……秒退避，最多等 30 秒再订阅，
-  取消仍结束，不把一次故障当作永久关闭。单部作品配置 `chooseSubject` 返回 `Outcome<Boolean>`：小组件已不存在时取消配置，
+  取消仍结束，不把一次故障当作永久关闭。应用级跟会话与开关的四处同理：登录状态（`AuthRepository`，启动读失败报
+  `InitializationError`、仍只经 `ensureInitialized` 走出去）、NSFW 偏好同步、最近搜索维护、通知的访问观察。单部作品配置 `chooseSubject` 返回 `Outcome<Boolean>`：小组件已不存在时取消配置，
   保存失败留在配置页、经 `FailureNotices` 给重试，只有成功才回 `RESULT_OK`。
 
 - 一层 `Row` / `Column` 最多放 10 个子项，多的被截掉、不报错：热力图一个月的格子按 10 个一组再套一层（`HeatWidget.kt`）。

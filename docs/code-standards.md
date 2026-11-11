@@ -142,6 +142,19 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 
 统计 tab 上画哪些模块只由 `visibleStatsModules` 定（页面与整理列表同读）；页面只调 `statsTabItems`：布局读到之前一块骨架，一个模块也画不出来时给说明和进整理的入口，测试驱动的也是它。模块图的分派只在 `StatsModuleDrawing`，页面与真画法缩略图同读；统计只有一份（`SubjectStatsTab.calculated`）。首次可见事件启动进场，播放记录和进度留在懒列表上方按模块id持有，滚回、切tab或换画法不重播。几何走 `LocalAppMotion` 空间规格，透明度走效果规格，错开经 `stagger`，移除动画直接画终态。
 
+## 统计图：画与点一份几何
+
+可点的统计图只经 core:ui `chart/TapChart.kt` 的 `TapChart`，模型写在那个文件开头，新图照着做：
+
+- 一个标记（`ChartMark`）就是图上画出来的一块，自己画自己：`draw` 拿到的就是气泡指着的那一块（`anchor`）。图不另算一份
+  命中区去对画出来的东西，也不在标记之外把这一块再画一遍。
+- 点中谁只由 `markAt` 按画出来的那一块判：手指在哪一块上就是哪一块；`hit` 只把这一块周围的空白（整列、整行、点周围一圈）
+  也算给它，几块都要同一处时归画出来离手指最近的那一块，不看谁后声明。图里不另写命中判定。
+- 画出来的形状不是矩形、给不出「这一块」的（环的段、交叠着横贯全宽的几条线、流向的带子）：标记是图例里它的那一行，
+  形状画在 `ChartLayout` 的 `backdrop`。轴、刻度、参考线这些点不到的也画在 `backdrop` / `foreground`。
+- 「点哪里出哪一块」的回归测试点页面画的那张图（密的柱、密的点各一条：`LifeTimelineHitTest`、`StatsPlotsTapTest`）；
+  几何函数的测试只说明那个函数给的矩形。
+
 ## 可点块、FAB、海报：各一种实现
 
 - 含文字的可点块（封面 + 标题的卡、头像 + 名字……）必须用 `PressArea`（core:ui）：整块可点，只有水波纹裁成圆角，内容不裁。
@@ -235,7 +248,9 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
   由每个 ViewModel 转发（`EpTapCoordinator.errors`），或在用户无能为力时什么也不显示。门禁：`python3 tools/guards/check_viewmodel_rules.py`。
 - 失败不在半路丢掉。写失败时保留用户输入的内容：编辑器或面板只在写成功之后才关、才丢草稿。内容已显示时刷新失败要到 `failures`。
   裸的 suspend 读取（DAO、DataStore、缓存）不在 `viewModelScope` 协程或应用级循环里不包地跑：它的异常会结束那个协程或循环；
-  经 `outcomeOf` 或 `launchSection`。
+  经 `outcomeOf` 或 `launchSection`。应用级、活过页面的跟随（登录状态、偏好同步、历史维护、未读数）读失败时不以 `.catch` 收尾：
+  流到那里就结束了，这次进程里之后的登出、换号再没人跟。读失败后退避重读只经 core:data `recoverStorageReads`，跟会话的读
+  `TokenStore.recoveringSessions`。
 - `state.error` 只表示「这个页面或分区加载失败、没有东西可显示」，用 `RetryError` 画，从不被消费。内容已在屏幕上时发到 `failures`。
 - ViewModel 发出的文字是字符串资源（`failures.post(R.string.x, arg)`），不是字面量。
 - 失败是 `Failure`（core:foundation），不是字符串。异常 → `Failure` 只在 core:network `toFailure()`；`Failure` → 文案只在 core:ui
