@@ -74,7 +74,7 @@ class CollectionMarkCoordinator(
     private data class Local(val session: AccountSession?, val types: Map<Int, CollectionType> = emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val local: StateFlow<Local> = tokenStore.sessionFlow.flatMapLatest { session ->
+    private val local: StateFlow<Local> = tokenStore.recoveringSessions.flatMapLatest { session ->
         if (!session.authenticated) flowOf(Local(session)) else {
             collectionObserver.observeCollectionTypes(session).map { Local(session, it) }.onStart { emit(Local(session)) }
         }

@@ -132,8 +132,9 @@ class NotificationRepository(
         return access
     }
 
-    private suspend fun beginRound(write: Boolean = false): Round? = refreshMutex.withLock {
+    private suspend fun beginRound(write: Boolean = false, expectedSession: AccountSession? = null): Round? = refreshMutex.withLock {
         val access = synchronizeAccess()
+        expectedSession?.let { tokenStore.requireCurrent(it) }
         if (!access.allowed) return@withLock null
         if (write) {
             writeGeneration++
@@ -280,13 +281,25 @@ class NotificationRepository(
     /** 一条标为已读，成功后减一；未登录或社区关闭时直接成功。 */
     suspend fun markRead(id: Int): Outcome<Unit> = clearNotifications(all = false, request = ClearNotifyRequestDto(id = listOf(id)))
 
+    /** 构造通知时签发的本机动作凭据，公开入口不能自行伪造。 */
+    suspend fun systemNoticeAction(session: AccountSession, id: Int): String = tokenStore.noticeAction(session, id)
+
+    /** 通知点击和已读按钮共用：先验证会话与 id，再沿原有写入与计数通道执行。 */
+    suspend fun markSystemNoticeRead(id: Int, proof: String?): Outcome<Unit> = outcomeOf {
+        val session = tokenStore.noticeSession(id, proof) ?: return@outcomeOf
+        when (val result = clearNotifications(false, ClearNotifyRequestDto(id = listOf(id)), session)) {
+            is Outcome.Success -> Unit
+            is Outcome.Failed -> throw FailureException(result.failure)
+        }
+    }
+
     private companion object {
         /** 一轮检查取多少条未读提醒：接口一页的上限。 */
         const val UNREAD_NOTICE_LIMIT = 40
     }
 
-    private suspend fun clearNotifications(all: Boolean, request: ClearNotifyRequestDto): Outcome<Unit> = outcomeOf {
-        val round = beginRound(write = true) ?: return@outcomeOf
+    private suspend fun clearNotifications(all: Boolean, request: ClearNotifyRequestDto, expectedSession: AccountSession? = null): Outcome<Unit> = outcomeOf {
+        val round = beginRound(write = true, expectedSession) ?: return@outcomeOf
         var succeeded = false
         try {
             tokenStore.withSessionToken(round.access.session) { _, token ->

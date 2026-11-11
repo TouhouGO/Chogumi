@@ -15,6 +15,7 @@ import io.github.touhougo.chogumi.core.data.repository.NotificationRepository
 import io.github.touhougo.chogumi.core.data.repository.PreferencesRepository
 import io.github.touhougo.chogumi.core.data.repository.SystemNoticeLedger
 import io.github.touhougo.chogumi.core.data.repository.UnreadSnapshot
+import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.foundation.Outcome
@@ -122,7 +123,7 @@ class CommunityNotices(
         val notices = (notificationRepository.getNotifications(limit = SAMPLE_COUNT) as? Outcome.Success)?.value.orEmpty()
         if (notices.isNotEmpty()) SystemNotices.ensureChannels(context)
         for (notice in notices) {
-            val notification = noticeNotification(notice)
+            val notification = noticeNotification(notice, session)
             authRepository.withSession(session) { SystemNotices.post(context, SystemNotices.NOTICE_TAG, notice.id, notification) }
         }
         return notices.size
@@ -152,7 +153,7 @@ class CommunityNotices(
         if (round.post.isNotEmpty()) SystemNotices.ensureChannels(context)
         val pending = round.deferred.toMutableSet()
         for (notice in round.post) {
-            val notification = noticeNotification(notice)
+            val notification = noticeNotification(notice, snapshot.session)
             val posted = notificationRepository.withUnreadSnapshot(snapshot) {
                 SystemNotices.post(context, SystemNotices.NOTICE_TAG, notice.id, notification)
             }
@@ -179,12 +180,14 @@ class CommunityNotices(
      * 一条提醒：标题是发送者，正文是提醒的说法（「在小组话题中回复了你」），展开后多一行话题标题；右边是发送者的头像。
      * 点开打开那一楼（好友请求打开对方主页）并标为已读；App 里没有对应一页的（动态、同人）打开铃铛面板。按钮「标为已读」。
      */
-    private suspend fun noticeNotification(notice: NoticeBo): Notification {
+    private suspend fun noticeNotification(notice: NoticeBo, session: AccountSession): Notification {
+        val proof = notificationRepository.systemNoticeAction(session, notice.id)
         val kind = noticeKindOf(notice.type)
         val sender = userDisplayNameOf(notice.sender.username, notice.sender.nickname, notice.sender.id)
         val label = context.getString(kind.labelRes())
         val link = noticeLinkOf(notice)
         val open = SystemNotices.launchIntent(context, link).putExtra(SystemNotices.EXTRA_NOTICE_ID, notice.id)
+            .putExtra(SystemNotices.EXTRA_NOTICE_PROOF, proof)
         if (link == null) open.putExtra(SystemNotices.EXTRA_INBOX, InboxTab.NOTICES.name)
         val builder = SystemNotices.builder(context, noticeChannelOf(kind))
             .setContentTitle(sender)
@@ -192,7 +195,7 @@ class CommunityNotices(
             .setWhen(notice.createdAt)
             .setShowWhen(true)
             .setContentIntent(SystemNotices.contentIntent(context, notice.id, open))
-            .addAction(0, context.getString(R.string.notify_mark_read), MarkNoticeReadReceiver.intent(context, notice.id))
+            .addAction(0, context.getString(R.string.notify_mark_read), MarkNoticeReadReceiver.intent(context, notice.id, proof))
         if (notice.title.isNotBlank()) {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(R.string.notify_notice_detail, label, notice.title)))
         }

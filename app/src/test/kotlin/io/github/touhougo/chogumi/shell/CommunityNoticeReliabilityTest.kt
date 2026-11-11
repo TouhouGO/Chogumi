@@ -63,6 +63,7 @@ class CommunityNoticeReliabilityTest {
     private var failing = false
     private val client by lazy { resources.apiClient { request ->
         requests.record(request)
+        if (request.url.encodedPath == "/p1/clear-notify") return@apiClient respond("{}", HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
         if (failing) return@apiClient respond("", HttpStatusCode.InternalServerError)
         if (truncated) {
             val template = """{"id":#ID#,"type":2,"sender":{"id":9,"username":"fixture_sender","nickname":"示例发送者","avatar":{"large":"","medium":"","small":""},"group":10,"sign":"","joinedAt":0,"isFriend":false},"title":"本地话题","mainID":10,"relatedID":20,"createdAt":1780000000,"unread":true}"""
@@ -108,6 +109,14 @@ class CommunityNoticeReliabilityTest {
         worker.javaClass.getDeclaredField("notices\$delegate").apply { isAccessible = true }.set(worker, lazyOf(notices))
         assertEquals(androidx.work.ListenableWorker.Result.success(), worker.doWork())
         assertEquals(setOf(101), SystemNotices.shownIds(context, SystemNotices.NOTICE_TAG))
+        val posted = manager.activeNotifications.single { it.id == 101 }.notification
+        val open = shadowOf(posted.contentIntent).savedIntent
+        val button = shadowOf(posted.actions.single().actionIntent).savedIntent
+        val proof = open.getStringExtra(SystemNotices.EXTRA_NOTICE_PROOF)
+        assertTrue(!proof.isNullOrBlank(), "发布的点击意图必须带授权")
+        assertEquals(proof, button.getStringExtra(SystemNotices.EXTRA_NOTICE_PROOF))
+        assertTrue(repository.markSystemNoticeRead(101, proof) is io.github.touhougo.chogumi.core.foundation.Outcome.Success)
+        assertTrue(requests.toList().any { it.url.encodedPath == "/p1/clear-notify" })
     }
 
     @Test fun `应用级订阅首次存储失败后恢复_仍能排任务`() = runBlocking {

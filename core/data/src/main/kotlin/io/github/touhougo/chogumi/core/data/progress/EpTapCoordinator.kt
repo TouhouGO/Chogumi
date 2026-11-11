@@ -118,7 +118,7 @@ class EpTapCoordinator(
     private val _pending = MutableStateFlow<Map<Int, Pending>>(emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val pending: StateFlow<Map<Int, EpPendingVisual>> = tokenStore.sessionFlow.flatMapLatest { session ->
+    val pending: StateFlow<Map<Int, EpPendingVisual>> = tokenStore.recoveringSessions.flatMapLatest { session ->
         _pending.map { entries -> entries.filterValues { it.session == session }.mapValues { it.value.visual } }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
@@ -134,7 +134,7 @@ class EpTapCoordinator(
      * 收藏状态因它而变，详情页的收藏按钮据此显示「保存中」。
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val creatingCollection: StateFlow<Set<Int>> = tokenStore.sessionFlow.flatMapLatest { session ->
+    val creatingCollection: StateFlow<Set<Int>> = tokenStore.recoveringSessions.flatMapLatest { session ->
         _creatingCollection.map { entries -> entries.filterValues { session in it }.keys }
     }.stateIn(scope, SharingStarted.Eagerly, emptySet())
 

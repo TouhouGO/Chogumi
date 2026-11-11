@@ -125,7 +125,7 @@ class AppActivity : ComponentActivity() {
      */
     private fun handleIntent(intent: Intent) {
         val noticeId = intent.getIntExtra(SystemNotices.EXTRA_NOTICE_ID, 0)
-        if (noticeId > 0) viewModel.markNoticeRead(noticeId)
+        if (noticeId > 0) viewModel.markNoticeRead(noticeId, intent.getStringExtra(SystemNotices.EXTRA_NOTICE_PROOF))
         InboxTab.entries.firstOrNull { it.name == intent.getStringExtra(SystemNotices.EXTRA_INBOX) }?.let { tab ->
             viewModel.openLink(Route.Community)
             inboxRequests.open(tab)

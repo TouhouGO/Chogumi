@@ -28,7 +28,7 @@ class MarkNoticeReadReceiver : BroadcastReceiver(), KoinComponent {
         val pending = goAsync()
         scope.launch {
             try {
-                notificationRepository.markRead(id)
+                notificationRepository.markSystemNoticeRead(id, intent.getStringExtra(SystemNotices.EXTRA_NOTICE_PROOF))
             } finally {
                 pending.finish()
             }
@@ -36,10 +36,11 @@ class MarkNoticeReadReceiver : BroadcastReceiver(), KoinComponent {
     }
 
     companion object {
-        fun intent(context: Context, id: Int): PendingIntent = PendingIntent.getBroadcast(
+        fun intent(context: Context, id: Int, proof: String): PendingIntent = PendingIntent.getBroadcast(
             context,
             id,
-            Intent(context, MarkNoticeReadReceiver::class.java).putExtra(SystemNotices.EXTRA_NOTICE_ID, id),
+            Intent(context, MarkNoticeReadReceiver::class.java).putExtra(SystemNotices.EXTRA_NOTICE_ID, id)
+                .putExtra(SystemNotices.EXTRA_NOTICE_PROOF, proof),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }

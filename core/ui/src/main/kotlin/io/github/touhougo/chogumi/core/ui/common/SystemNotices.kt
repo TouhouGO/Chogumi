@@ -40,6 +40,9 @@ object SystemNotices {
     /** 点开一条社区提醒时带给 App 的提醒 id：App 打开那一楼的同时把它标为已读。 */
     const val EXTRA_NOTICE_ID = "io.github.touhougo.chogumi.extra.NOTICE_ID"
 
+    /** 本机签发、绑定会话与提醒 id 的动作凭据；缺少或不匹配时只导航。 */
+    const val EXTRA_NOTICE_PROOF = "io.github.touhougo.chogumi.extra.NOTICE_PROOF"
+
     /** 点开时要打开铃铛面板的哪一页（[io.github.touhougo.chogumi.core.ui.common.navigation.InboxTab] 的名字）。 */
     const val EXTRA_INBOX = "io.github.touhougo.chogumi.extra.INBOX"
 

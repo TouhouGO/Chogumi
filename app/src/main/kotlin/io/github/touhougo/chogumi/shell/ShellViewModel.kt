@@ -187,8 +187,8 @@ class ShellViewModel(
      * 点开了一条社区提醒的系统通知：它标为已读（与在铃铛面板里点开一样）。标不上时它留在未读里，铃铛面板照常显示；
      * 用户对此无能为力，不提示。
      */
-    fun markNoticeRead(id: Int) {
-        viewModelScope.launch { notificationRepository.markRead(id) }
+    fun markNoticeRead(id: Int, proof: String?) {
+        viewModelScope.launch { notificationRepository.markSystemNoticeRead(id, proof) }
     }
 }
 
