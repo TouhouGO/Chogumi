@@ -46,6 +46,9 @@ object PreferenceKeys {
     /** 封面画质档位（`CoverQuality` 的名字）；读盘经 `PreferencesRepository` 的 `enumOr` 收敛。 */
     val COVER_QUALITY = stringPreferencesKey("pref_cover_quality")
 
+    /** 简单返回动画（[PreferencesRepository.simpleBack]）：返回不演缩小预览，走整页滑走的普通返回。没有这个键 = 关着。 */
+    val SIMPLE_BACK = booleanPreferencesKey("pref_simple_back")
+
     /** 刷新率（整数 Hz，`RefreshRate.SYSTEM` = 跟随系统）；存原值，这块屏有没有这一档由 `RefreshRate.effective` 判。 */
     val REFRESH_RATE = intPreferencesKey("pref_refresh_rate")
 

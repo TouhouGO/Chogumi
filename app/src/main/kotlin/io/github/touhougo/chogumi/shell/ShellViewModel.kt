@@ -49,6 +49,8 @@ data class ShellState(
     val coverQuality: CoverQuality = CoverQuality.DEFAULT,
     /** 刷新率存值（`RefreshRate`）：AppActivity 交给窗口（`requestRefreshRate`，唯一落点）。 */
     val refreshRate: Int = RefreshRate.SYSTEM,
+    /** 简单返回动画：AppShell 交给页面区（`AppNavDisplay`，唯一落点）。 */
+    val simpleBack: Boolean = false,
     /** 社区角标的数：未读通知 + 未读短信（`NotificationRepository.unreadTotal`）。 */
     val unreadCount: Int = 0,
     /** 本地会话或偏好读不出来（整屏报「无法恢复本地设置」+ 重试）。 */
@@ -136,9 +138,10 @@ class ShellViewModel(
             preferencesRepository.themePreferences,
             preferencesRepository.readingTextSize,
             preferencesRepository.coverQuality,
-            preferencesRepository.refreshRate,
-            ::Appearance,
-        ),
+            combine(preferencesRepository.refreshRate, preferencesRepository.simpleBack, ::Pair),
+        ) { themeMode, themePreferences, readingTextSize, coverQuality, (refreshRate, simpleBack) ->
+            Appearance(themeMode, themePreferences, readingTextSize, coverQuality, refreshRate, simpleBack)
+        },
         preferencesRepository.appFeatures,
         notificationRepository.unreadTotal,
         combine(preferencesRepository.gestureTourShown, gestureTourFinished) { shown, finished -> !shown && !finished },
@@ -151,6 +154,7 @@ class ShellViewModel(
             readingTextSize = appearance.readingTextSize,
             coverQuality = appearance.coverQuality,
             refreshRate = appearance.refreshRate,
+            simpleBack = appearance.simpleBack,
             unreadCount = unreadCount,
             restoreFailed = session == SessionState.InitializationError,
             gestureTour = gestureTour,
@@ -188,13 +192,14 @@ class ShellViewModel(
     }
 }
 
-/** 外观偏好的一组（主题、配色、阅读字号、封面画质、刷新率），只在 [ShellViewModel.restoredStates] 里合成。 */
+/** 外观偏好的一组（主题、配色、阅读字号、封面画质、刷新率、简单返回动画），只在 [ShellViewModel.restoredStates] 里合成。 */
 private data class Appearance(
     val themeMode: ThemeMode,
     val themePreferences: ThemePreferences,
     val readingTextSize: ReadingTextSize,
     val coverQuality: CoverQuality,
     val refreshRate: Int,
+    val simpleBack: Boolean,
 )
 
 /**

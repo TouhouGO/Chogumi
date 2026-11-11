@@ -47,7 +47,8 @@ internal fun PreferenceSettingsScreen(
 }
 
 /**
- * 外观：主题、配色、应用图标一组；界面大小、阅读字号、刷新率（这块屏只有一种刷新率时没有这一行）、封面画质一组。
+ * 外观：主题、配色、应用图标一组；界面大小、阅读字号、刷新率（这块屏只有一种刷新率时没有这一行）、封面画质一组；
+ * 简单返回动画自成一组。
  */
 @Composable
 internal fun appearanceGroups(state: PreferenceSettingsUiState, actions: PreferenceSettingsActions): List<SettingsGroup> {
@@ -83,6 +84,13 @@ internal fun appearanceGroups(state: PreferenceSettingsUiState, actions: Prefere
                 emptyList()
             } + listOf<SettingsRow>(
                 { index, count -> CoverQualityRow(index, count, state.coverQuality, actions::onCoverQualityChange) },
+            ),
+        ),
+        SettingsGroup(
+            key = "motion",
+            title = null,
+            rows = listOf<SettingsRow>(
+                { index, count -> SimpleBackRow(index, count, state.simpleBack, actions::onSimpleBackChange) },
             ),
         ),
     )
@@ -199,6 +207,18 @@ private fun FriendMarksRow(
         checked = showFriendMarks,
         onCheckedChange = onCheckedChange,
         enabled = enabled,
+    )
+}
+
+/** 简单返回动画开关：开着时返回（手势与返回键）不演缩小预览，整页往回滑走，见 `chogumiPredictivePopTransition`。 */
+@Composable
+private fun SimpleBackRow(index: Int, count: Int, simpleBack: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    SwitchRow(
+        index = index,
+        count = count,
+        title = stringResource(R.string.settings_simple_back),
+        checked = simpleBack,
+        onCheckedChange = onCheckedChange,
     )
 }
 

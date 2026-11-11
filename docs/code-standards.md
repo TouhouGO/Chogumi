@@ -346,7 +346,8 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 
 ## 动效：一套，一个来源
 
-只有一套动效，没有设置项：系统关掉动画时（动画时长缩放 0、无障碍「移除动画」）一切瞬时。`ChogumiTheme` 映射一次（core:ui `theme/Motion.kt` 的
+只有一套动效。唯一的动效设置是外观页的「简单返回动画」（默认关）：开着时返回手势与三键导航的返回键不演缩小预览，跟着进度走普通返回的整页滑走
+（`chogumiPredictivePopTransition` 的 `simpleBack`，只在那一处分支）。系统关掉动画时（动画时长缩放 0、无障碍「移除动画」）一切瞬时。`ChogumiTheme` 映射一次（core:ui `theme/Motion.kt` 的
 `appMotionFor`），提供两份：M3 standard 方案作为 `MaterialTheme.motionScheme`（每个 M3 组件、每个页面跟它走），整套 `AppMotion` 作为 `LocalAppMotion`。
 
 - 动画规格只来自 `MaterialTheme.motionScheme` 或 `LocalAppMotion.current`（`scheme`、`shake`、`page`）。全局方案是 M3 standard（几乎不过冲）。

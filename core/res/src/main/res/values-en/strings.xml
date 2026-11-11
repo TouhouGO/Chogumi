@@ -265,6 +265,7 @@
     <string name="settings_reading_text_size_standard">Standard</string>
     <string name="settings_reading_text_size_large">Large</string>
     <string name="settings_cover_quality">Cover quality</string>
+    <string name="settings_simple_back">Simple back animation</string>
     <string name="settings_cover_quality_auto">Auto</string>
     <string name="settings_cover_quality_large">Large</string>
     <string name="settings_cover_quality_original">Original</string>

@@ -11,7 +11,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.Scene
-import androidx.navigationevent.NavigationEvent
 import io.github.touhougo.chogumi.core.ui.theme.PageMotion
 import kotlin.math.roundToInt
 
@@ -69,27 +68,21 @@ fun AnimatedContentTransitionScope<*>.chogumiTransition(
  * 并向手势方向滑一点，下面的页原地不动、不透明；松手后离开的页接着缩完并淡出（`PageMotion.previewFade`）。从封面长出来的页返回时由共享边界跟着手势缩回封面。
  * [shiftPx] 是预览位移的像素数，已按排版方向带正负。tab 根部的返回不在这里：`AppNavigator` 把它当成切 tab，没有拖动预览。
  *
- * 不是手指拖出来的返回（[followsFinger] 为假：三键导航点返回键时，系统自己在约 0.3 秒里把进度推完）没有可跟的手指，
- * 走普通返回的转场（[chogumiTransition]），和松手前就已提交的返回一样。
+ * [simpleBack] 是设置里的「简单返回动画」：开着时不演缩小预览，返回手势（含三键导航的返回键）跟着进度走普通返回的转场
+ * （[PageTransitionKind.Back]：离开的页整屏往行尾一侧滑走）。从封面长出来的页照旧缩回封面。
  */
 fun AnimatedContentTransitionScope<Scene<NavKey>>.chogumiPredictivePopTransition(
     kind: PageTransitionKind,
     page: PageMotion,
     direction: Int,
     shiftPx: Int,
-    swipeEdge: Int,
+    simpleBack: Boolean,
 ): ContentTransform {
-    if (kind == PageTransitionKind.Container || !followsFinger(swipeEdge)) return chogumiTransition(kind, page, direction)
+    if (kind == PageTransitionKind.Container || simpleBack) return chogumiTransition(kind, page, direction)
     return (EnterTransition.None togetherWith
         (slideOutHorizontally(page.previewShift) { shiftPx } + scaleOut(page.previewShrink, targetScale = page.previewScale) + fadeOut(page.previewFade)))
         .apply { targetContentZIndex = -1f }
 }
-
-/**
- * 这次返回是不是手指从屏幕边上拖出来的（返回预览跟着它走），全应用唯一的判定。
- * 返回键（三键导航）、键盘等触发的返回事件不带边，是 [NavigationEvent.EDGE_NONE]。
- */
-fun followsFinger(swipeEdge: Int): Boolean = swipeEdge != NavigationEvent.EDGE_NONE
 
 /** 视差里下面那页走的像素数。 */
 private fun PageMotion.behind(width: Int): Int = (width * parallax).roundToInt()

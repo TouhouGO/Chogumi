@@ -273,6 +273,7 @@
     <string name="settings_reading_text_size_standard">标准</string>
     <string name="settings_reading_text_size_large">大</string>
     <string name="settings_cover_quality">封面画质</string>
+    <string name="settings_simple_back">简单返回动画</string>
     <string name="settings_cover_quality_auto">自动</string>
     <string name="settings_cover_quality_large">大图</string>
     <string name="settings_cover_quality_original">原图</string>
