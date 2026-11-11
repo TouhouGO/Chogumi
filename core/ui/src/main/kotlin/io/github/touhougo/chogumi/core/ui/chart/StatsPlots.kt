@@ -398,26 +398,37 @@ fun ControversyCamps(value: RatingControversy, tips: List<String>, modifier: Mod
     TapChart(tips.joinToString(), modifier.fillMaxWidth().height(92.dp)) {
         val shares = value.camps.map { it.toDouble() / value.count }
         val centers = listOf(0f, widthPx / 2, widthPx)
-        val labels = listOf("1–4", "5–7", "8–10")
-        ChartLayout(tips.mapIndexed { i, tip -> ChartMark(Rect(i * widthPx / 3, 0f, (i + 1) * widthPx / 3, heightPx), tip) }) {
+        val ranges = listOf("1–4", "5–7", "8–10")
+        val segments = campSegmentBounds(shares.map(Double::toFloat), widthPx, 70.dp.toPx(), 16.dp.toPx(), 3.dp.toPx(), progress)
+        val labels = tips.mapIndexed { i, tip -> ChartMark(Rect(i * widthPx / 3, 0f, (i + 1) * widthPx / 3, 60.dp.toPx()), tip) }
+        val bars = segments.mapIndexedNotNull { i, rect -> rect.takeIf { it.width > 0f }?.let { ChartMark(it, tips[i]) } }
+        ChartLayout(labels + bars) {
             val colors = listOf(tertiary, middle, primary)
             shares.forEachIndexed { i, share ->
                 val text = if (share > 0 && share < 0.01) "<1%" else String.format(Locale.ROOT, "%.0f%%", share * 100)
                 label(text, centers[i], if (i == 1) 45.dp.toPx() else 34.dp.toPx(), if (i == 1) small else big,
                     if (i == 1) muted else colors[i], ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
-                label(labels[i], centers[i], 59.dp.toPx(), small, muted, ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
+                label(ranges[i], centers[i], 59.dp.toPx(), small, muted, ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
             }
-            var left = 0f
-            shares.forEachIndexed { i, share ->
-                val length = (share * widthPx).toFloat()
-                val growth = progress.chartFraction(i)
-                val from = when (i) { 0 -> left + length * (1 - growth); 1 -> left + length * (1 - growth) / 2; else -> left }
-                drawRoundRect(colors[i], Offset(from, 70.dp.toPx()), Size(max(0f, length - 3.dp.toPx()) * growth, 16.dp.toPx()), CornerRadius(3.dp.toPx()))
-                left += length
+            segments.forEachIndexed { i, rect ->
+                if (rect.width > 0f) drawRoundRect(colors[i], rect.topLeft, rect.size, CornerRadius(3.dp.toPx()))
             }
         }
     }
 }
+
+/** 条形的累计占比与进场几何；绘图和点按共用，零宽段不生成命中区。 */
+internal fun campSegmentBounds(shares: List<Float>, width: Float, top: Float, height: Float, gap: Float, progress: List<Float>): List<Rect> =
+    stripSegmentBounds(shares, width, height).mapIndexed { index, slot ->
+        val growth = progress.chartFraction(index)
+        val length = (slot.width - gap).coerceAtLeast(0f) * growth
+        val start = when (index) {
+            0 -> slot.left + slot.width * (1 - growth)
+            1 -> slot.left + slot.width * (1 - growth) / 2
+            else -> slot.left
+        }
+        Rect(start, top, start + length, top + height)
+    }
 
 /** 争议度分档的名字（统计页的文字、光谱两端的标注同读这一份）。 */
 @Composable
