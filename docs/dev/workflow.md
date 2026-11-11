@@ -36,9 +36,6 @@
 CI 把一轮拆成三个并行任务：`guards`（门禁与合同，不用 Gradle）和 Gradle 检查的两半，`tests`（`check.sh --part tests`：单测任务）与
 `builds`（`--part builds`：其余）。Gradle 构建缓存（`org.gradle.caching`）随 Actions 缓存走，只有 main 上的运行写、PR 只读：每天夜里
 `check.sh warm` 编译全部模块、单测只演不跑（公开后每次合入后的整仓也写），PR 只重编自己改到的。本地不加 `--part`，一次 Gradle 跑完两半。
-工作流里引用的外部 Action 钉到完整的 40 位提交号（Docker Action 钉 `sha256` digest），`actions/checkout` 写明 `persist-credentials: false`，
-工作流顶层只给 `permissions: contents: read`（发版任务另给 `contents: write`）：
-门禁 `python3 tools/guards/check_action_pins.py`。
 
 workflow 只跑钉死的代码、不把令牌留在工作区：外部 `uses` 钉四十位提交 SHA（`docker://` 与 docker 型 local action 的镜像钉 `@sha256:`），
 `actions/checkout` 写 `persist-credentials: false`，顶层权限只有 `contents: read`，只有 release.yml 的 release job 拿 `contents: write`。
