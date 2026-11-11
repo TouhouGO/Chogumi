@@ -3,6 +3,8 @@ package io.github.touhougo.chogumi.feature.home.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.ComponentName
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -11,11 +13,9 @@ import androidx.compose.runtime.produceState
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequest
@@ -62,8 +62,28 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-/** 这个 App 的全部桌面小组件（刷新时逐个更新）。 */
-internal fun allWidgets(): List<GlanceAppWidget> = listOf(ProgressWidget(), SubjectWidget(), HeatWidget(), TodayWidget(), WeekWidget())
+/** 小组件类型的唯一清单；系统保存的 Receiver 身份不受 provider 混淆或持久化映射版本影响。 */
+internal fun widgetReceivers(): List<Class<out ChogumiWidgetReceiver>> = listOf(
+    ProgressWidgetReceiver::class.java, SubjectWidgetReceiver::class.java, HeatWidgetReceiver::class.java,
+    TodayWidgetReceiver::class.java, WeekWidgetReceiver::class.java,
+)
+
+/** 按系统 Receiver 找真实实例，不经 Glance 持久化的 provider 类名反查。 */
+internal fun placedWidgets(context: Context): Map<ComponentName, IntArray> {
+    val manager = AppWidgetManager.getInstance(context)
+    return widgetReceivers().associate { receiver ->
+        val component = ComponentName(context, receiver)
+        component to manager.getAppWidgetIds(component)
+    }.filterValues { it.isNotEmpty() }
+}
+
+/** 走 Glance 的系统更新入口：重登记 provider 映射，并只用该 Receiver 的组件重画其自己的实例。 */
+internal fun requestWidgetUpdates(context: Context) {
+    placedWidgets(context).forEach { (receiver, ids) ->
+        context.sendBroadcast(Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).setComponent(receiver)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids))
+    }
+}
 
 /**
  * 小组件上点 +1、放送提醒上点「看过了」：交给标进度协调器（首页、进度页、详情页同一个），小组件发起的失败画在那一行上。
@@ -197,7 +217,7 @@ class WidgetUpdates internal constructor(
 
     internal suspend fun updateNow() {
         _revision.update { it + 1 }
-        allWidgets().forEach { widget -> outcomeOf { widget.updateAll(context) } }
+        outcomeOf { requestWidgetUpdates(context) }
     }
 
     /**
@@ -216,8 +236,7 @@ class WidgetUpdates internal constructor(
     private fun accounts() = authRepository.sessionState.map { (it as? SessionState.Authenticated)?.account }.distinctUntilChanged()
 
     private suspend fun anyPlaced(): Boolean {
-        val manager = GlanceAppWidgetManager(context)
-        return allWidgets().any { widget -> outcomeOf { manager.getGlanceIds(widget.javaClass) }.valueOrNull().orEmpty().isNotEmpty() }
+        return outcomeOf { placedWidgets(context).isNotEmpty() }.valueOrNull() ?: false
     }
 
     private companion object {
