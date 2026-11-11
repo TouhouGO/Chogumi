@@ -1,6 +1,20 @@
 package io.github.touhougo.chogumi.feature.home.widget
 
 import android.content.Context
+import android.appwidget.AppWidgetManager
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Looper
+import androidx.work.Configuration
+import androidx.work.WorkManager
+import androidx.work.impl.WorkManagerImpl
+import org.koin.core.context.stopKoin
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import org.koin.mp.KoinPlatformTools
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadow.api.Shadow
+import org.robolectric.shadows.ShadowBroadcastPendingResult
 import androidx.test.core.app.ApplicationProvider
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeDao
 import io.github.touhougo.chogumi.core.data.repository.FakeEpisodeWatchStateDao
@@ -30,6 +44,7 @@ import io.github.touhougo.chogumi.core.foundation.Failure
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -100,12 +115,42 @@ class WidgetReliabilityTest {
         assertEquals(2, frame)
     }
 
+    @Test
+    fun `系统恢复广播里_更新仍拿到广播的异步句柄_迁移已排上`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        if (!WorkManagerImpl.isInitialized()) WorkManager.initialize(context, Configuration.Builder().build())
+        val work = WorkManager.getInstance(context)
+        val preferences = FaultablePreferencesRepository(resources).repository
+        val widgets = realUpdates(context, preferences, resources.scope)
+        // 接收器与小组件经 KoinComponent 取依赖，读的是全局那一份。经 KoinContext 接口启动：`startKoin { }` 的写法会被编译插件当成应用的整张图校验。
+        KoinPlatformTools.defaultContext().startKoin(koinApplication {
+            modules(module { single { widgets.updates }; single { widgets.source }; single { widgets.actions }; single { preferences } })
+        })
+        val receiver = SubjectWidgetReceiver()
+        try {
+            context.registerReceiver(receiver, IntentFilter(AppWidgetManager.ACTION_APPWIDGET_RESTORED), Context.RECEIVER_NOT_EXPORTED)
+            // 系统恢复后发来的那一条：AppWidgetProvider 在这一次 onReceive 里先调 onRestored、再调 onUpdate。
+            context.sendBroadcast(Intent(AppWidgetManager.ACTION_APPWIDGET_RESTORED).setPackage(context.packageName)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_OLD_IDS, intArrayOf(4301))
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(5301)))
+            shadowOf(Looper.getMainLooper()).idle()
+            // 影子在每次 goAsync() 时记下当时还在手上的句柄：同一次广播里取过一次再取，系统给的是空。
+            val broadcast = assertNotNull(shadowOf(receiver).originalPendingResult, "这次广播里最后一次 goAsync() 仍取得到广播的句柄")
+            awaitUntil("Glance 的更新结束这次广播") { Shadow.extract<ShadowBroadcastPendingResult>(broadcast).future.isDone }
+            awaitUntil("作品选择的迁移排进 WorkManager") { work.getWorkInfosByTag(SubjectWidgetRestoreWorker::class.java.name).get().isNotEmpty() }
+        } finally {
+            context.unregisterReceiver(receiver)
+            work.cancelAllWork().result.get()
+            stopKoin()
+        }
+    }
+
     private suspend fun realUpdates(
         context: Context,
         preferences: io.github.touhougo.chogumi.core.data.repository.PreferencesRepository,
         applicationScope: CoroutineScope,
         tokenStore: TokenStore = testTokenStore(resources, 7),
-    ): Pair<WidgetUpdates, WidgetWorksSource> {
+    ): Widgets {
         val client = resources.apiClient { respond("", HttpStatusCode.NotFound) }
         val clock = TestClock(0)
         val subjectDao = FakeSubjectDao()
@@ -118,7 +163,9 @@ class WidgetReliabilityTest {
         auth.ensureInitialized()
         val source = WidgetWorksSource(home, collections.observer, auth, clock)
         val actions = WidgetProgressActions(source, coordinator)
-        return WidgetUpdates(context, applicationScope, collections.observer, preferences, auth, actions) to source
+        return Widgets(WidgetUpdates(context, applicationScope, collections.observer, preferences, auth, actions), source, actions)
     }
+
+    private data class Widgets(val updates: WidgetUpdates, val source: WidgetWorksSource, val actions: WidgetProgressActions)
 
 }

@@ -85,10 +85,10 @@ class SubjectWidgetRestoreWorker(context: Context, params: WorkerParameters) : C
         private const val OLD_IDS = "oldIds"
         private const val NEW_IDS = "newIds"
 
-        fun enqueue(context: Context, oldIds: IntArray, newIds: IntArray): androidx.work.Operation? {
-            if (oldIds.size != newIds.size || oldIds.isEmpty()) return null
+        fun enqueue(context: Context, oldIds: IntArray, newIds: IntArray) {
+            if (oldIds.size != newIds.size || oldIds.isEmpty()) return
             val name = "subject-widget-restore:" + oldIds.joinToString(",") + ":" + newIds.joinToString(",")
-            return WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.KEEP,
+            WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.KEEP,
                 OneTimeWorkRequestBuilder<SubjectWidgetRestoreWorker>()
                     .setInputData(workDataOf(OLD_IDS to oldIds, NEW_IDS to newIds)).build())
         }

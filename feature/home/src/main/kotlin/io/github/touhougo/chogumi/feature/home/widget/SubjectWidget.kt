@@ -51,12 +51,6 @@ import io.github.touhougo.chogumi.core.ui.composables.collectionProgressLabel
 import io.github.touhougo.chogumi.feature.home.R as HomeR
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.koin.core.qualifier.named
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import io.github.touhougo.chogumi.core.data.util.outcomeOf
 
 /** 单部作品这一次画的东西。 */
 internal sealed interface SubjectContent {
@@ -287,18 +281,12 @@ internal suspend fun chooseSubject(context: Context, appWidgetId: Int, subjectId
 }
 
 class SubjectWidgetReceiver : ChogumiWidgetReceiver() {
-    private val scope: CoroutineScope by inject(named("appScope"))
-
+    /**
+     * 系统在同一次广播里先调这里、再调 [onUpdate]，广播的异步句柄（`goAsync`）只有一份：留给 Glance 的更新。
+     * 这里只把迁移排进 WorkManager，由可重试的 Worker 做。
+     */
     override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
-        val pending = goAsync()
-        scope.launch {
-            try {
-                // 广播结束前确保 WorkManager 已把恢复任务落盘，真正迁移由可重试 Worker 执行。
-                outcomeOf { withContext(Dispatchers.IO) { SubjectWidgetRestoreWorker.enqueue(context, oldWidgetIds, newWidgetIds)?.result?.get() } }
-            } finally {
-                pending.finish()
-            }
-        }
+        SubjectWidgetRestoreWorker.enqueue(context, oldWidgetIds, newWidgetIds)
     }
 
     override val glanceAppWidget: GlanceAppWidget = SubjectWidget()
