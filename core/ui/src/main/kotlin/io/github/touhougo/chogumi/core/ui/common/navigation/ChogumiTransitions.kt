@@ -67,14 +67,18 @@ fun AnimatedContentTransitionScope<*>.chogumiTransition(
  * `predictivePopTransitionSpec` 唯一该调的入口：离开的页跟着手势缩小、四角变圆（[rememberPageSurfaceNavEntryDecorator]），
  * 并向手势方向滑一点，下面的页原地不动、不透明；松手后离开的页接着缩完并淡出（`PageMotion.previewFade`）。从封面长出来的页返回时由共享边界跟着手势缩回封面。
  * [shiftPx] 是预览位移的像素数，已按排版方向带正负。tab 根部的返回不在这里：`AppNavigator` 把它当成切 tab，没有拖动预览。
+ *
+ * [simpleBack] 是设置里的「简单返回动画」：开着时不演缩小预览，返回手势（含三键导航的返回键）跟着进度走普通返回的转场
+ * （[PageTransitionKind.Back]：离开的页整屏往行尾一侧滑走）。从封面长出来的页照旧缩回封面。
  */
 fun AnimatedContentTransitionScope<Scene<NavKey>>.chogumiPredictivePopTransition(
     kind: PageTransitionKind,
     page: PageMotion,
     direction: Int,
     shiftPx: Int,
+    simpleBack: Boolean,
 ): ContentTransform {
-    if (kind == PageTransitionKind.Container) return chogumiTransition(kind, page, direction)
+    if (kind == PageTransitionKind.Container || simpleBack) return chogumiTransition(kind, page, direction)
     return (EnterTransition.None togetherWith
         (slideOutHorizontally(page.previewShift) { shiftPx } + scaleOut(page.previewShrink, targetScale = page.previewScale) + fadeOut(page.previewFade)))
         .apply { targetContentZIndex = -1f }

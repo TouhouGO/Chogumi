@@ -17,6 +17,7 @@ import io.github.touhougo.chogumi.core.ui.theme.LocalAppMotion
 /**
  * 页面区的唯一接法（红线：单一真源）：共享转场作用域、容器转换的起点登记、[NavDisplay] 的三个转场规格与排版方向，
  * 外壳和测试都经它，只换 [entryProvider]。转场取值全部来自主题的动效（[chogumiTransition]）。
+ * [simpleBack] 是设置里的「简单返回动画」，见 [chogumiPredictivePopTransition]。
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -24,6 +25,7 @@ fun AppNavDisplay(
     navigator: AppNavigator,
     entryProvider: (NavKey) -> NavEntry<NavKey>,
     sheets: PageSheetRegistry,
+    simpleBack: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val page = LocalAppMotion.current.page
@@ -41,7 +43,7 @@ fun AppNavDisplay(
                 transitionSpec = { chogumiTransition(navigator.transitionKind(back = false, targetState, initialState), page, direction) },
                 popTransitionSpec = { chogumiTransition(navigator.transitionKind(back = true, targetState, initialState), page, direction) },
                 predictivePopTransitionSpec = { _ ->
-                    chogumiPredictivePopTransition(navigator.transitionKind(back = true, targetState, initialState), page, direction, shiftPx)
+                    chogumiPredictivePopTransition(navigator.transitionKind(back = true, targetState, initialState), page, direction, shiftPx, simpleBack)
                 },
                 onBack = navigator::goBack,
             )

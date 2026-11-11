@@ -92,6 +92,7 @@ fun AppEntries(
     sheets: PageSheetRegistry,
     progressEntryRequests: ProgressEntryRequests,
     inboxRequests: InboxRequests,
+    simpleBack: Boolean,
 ) {
     // 页面在测量时读这份状态而不是建页时的快照：底栏高度随系统导航条变化（切换手势 / 三键导航）时，
     // 已经建好的页面也跟着重排
@@ -101,7 +102,7 @@ fun AppEntries(
     }
     val userCareerCard = remember(navigator, account) { userCareerCardOf(navigator::navigate, account) }
     CompositionLocalProvider(LocalUserCareerCard provides userCareerCard, LocalIndexPicker provides indexPicker) {
-        AppNavDisplay(navigator, entries, sheets)
+        AppNavDisplay(navigator, entries, sheets, simpleBack)
     }
 }
 

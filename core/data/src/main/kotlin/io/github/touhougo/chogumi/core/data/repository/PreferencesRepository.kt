@@ -103,6 +103,15 @@ class PreferencesRepository(
         prefs.edit { it[PreferenceKeys.SHOW_FRIEND_MARKS] = value }
     }
 
+    /** 简单返回动画开关，缺省为 false（返回演跟手的缩小预览）。 */
+    val simpleBack: Flow<Boolean> = select { prefs ->
+        prefs[PreferenceKeys.SIMPLE_BACK] ?: false
+    }
+
+    suspend fun setSimpleBack(value: Boolean) {
+        prefs.edit { it[PreferenceKeys.SIMPLE_BACK] = value }
+    }
+
     /**
      * 首页「待看」显示条数，缺省与不在 [ToWatchLimit.OPTIONS] 里的值一律回落 [ToWatchLimit.DEFAULT]。
      *

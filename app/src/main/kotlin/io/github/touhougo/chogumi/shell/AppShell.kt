@@ -144,7 +144,7 @@ fun AppShell(
                         )
                     },
                 ) { bottomPadding ->
-                    AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests, inboxRequests)
+                    AppEntries(navigator, bottomPadding, state.account, sheets, progressEntryRequests, inboxRequests, state.simpleBack)
                 }
             }
             // 更新提示等引导收起再出

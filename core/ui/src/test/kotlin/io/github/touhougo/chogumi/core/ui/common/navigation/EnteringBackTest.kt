@@ -46,7 +46,7 @@ class EnteringBackTest {
             ChogumiTheme {
                 navigator = rememberAppNavigator()
                 val sheets = remember { PageSheetRegistry() }
-                AppNavDisplay(navigator, { key -> NavEntry(key) { Box(Modifier.fillMaxSize().testTag(key.toString())) } }, sheets)
+                AppNavDisplay(navigator, { key -> NavEntry(key) { Box(Modifier.fillMaxSize().testTag(key.toString())) } }, sheets, simpleBack = false)
             }
         }
         composeRule.waitForIdle()

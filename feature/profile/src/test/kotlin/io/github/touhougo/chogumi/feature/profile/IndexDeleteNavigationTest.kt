@@ -140,6 +140,7 @@ class IndexDeleteNavigationTest {
                             }
                         },
                         sheets = sheets,
+                        simpleBack = false,
                     )
                 }
             }

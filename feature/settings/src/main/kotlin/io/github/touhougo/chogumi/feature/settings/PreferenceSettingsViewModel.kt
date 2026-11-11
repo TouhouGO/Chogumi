@@ -48,6 +48,8 @@ data class PreferenceSettingsUiState(
     val readingTextSize: ReadingTextSize = ReadingTextSize.DEFAULT,
     /** 封面画质档位：本地偏好，作品封面跟随。 */
     val coverQuality: CoverQuality = CoverQuality.DEFAULT,
+    /** 简单返回动画：本地偏好，下一次返回就生效。 */
+    val simpleBack: Boolean = false,
 )
 
 /** 外观、首页与进度、评分与社区三个分类页的界面事件（失败提示不在这里：走 ViewModel 的 `failures`）。 */
@@ -77,6 +79,9 @@ interface PreferenceSettingsActions {
 
     /** 封面画质档位变更。 */
     fun onCoverQualityChange(value: CoverQuality)
+
+    /** 简单返回动画开关切换：开着时返回不演缩小预览，整页滑走。 */
+    fun onSimpleBackChange(value: Boolean)
 
     /** 主题配色偏好变更。 */
     fun onThemePreferencesChange(value: ThemePreferences)
@@ -182,6 +187,11 @@ class PreferenceSettingsViewModel(
         viewModelScope.launchWrite(failures) { preferencesRepository.setCoverQuality(value) }
     }
 
+    /** 简单返回动画：只写偏好，界面状态只从 `preferencesRepository.simpleBack` 的 collect 来（单一真源）。 */
+    override fun onSimpleBackChange(value: Boolean) {
+        viewModelScope.launchWrite(failures) { preferencesRepository.setSimpleBack(value) }
+    }
+
     init {
         // 本地偏好原样映进状态；DataStore 写入后会回放新值（界面状态的唯一来源）。
         follow(failures, {
@@ -198,6 +208,7 @@ class PreferenceSettingsViewModel(
                 mirror(preferencesRepository.progressDefaultType) { copy(progressDefaultType = it) },
                 mirror(preferencesRepository.readingTextSize) { copy(readingTextSize = it) },
                 mirror(preferencesRepository.coverQuality) { copy(coverQuality = it) },
+                mirror(preferencesRepository.simpleBack) { copy(simpleBack = it) },
             ).failuresAsLoad()
         }) { apply -> updateState(apply) }
         // 桌面图标没有变化通知：进页时读一次，之后只在自己换过之后再读。

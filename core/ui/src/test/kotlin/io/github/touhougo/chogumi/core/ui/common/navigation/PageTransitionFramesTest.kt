@@ -92,6 +92,9 @@ class PageTransitionFramesTest {
         Settings.Global.putFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
     }
 
+    /** 返回时的种类：和 `AppNavigator.transitionKind(back = true, …)` 一样，压进来的页返回时是 [PageTransitionKind.Back]。 */
+    private fun popKind() = if (kind == PageTransitionKind.Forward) PageTransitionKind.Back else kind
+
     private fun colorOf(key: NavKey) = if (key == Route.Home) Color.Red else Color.Blue
 
     private fun openDetails() {
@@ -148,7 +151,7 @@ class PageTransitionFramesTest {
         }
     }
 
-    private fun setContent(withShared: Boolean = false, poster: Boolean = false, carousel: Boolean = false, intrinsic: Boolean = false, clipped: Boolean = false, titled: Boolean = false) {
+    private fun setContent(withShared: Boolean = false, poster: Boolean = false, carousel: Boolean = false, intrinsic: Boolean = false, clipped: Boolean = false, titled: Boolean = false, simpleBack: Boolean = false) {
         composeRule.setContent {
             val dispatcher = LocalNavigationEventDispatcherOwner.current!!.navigationEventDispatcher
             DisposableEffect(dispatcher) {
@@ -179,8 +182,8 @@ class PageTransitionFramesTest {
                             },
                             onBack = { backStack.removeAt(backStack.lastIndex) },
                             transitionSpec = { chogumiTransition(kind, page, 1) },
-                            popTransitionSpec = { chogumiTransition(if (kind == PageTransitionKind.Forward) PageTransitionKind.Back else kind, page, 1) },
-                            predictivePopTransitionSpec = { _ -> chogumiPredictivePopTransition(kind, page, 1, shiftPx) },
+                            popTransitionSpec = { chogumiTransition(popKind(), page, 1) },
+                            predictivePopTransitionSpec = { _ -> chogumiPredictivePopTransition(popKind(), page, 1, shiftPx, simpleBack) },
                             entryProvider = { key ->
                                 NavEntry(key) {
                                     Box(Modifier.fillMaxSize().testTag(key.toString()).background(colorOf(key))) {
@@ -683,6 +686,24 @@ class PageTransitionFramesTest {
         composeRule.waitForIdle()
         val drops = seen.zipWithNext { a, b -> a - b }
         assertTrue("松手后详情页逐帧淡出，没有一帧里整页消失：$seen", drops.all { it < 0.35f })
+        assertEquals("最后回到上一页", Color.Red, centre())
+    }
+
+    @Test
+    fun 简单返回动画_拖动返回时整页往回滑走_不缩小() {
+        setContent(withShared = true, simpleBack = true)
+        backStack.add(Route.SubjectDetails(1))
+        composeRule.waitForIdle()
+        val screen = composeRule.onRoot().fetchSemanticsNode().size
+
+        composeRule.runOnIdle { gesture.backStarted(NavigationEvent(touchX = 0f, touchY = 300f, progress = 0f, swipeEdge = NavigationEvent.EDGE_LEFT)) }
+        composeRule.runOnIdle { gesture.backProgressed(NavigationEvent(touchX = 120f, touchY = 300f, progress = 0.3f, swipeEdge = NavigationEvent.EDGE_LEFT)) }
+        composeRule.waitForIdle()
+        val page = blueBox()
+        assertTrue("拖动时离开的页是整页大小、往行尾一侧挪了：$page / $screen", page != null && page.height == screen.height && page.left > 0)
+
+        composeRule.runOnIdle { gesture.backCompleted() }
+        composeRule.waitForIdle()
         assertEquals("最后回到上一页", Color.Red, centre())
     }
 
