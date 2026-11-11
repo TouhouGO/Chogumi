@@ -32,7 +32,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
@@ -367,11 +366,12 @@ class NotificationRepositoryTest {
     }
 
     @Test
-    fun `读不出本机偏好时刷新未读数不抛出_访问观察结束而不带崩进程`() = runBlocking {
+    fun `读不出本机偏好时刷新未读数不抛出_访问观察不带崩进程`() = runBlocking {
         val escaped = Collections.synchronizedList(mutableListOf<Throwable>())
         val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> escaped += e })
+        val failedReads = AtomicInteger(0)
         val unreadable = object : DataStore<Preferences> {
-            override val data: Flow<Preferences> = flow { throw IOException("偏好文件读不出") }
+            override val data: Flow<Preferences> = flow { failedReads.incrementAndGet(); throw IOException("偏好文件读不出") }
             override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences = throw IOException("偏好文件写不进")
         }
         val tokenStore = testTokenStore(scope = ioScope).apply { login() }
@@ -382,8 +382,7 @@ class NotificationRepositoryTest {
             preferencesRepository = PreferencesRepository(unreadable),
             scope = appScope,
         )
-        // 访问观察与角标的合计各占一个子协程；观察读不出偏好就此结束，只剩合计
-        awaitUntil("访问观察已结束") { appScope.coroutineContext.job.children.count() == 1 }
+        awaitUntil("访问观察读过一次偏好") { failedReads.get() >= 1 }
 
         repository.refreshUnreadCount()
 

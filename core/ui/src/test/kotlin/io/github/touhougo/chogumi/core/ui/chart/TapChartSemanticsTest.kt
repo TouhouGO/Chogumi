@@ -41,11 +41,10 @@ class TapChartSemanticsTest {
                 Box(Modifier.width(200.dp).height(100.dp)) {
                     TapChart("示意图") {
                         ChartLayout(
-                            marks = listOf(
-                                ChartMark(Rect(0f, 0f, 50f, 50f), "甲 3 人"),
-                                ChartMark(Rect(60f, 0f, 110f, 50f), "乙 5 人"),
+                            listOf(
+                                ChartMark(Rect(0f, 0f, 50f, 50f), "甲 3 人") {},
+                                ChartMark(Rect(60f, 0f, 110f, 50f), "乙 5 人") {},
                             ),
-                            draw = {},
                         )
                     }
                 }
@@ -56,7 +55,7 @@ class TapChartSemanticsTest {
         assertEquals("示意图", chart.config.getOrNull(SemanticsProperties.ContentDescription)?.single())
         val first = composeRule.onNodeWithContentDescription("甲 3 人").fetchSemanticsNode()
         val second = composeRule.onNodeWithContentDescription("乙 5 人").fetchSemanticsNode()
-        assertEquals("节点盖在自己的命中区上", Rect(0f, 0f, 50f, 50f), first.boundsInRoot.translate(-chart.boundsInRoot.topLeft))
+        assertEquals("节点盖在算作点中它的范围上", Rect(0f, 0f, 50f, 50f), first.boundsInRoot.translate(-chart.boundsInRoot.topLeft))
         assertEquals(Rect(60f, 0f, 110f, 50f), second.boundsInRoot.translate(-chart.boundsInRoot.topLeft))
 
         composeRule.runOnUiThread { first.config[SemanticsActions.OnClick].action!!() }
@@ -69,7 +68,7 @@ class TapChartSemanticsTest {
             ChogumiTheme {
                 Box(Modifier.width(200.dp).height(100.dp)) {
                     TapChart("百格图") {
-                        ChartLayout(marks = (0 until 100).map { i -> ChartMark(Rect(i.toFloat(), 0f, i + 1f, 10f), "第 $i 格") }, draw = {})
+                        ChartLayout((0 until 100).map { i -> ChartMark(Rect(i.toFloat(), 0f, i + 1f, 10f), "第 $i 格") {} })
                     }
                 }
             }

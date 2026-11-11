@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 class StatsChartHitTest {
 
     private fun tapped(bounds: List<Rect>, point: Offset): Int? {
-        val marks = bounds.mapIndexed { i, rect -> ChartMark(rect, "$i") }
+        val marks = bounds.mapIndexed { i, rect -> ChartMark(rect, "$i") {} }
         return markAt(marks, point, slop = 0f)?.label?.toInt()
     }
 

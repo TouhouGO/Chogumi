@@ -42,12 +42,12 @@ fun BubbleMatrix(rows: List<String>, columns: List<String>, cells: List<BubbleCe
         ChartLayout(
             marks = bubbles.mapIndexed { i, (center, radius) ->
                 ChartMark(
-                    Rect(center.x - columnWidth / 2, center.y - rowHeight / 2, center.x + columnWidth / 2, center.y + rowHeight / 2),
-                    cells[i].tip,
                     anchor = Rect(center, radius),
-                )
+                    label = cells[i].tip,
+                    hit = Rect(center.x - columnWidth / 2, center.y - rowHeight / 2, center.x + columnWidth / 2, center.y + rowHeight / 2),
+                ) { drawCircle(tones[cells[i].row], radius, center) }
             },
-            draw = {
+            backdrop = {
                 rows.forEachIndexed { row, name ->
                     val y = row * rowHeight + rowHeight / 2
                     label(name, 0f, y + axis.fontSize.toPx() / 3, axis, muted, ha = 0f, maxWidthPx = labelWidth)
@@ -57,10 +57,6 @@ fun BubbleMatrix(rows: List<String>, columns: List<String>, cells: List<BubbleCe
                     if (!everyOther || (columns.size - 1 - column) % 2 == 0) {
                         label(name, labelWidth + column * columnWidth + columnWidth / 2, heightPx - 4.dp.toPx(), axis, muted)
                     }
-                }
-                cells.forEachIndexed { i, cell ->
-                    val (center, radius) = bubbles[i]
-                    drawCircle(tones[cell.row], radius, center)
                 }
             },
         )

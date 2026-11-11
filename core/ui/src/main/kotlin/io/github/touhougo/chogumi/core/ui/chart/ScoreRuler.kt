@@ -64,42 +64,45 @@ fun ScoreRuler(marks: List<ScoreMark>, description: String, modifier: Modifier =
         )
         val lineHeight = referenceStyle.lineHeight.toPx()
         val firstBaseline = axisY + RULER_BELOW_GAP.toPx() + lineHeight * 0.75f
+        // 整把尺是一个标记：点哪里都给出全部均分
         ChartLayout(
-            marks = listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), marks.joinToString("\n") { it.tip }, multiline = true)),
-        ) {
-            drawLine(axisColor, Offset(left, axisY), Offset(right, axisY), 2.dp.toPx(), StrokeCap.Round)
-            (1..10).forEach { score ->
-                val x = xOf(score.toDouble())
-                drawLine(axisColor, Offset(x, axisY - 4.dp.toPx()), Offset(x, axisY + 4.dp.toPx()), 1.dp.toPx())
-            }
-            label("1", 0f, axisY + 4.dp.toPx(), scale, muted, ha = 0f)
-            label("10", widthPx, axisY + 4.dp.toPx(), scale, muted, ha = 1f)
-            below.forEachIndexed { i, mark ->
-                val center = Offset(xOf(1.0 + (mark.score - 1.0) * progress.chartFraction(i)), axisY)
-                drawCircle(halo, 8.dp.toPx(), center)
-                if (mark.color.isSpecified) {
-                    drawCircle(mark.color, 6.dp.toPx(), center)
-                } else {
-                    drawCircle(referenceColor, 5.dp.toPx(), center, style = Stroke(2.dp.toPx()))
-                }
-                belowLeft[i]?.let { (row, labelLeft) ->
-                    label(
-                        mark.label,
-                        labelLeft,
-                        firstBaseline + row * lineHeight,
-                        referenceStyle,
-                        if (mark.color.isSpecified) mark.color else muted,
-                        ha = 0f,
-                    )
-                }
-            }
-            marks.filter { it.own }.forEachIndexed { i, mark ->
-                val center = Offset(xOf(1.0 + (mark.score - 1.0) * progress.chartFraction(i)), axisY)
-                drawCircle(halo, 8.dp.toPx(), center)
-                drawCircle(ownColor, 6.dp.toPx(), center)
-                label(mark.label, center.x, axisY - 14.dp.toPx(), ownStyle, ink)
-            }
-        }
+            listOf(
+                ChartMark(Rect(0f, 0f, widthPx, heightPx), marks.joinToString("\n") { it.tip }, multiline = true) {
+                    drawLine(axisColor, Offset(left, axisY), Offset(right, axisY), 2.dp.toPx(), StrokeCap.Round)
+                    (1..10).forEach { score ->
+                        val x = xOf(score.toDouble())
+                        drawLine(axisColor, Offset(x, axisY - 4.dp.toPx()), Offset(x, axisY + 4.dp.toPx()), 1.dp.toPx())
+                    }
+                    label("1", 0f, axisY + 4.dp.toPx(), scale, muted, ha = 0f)
+                    label("10", widthPx, axisY + 4.dp.toPx(), scale, muted, ha = 1f)
+                    below.forEachIndexed { i, mark ->
+                        val center = Offset(xOf(1.0 + (mark.score - 1.0) * progress.chartFraction(i)), axisY)
+                        drawCircle(halo, 8.dp.toPx(), center)
+                        if (mark.color.isSpecified) {
+                            drawCircle(mark.color, 6.dp.toPx(), center)
+                        } else {
+                            drawCircle(referenceColor, 5.dp.toPx(), center, style = Stroke(2.dp.toPx()))
+                        }
+                        belowLeft[i]?.let { (row, labelLeft) ->
+                            label(
+                                mark.label,
+                                labelLeft,
+                                firstBaseline + row * lineHeight,
+                                referenceStyle,
+                                if (mark.color.isSpecified) mark.color else muted,
+                                ha = 0f,
+                            )
+                        }
+                    }
+                    marks.filter { it.own }.forEachIndexed { i, mark ->
+                        val center = Offset(xOf(1.0 + (mark.score - 1.0) * progress.chartFraction(i)), axisY)
+                        drawCircle(halo, 8.dp.toPx(), center)
+                        drawCircle(ownColor, 6.dp.toPx(), center)
+                        label(mark.label, center.x, axisY - 14.dp.toPx(), ownStyle, ink)
+                    }
+                },
+            ),
+        )
     }
 }
 

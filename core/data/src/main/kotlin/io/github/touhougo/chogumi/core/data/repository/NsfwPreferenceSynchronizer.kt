@@ -2,7 +2,6 @@ package io.github.touhougo.chogumi.core.data.repository
 
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -15,7 +14,7 @@ import kotlinx.coroutines.launch
  * 刷新时机有三处：登录完成、App 启动（已登录）、进入设置页。前两者都等价于
  * 「当前账号身份发生变化」——若分别写在 `AuthRepository.login()` 与
  * `ensureInitialized()` 里，就是两个触发点，将来加一条登录路径（例如令牌登录、
- * 静默换号）必然会漏掉一处。故这里只观察 [TokenStore.sessionFlow] 的**会话身份**：
+ * 静默换号）必然会漏掉一处。故这里只观察会话流（[TokenStore.recoveringSessions]）的**会话身份**：
  * **启动恢复**与**新登录**都会让身份从 null 变为一个会话，一个观察点覆盖两者。
  *
  * ## 为什么按会话代数（generation）去重，而不是按 authenticated 布尔位或 userId
@@ -54,11 +53,8 @@ import kotlinx.coroutines.launch
  * collect 一旦抛异常就结束，此后换号/重登都不再刷新。故：
  * - [NsfwPreferenceRepository.refresh] 的契约是**只返回错误态、不抛非取消异常**
  *   （见其文档），这里直接调用即可；
- * - 上游 [TokenStore.sessionFlow] 自身的读失败（DataStore IO 异常）另用 [catch] 兜底。
- *   注意 [catch] 只能**防止未捕获异常崩溃**，并不能让观察继续 —— 它捕获后该 flow
- *   即告完成，观察随之结束。这是已知边界：真要恢复得重建整个 flow，而 DataStore
- *   读失败属极罕见故障，不值得为此加一层重建循环。**兜底**：进入设置页时会再刷新
- *   一次（`ContentSettingsViewModel.loadNsfw()`），用户仍能拿到最新值。
+ * - 凭证读不出（DataStore IO 异常）时跟的是 [TokenStore.recoveringSessions]：退避后重新订阅，
+ *   读出来之后的登录、换号照常刷新。
  */
 class NsfwPreferenceSynchronizer(
     private val tokenStore: TokenStore,
@@ -67,14 +63,11 @@ class NsfwPreferenceSynchronizer(
 ) {
     init {
         scope.launch {
-            tokenStore.sessionFlow
+            tokenStore.recoveringSessions
                 // 会话身份：未认证统一映射为 null，认证则取会话代数。
                 // 不用 authenticated 布尔位或 userId 去重：换号、同号重登的中间态被合并时会漏刷新（见类文档）。
                 .map { if (it.authenticated) it.generation else null }
                 .distinctUntilChanged()
-                // 只防崩溃：Flow.catch 捕获上游异常后 flow 即完成，观察到此结束，
-                // 不会"吞掉后继续等下一次会话变化"。恢复依赖设置页刷新兜底（见类文档）。
-                .catch { }
                 .collect { generation ->
                     // 未认证（null）不动：登出/游客没账号可读，缓存保留（换号按 userId 分区隔离）。
                     if (generation != null) nsfwPreferenceRepository.refresh()

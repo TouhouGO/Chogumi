@@ -47,15 +47,36 @@ import kotlinx.coroutines.launch
 
 /*
  * 所有统计图共用的点按层：图上不写确切的数，点一下由同一个气泡给出（生涯统计与条目统计都走这里）。
+ *
+ * 画与点只有一份几何：
+ * - 一个标记（ChartMark）就是图上画出来的一块，自己画自己：anchor 是这一块，draw 拿着它画，气泡也指着它。
+ *   图不另算一份「命中区」去对画出来的东西。
+ * - 点中谁按画出来的那一块判（markAt）：手指落在哪一块上就是哪一块。hit 只是把这一块周围的空白也算给它
+ *   （整列、整行、点周围一圈）；几块都要这一处时归画出来离手指最近的那一块，与声明的先后无关。
+ * - 画出来的形状不是矩形、给不出「这一块」的（环的段、几条交叠的折线）：标记是图例里它的那一行，形状本身画在底图里。
+ * - 不是标记的东西（轴、刻度、参考线）画在 ChartLayout 的 backdrop（标记之下）或 foreground（标记之上），点不到。
  */
 
 /**
- * 一个可点的标记：[hit] 命中区，[label] 气泡文字，[anchor] 气泡指着的那一块（画出来的柱、段、格），
- * 气泡开在它上方，上方放不下时开在它下方，不盖住它。[multiline] 为长说明启用可折行的富提示。
+ * 一个可点的标记，自己画自己。[anchor] 是它画出来的那一块（柱、段、格，点的外接方块），[draw] 拿到的就是它；
+ * 气泡开在这一块上方，上方放不下时开在它下方，不盖住它。[label] 气泡文字，[multiline] 为长说明启用可折行的富提示。
+ * [hit] 是算作点中它的范围：默认就是画出来的那一块，要把旁边的空白也算给它（整列、整行、点周围一圈）才另给；
+ * 点中谁仍按 [anchor] 判（[markAt]）。
  */
-class ChartMark(val hit: Rect, val label: String, val anchor: Rect = hit, val multiline: Boolean = false)
+class ChartMark(
+    val anchor: Rect,
+    val label: String,
+    val hit: Rect = anchor,
+    val multiline: Boolean = false,
+    val draw: DrawScope.(anchor: Rect) -> Unit,
+)
 
-class ChartLayout(val marks: List<ChartMark>, val draw: DrawScope.() -> Unit)
+/** 一张图：[marks] 按顺序各画各的（后面的在上层），[backdrop] 画在它们之下，[foreground] 画在它们之上，后两者点不到。 */
+class ChartLayout(
+    val marks: List<ChartMark>,
+    val backdrop: DrawScope.() -> Unit = {},
+    val foreground: DrawScope.() -> Unit = {},
+)
 
 /** 图表的作图环境：画布像素尺寸 + 文字测量。 */
 class ChartScope internal constructor(
@@ -98,11 +119,15 @@ private const val CHART_TIP_MILLIS = 1500L
 private val CHART_TAP_SLOP = 8.dp
 
 /**
- * 点中的标记：命中区里有它就取它（后画的在上层，与绘制顺序一致，取最后一个）；
- * 落在缝里时取 [slop] 以内最近的一块；都没有为 null（点空白处）。
+ * 点中的标记，按画出来的那一块判：
+ * 1. 要这一处的几块（手指在它画出来的那一块 [ChartMark.anchor] 上，或在算给它的范围 [ChartMark.hit] 里）之中，
+ *    取画出来离手指最近的那一块：手指就在某一块上，就是它；几块画得叠着（密的点、密的柱）取中心离手指最近的；
+ *    再一样近取后画的（在上层）。不看谁后声明——柱再密、各自要的那一列互相叠着，点到的也是手指底下的那一根；
+ * 2. 哪一块都不要这一处时取 [slop] 以内 [ChartMark.hit] 最近的一块；再没有为 null（点空白处）。
  */
 internal fun markAt(marks: List<ChartMark>, point: Offset, slop: Float): ChartMark? =
-    marks.lastOrNull { it.hit.contains(point) }
+    marks.asReversed().filter { it.anchor.contains(point) || it.hit.contains(point) }
+        .minWithOrNull(compareBy({ it.anchor.distanceTo(point) }, { (it.anchor.center - point).getDistance() }))
         ?: marks.map { it to it.hit.distanceTo(point) }.filter { it.second <= slop }.minByOrNull { it.second }?.first
 
 /** 点到矩形的距离（在里面为 0）。 */
@@ -121,13 +146,11 @@ private val ChartTipMutex = MutatorMutex()
  * bodySmall、最小 40×24dp、内边距 8 / 4dp），进出场同 M3 提示（缩放 0.8 走 fastSpatial、淡入淡出走 fastEffects）。
  * 气泡由 [AnchoredTip] 开在自己的不可点窗口里，浮在版面之上、不占位置，横向不出图表两边，也不挡住对旁边那块的点按。
  * 手机上点按触发（M3 写的是长按），是我的设计决定（not in M3）：图上不写数，点一下就该看到。
- * [onTap] 给不用气泡、自己处理点击的图。
  */
 @Composable
 fun TapChart(
     description: String,
     modifier: Modifier = Modifier,
-    onTap: ((point: Offset, widthPx: Float) -> Unit)? = null,
     build: ChartScope.() -> ChartLayout,
 ) {
     val measurer = rememberTextMeasurer()
@@ -141,7 +164,6 @@ fun TapChart(
         val layout = ChartScope(widthPx, heightPx, measurer, density).build()
         val marks by rememberUpdatedState(layout.marks)
         val slop = with(density) { CHART_TAP_SLOP.toPx() }
-        val tapped by rememberUpdatedState(onTap)
         val showTip: (ChartMark) -> Unit = { hit ->
             scope.launch {
                 // 拿锁就收走正在显示的气泡（它的 finally 把它藏起）
@@ -160,9 +182,8 @@ fun TapChart(
             Modifier
                 .fillMaxSize()
                 .clearAndSetSemantics { contentDescription = description }
-                .pointerInput(widthPx, slop) {
+                .pointerInput(slop) {
                     detectTapGestures { point ->
-                        tapped?.invoke(point, widthPx)
                         val hit = markAt(marks, point, slop)
                         if (hit != null) {
                             showTip(hit)
@@ -172,8 +193,12 @@ fun TapChart(
                         }
                     }
                 },
-        ) { layout.draw(this) }
-        // 每个标记在读屏里是自己的一个节点，盖在它的命中区上：读出气泡文字，双击出气泡。看不见图的人同样读得到每一块的数。
+        ) {
+            layout.backdrop(this)
+            layout.marks.forEach { it.draw(this, it.anchor) }
+            layout.foreground(this)
+        }
+        // 每个标记在读屏里是自己的一个节点，盖在算作点中它的范围上：读出气泡文字，双击出气泡。看不见图的人同样读得到每一块的数。
         // 不做成图上的一串自定义动作：一个节点的自定义动作有上限（格子图、点阵动辄上百块），超过时读屏一来就崩。
         layout.marks.forEach { mark ->
             Box(

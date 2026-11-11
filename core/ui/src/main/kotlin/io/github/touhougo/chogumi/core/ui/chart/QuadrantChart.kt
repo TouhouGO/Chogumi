@@ -62,15 +62,20 @@ fun QuadrantChart(
         fun sy(v: Double) = dotBottom - ((v - yFrom) / (yTo - yFrom)).toFloat() * (dotBottom - dotTop)
         val dots = points.map { it to Offset(sx(it.x), sy(it.y)) }
         ChartLayout(
-            marks = dots.mapIndexed { i, (_, at) -> ChartMark(Rect(at, 12.dp.toPx()), points[i].tip, anchor = Rect(at, radius)) },
-            draw = {
+            marks = dots.map { (point, at) ->
+                ChartMark(anchor = Rect(at, radius), label = point.tip, hit = Rect(at, 12.dp.toPx())) {
+                    drawCircle(point.color, radius, at, alpha = QUADRANT_DOT_ALPHA)
+                }
+            },
+            backdrop = {
                 drawRoundRect(plane, Offset(pad, top), Size(widthPx - pad, bottom - top), CornerRadius(16.dp.toPx()))
                 val dash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
                 val cx = sx(centerX)
                 val cy = sy(centerY)
                 drawLine(cross, Offset(cx, top + 4.dp.toPx()), Offset(cx, bottom), 1.dp.toPx(), pathEffect = dash)
                 drawLine(cross, Offset(pad, cy), Offset(widthPx, cy), 1.dp.toPx(), pathEffect = dash)
-                dots.forEach { (point, at) -> drawCircle(point.color, radius, at, alpha = QUADRANT_DOT_ALPHA) }
+            },
+            foreground = {
                 val inset = 10.dp.toPx()
                 label(labels.topEnd, widthPx - inset, topBaseline, corner, muted, ha = 1f)
                 label(labels.topStart, pad + inset, topBaseline, corner, muted, ha = 0f)

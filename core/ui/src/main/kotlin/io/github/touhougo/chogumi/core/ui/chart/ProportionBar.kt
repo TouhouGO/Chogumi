@@ -6,10 +6,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -62,18 +64,17 @@ internal fun placeProportionSegments(
 @Composable
 fun ProportionBar(segments: List<ProportionSegment>, description: String, height: Dp, modifier: Modifier = Modifier) {
     val shape = MaterialTheme.shapes.small
+    val direction = LocalLayoutDirection.current
     TapChart(description, modifier.fillMaxWidth().height(height)) {
         val gap = 2.dp.toPx()
         val minWidth = 4.dp.toPx()
         val placed = placeProportionSegments(segments, widthPx, heightPx, gap, minWidth)
+        // 圆角是整条的：每段都裁进整条的外形里
+        val outline = shape.createOutline(Size(widthPx, heightPx), direction, this)
+        val whole = Path().apply { addOutline(outline) }
         ChartLayout(
-            marks = placed.map { (segment, bounds) -> ChartMark(bounds, segment.tip) },
-            draw = {
-                val outline = shape.createOutline(size, layoutDirection, this)
-                val clip = Path().apply { addOutline(outline) }
-                clipPath(clip) {
-                    placed.forEach { (segment, bounds) -> drawRect(segment.color, bounds.topLeft, bounds.size) }
-                }
+            placed.map { (segment, bounds) ->
+                ChartMark(bounds, segment.tip) { rect -> clipPath(whole) { drawRect(segment.color, rect.topLeft, rect.size) } }
             },
         )
     }

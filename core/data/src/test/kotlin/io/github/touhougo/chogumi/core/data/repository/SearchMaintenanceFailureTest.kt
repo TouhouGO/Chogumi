@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -46,5 +47,7 @@ class SearchMaintenanceFailureTest {
 
         assertEquals("会话存储故障不能逸出应用级维护", emptyList<Throwable>(), escaped)
         assertEquals(Outcome.Failed(Failure.Storage), repository.recordSearch("搜索"))
+        // 维护读不出就一直退避重读：不先停下它，runTest 收尾推进虚拟时间永远推不完
+        appScope.cancel()
     }
 }
