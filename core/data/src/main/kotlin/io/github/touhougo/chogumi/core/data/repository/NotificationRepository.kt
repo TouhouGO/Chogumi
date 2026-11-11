@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.token.withSessionToken
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.FailureException
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -100,8 +100,8 @@ class NotificationRepository(
             combine(preferencesRepository.appFeatures, tokenStore.sessionFlow) { features, session ->
                 Access(session, features.community)
             }.distinctUntilChanged()
-                // 读不出开关或会话（本机存储失败）：观察到此结束，进程不崩；之后每次刷新仍在锁内重读访问
-                .catch { e -> if (e !is Exception) throw e }
+                // 读不出开关或会话（本机存储失败）：退避后重新订阅，登出与关掉社区照常清零；这期间每次刷新仍在锁内重读访问
+                .recoverStorageReads()
                 .collect {
                     // 输入可能在组合后已过时，锁内读取当前快照而不是把迟到输入恢复成当前归属。
                     resynchronizeAccess()

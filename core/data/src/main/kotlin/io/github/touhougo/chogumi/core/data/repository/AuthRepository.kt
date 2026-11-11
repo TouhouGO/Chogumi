@@ -5,6 +5,7 @@ import io.github.touhougo.chogumi.core.foundation.RejectReason
 import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.data.util.storageOutcomeOf
 import io.github.touhougo.chogumi.core.data.web.WebSessionRepository
 import io.github.touhougo.chogumi.core.foundation.Outcome
@@ -56,11 +57,14 @@ class AuthRepository(
 
     init {
         scope.launch {
-            tokenStore.sessionFlow.catch {
+            // 凭证读不出：报成启动失败，退避后接着跟（跟随停了，刷新令牌被拒时清掉的凭证就到不了登录状态）
+            tokenStore.sessionFlow.catch { e ->
                 setState(SessionState.InitializationError)
-            }.collect { session ->
-                // 避免订阅的初始 null 抢先把 Splash 误判为游客。
-                if (_sessionState.value != SessionState.Initializing && !_loginProcessing.value) {
+                throw e
+            }.recoverStorageReads().collect { session ->
+                // 启动还没读完、或读失败之后：只由 ensureInitialized 定状态（它还要清掉登录到一半留下的令牌），这里不抢先。
+                val state = _sessionState.value
+                if (state != SessionState.Initializing && state != SessionState.InitializationError && !_loginProcessing.value) {
                     // 这一拍已被后一次写入盖掉时 commit 会抛（取消的子类），不接住收集器就悄悄停了：丢掉，下一拍照常同步
                     outcomeOf { tokenStore.commitForSession(session) { setState(session.toState()) } }
                 }

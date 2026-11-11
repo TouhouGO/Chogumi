@@ -101,12 +101,10 @@ class SearchRepository(
 
     /**
      * 观察完整会话而不是登录布尔位，换了账号就清掉上一个账号的历史。清理失败不提示：读取先认持久归属，
-     * 清不掉的旧行新账号也读不到，用户没有要做的事；这一轮结束，下一次会话变化或记录搜索时再清。
+     * 清不掉的旧行新账号也读不到，用户没有要做的事；下一次会话变化或记录搜索时再清。凭证读不出时退避后接着跟。
      */
     fun maintainRecentSearches(scope: CoroutineScope) {
-        scope.launch {
-            outcomeOf { tokenStore.sessionFlow.collect { session -> clearForeignHistory(session) } }
-        }
+        scope.launch { tokenStore.recoveringSessions.collect { session -> clearForeignHistory(session) } }
     }
 
     private suspend fun clearForeignHistory(session: AccountSession): Outcome<Unit> = storageOutcomeOf {
