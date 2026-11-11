@@ -37,10 +37,10 @@ internal class DirectRouting(private val routes: CoreRoutes) : OkHttpCustomizer 
 
     private inner class Rewrite : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
-            val request = chain.request()
+            val request = chain.request().withRoute(routes)
             val url = request.url
             if (!url.isHttps || !isBgmHost(url.host)) return chain.proceed(request)
-            val core = when (val route = routes.current()) {
+            val core = when (val route = requireNotNull(request.tag(RequestRoute::class.java)).route) {
                 // 代理线路由 ProxyRouting 管（所有主机，含没连上时的失败）
                 CoreRoute.System, is CoreRoute.Proxied, CoreRoute.ProxyUnavailable -> return chain.proceed(request)
                 CoreRoute.Undecided -> throw IOException("route not decided yet")

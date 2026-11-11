@@ -157,14 +157,16 @@ class CollectionSync(
     private suspend fun syncWatchHistory(session: AccountSession, semaphore: Semaphore) {
         val accountId = session.userId!!
         val collections = userCollectionDao.observeCurrent(accountId).first().filter { row ->
-            row.epStatus > 0 && row.type != CollectionType.WISH.value &&
+            row.type != CollectionType.WISH.value &&
                 SubjectType.from(row.subjectType)?.let(EpisodeTracking::tracksEpisodes) == true
         }
         if (collections.isEmpty()) return
         val ids = collections.map { it.subjectId }
         val ledger = watchStates.watchHistoryLedger(ids, session)
         val chaptered = ledger.chaptered
-        val stale = ids.filterNot { it in ledger.current }
+        val stale = collections.filter { row ->
+            row.subjectId !in ledger.current && (row.epStatus > 0 || row.subjectId in ledger.withWatchedRecords)
+        }.map { it.subjectId }
         if (stale.isEmpty()) return
         val done = AtomicInteger(0)
         _syncProgress.value = SyncProgress(active = true, completedPages = 0, totalPages = stale.size)

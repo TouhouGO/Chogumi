@@ -173,10 +173,10 @@ class WatchStateStore(
         watchHistoryLedger(subjectIds, session).current
 
     /** [subjectIds] 里本地已有章节的（[chaptered]）和逐集记录还与服务端对得上的（[current]）。 */
-    internal class WatchHistoryLedger(val chaptered: Set<Int>, val current: Set<Int>)
+    internal class WatchHistoryLedger(val chaptered: Set<Int>, val current: Set<Int>, val withWatchedRecords: Set<Int>)
 
     internal suspend fun watchHistoryLedger(subjectIds: List<Int>, session: AccountSession): WatchHistoryLedger {
-        val accountId = session.userId?.takeIf { session.authenticated } ?: return WatchHistoryLedger(emptySet(), emptySet())
+        val accountId = session.userId?.takeIf { session.authenticated } ?: return WatchHistoryLedger(emptySet(), emptySet(), emptySet())
         val epStatus = userCollectionDao.getBySubjectIdsChunked(subjectIds, accountId).associate { it.subjectId to it.epStatus }
         val chaptered = episodeDao.getBySubjectIdsChunked(subjectIds).mapTo(HashSet()) { it.subjectId }
         val watchedRows = episodeWatchStateDao.getBySubjectsChunked(subjectIds, accountId)
@@ -184,7 +184,7 @@ class WatchStateStore(
         val current = subjectIds.filterTo(HashSet()) { id ->
             epStatus[id]?.let { watchHistoryCurrent(id in chaptered, watchedRows[id] ?: 0, it) } == true
         }
-        return WatchHistoryLedger(chaptered, current)
+        return WatchHistoryLedger(chaptered, current, watchedRows.filterValues { it > 0 }.keys)
     }
 
     /**

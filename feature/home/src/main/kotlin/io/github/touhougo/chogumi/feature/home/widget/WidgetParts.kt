@@ -2,6 +2,8 @@ package io.github.touhougo.chogumi.feature.home.widget
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.text.TextPaint
+import android.util.TypedValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -156,19 +158,44 @@ internal fun WorkRow(
     failed: Boolean,
     cover: Bitmap?,
     coverHeight: Dp,
+    width: Dp,
     button: ButtonShape,
     modifier: GlanceModifier = GlanceModifier,
     leading: String? = null,
 ) {
+    val context = LocalContext.current
+    val paint = TextPaint().apply {
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, WidgetType.label.fontSize.value, context.resources.displayMetrics)
+        isFakeBoldText = true
+    }
+    fun textWidth(text: String) = (paint.measureText(text) / context.resources.displayMetrics.density).dp
+    var shape = if (width < PlusOneWidth + RowTextMinWidth) ButtonShape.ROUND else button
+    var trailingWidth = when (shape) {
+        ButtonShape.ROUND -> ButtonHeight
+        ButtonShape.PLUS_ONE -> PlusOneWidth
+        ButtonShape.LABELED -> textWidth(nextLabel(context, work.button)) + 32.dp
+    }
+    if (trailingWidth + RowTextMinWidth + CompactRowGap > width) {
+        shape = ButtonShape.ROUND
+        trailingWidth = ButtonHeight
+    }
+    trailingWidth = when (val state = work.button) {
+        EpButtonState.Empty, EpButtonState.Loading -> 0.dp
+        EpButtonState.Finished -> textWidth(context.getString(R.string.widget_finished))
+        is EpButtonState.Waiting -> textWidth(dayOffsetLabel(context.resources, state.daysUntil))
+        is EpButtonState.Next, is EpButtonState.BookNext -> trailingWidth
+    }.coerceAtMost((width - RowTextMinWidth - CompactRowGap).coerceAtLeast(0.dp))
     WidgetRow(
         subjectId = work.subjectId,
         title = work.title,
         cover = cover,
         coverHeight = coverHeight,
+        width = width,
+        trailingWidth = trailingWidth,
         modifier = modifier,
         leading = leading,
         details = { ProgressLine(work, failed) },
-        trailing = { ProgressButton(work, button) },
+        trailing = { ProgressButton(work, shape, GlanceModifier.width(trailingWidth)) },
     )
 }
 
@@ -182,6 +209,8 @@ internal fun WidgetRow(
     title: String,
     cover: Bitmap?,
     coverHeight: Dp,
+    width: Dp,
+    trailingWidth: Dp = 0.dp,
     modifier: GlanceModifier = GlanceModifier,
     leading: String? = null,
     details: @Composable () -> Unit,
@@ -189,18 +218,34 @@ internal fun WidgetRow(
 ) {
     val context = LocalContext.current
     val palette = LocalWidgetPalette.current
+    val layout = widgetRowLayout(width, coverHeight, trailingWidth, leading != null)
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        if (leading != null) {
+        if (leading != null && layout.cover) {
             Text(leading, style = widgetText(WidgetType.meta, palette.onSurfaceVariant), maxLines = 1, modifier = GlanceModifier.width(LeadingWidth))
         }
-        WidgetCover(subjectId, cover, coverHeight)
-        Column(GlanceModifier.defaultWeight().padding(horizontal = 12.dp).clickable(openSubject(context, subjectId))) {
-            Text(title, style = widgetText(WidgetType.title, palette.onSurface), maxLines = 1)
+        if (layout.cover) WidgetCover(subjectId, cover, coverHeight)
+        Column(GlanceModifier.defaultWeight().padding(start = layout.start, end = layout.end).clickable(openSubject(context, subjectId))) {
+            val caption = if (!layout.cover && !leading.isNullOrBlank()) "$leading  $title" else title
+            Text(caption, style = widgetText(WidgetType.title, palette.onSurface), maxLines = 1)
             details()
         }
         trailing()
     }
 }
+
+/** 行内先保证作品文字和操作，窄时将时刻并入标题、不画封面；不缩字号。数值是排版预算（not in M3）。 */
+internal data class WidgetRowLayout(val cover: Boolean, val start: Dp, val end: Dp)
+
+internal fun widgetRowLayout(width: Dp, coverHeight: Dp, trailingWidth: Dp, leading: Boolean): WidgetRowLayout {
+    val fixed = coverWidthOf(coverHeight) + (if (leading) LeadingWidth else 0.dp) + trailingWidth
+    val showCover = width - fixed - RowTextPadding * 2 >= RowTextMinWidth
+    return if (showCover) WidgetRowLayout(true, RowTextPadding, RowTextPadding)
+    else WidgetRowLayout(false, 0.dp, CompactRowGap)
+}
+
+private val RowTextPadding = 12.dp
+private val RowTextMinWidth = 40.dp
+private val CompactRowGap = 4.dp
 
 /** 一行一句次要的话（今日放送里没在追的那几部写在看人数）。 */
 @Composable
@@ -283,6 +328,7 @@ internal fun ProgressButton(
             Box(
                 base
                     .then(size)
+                    .then(modifier)
                     .background(if (shape == ButtonShape.ROUND) palette.primary else palette.tonal)
                     .cornerRadius(ButtonHeight / 2)
                     .semantics { contentDescription = description }

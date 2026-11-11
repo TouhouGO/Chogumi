@@ -343,6 +343,8 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 - **面板的 saveable 状态在 `PageSheetLayer` 自己的 `SaveableStateHolder` 里。** 正在滑下去关闭的面板不吞掉下一次点它的触发器：每次打开请求
   开一个新面板，正在关闭的只关自己。
 - **隐藏但已组合的指示器**（收起的下拉刷新指示器）还在无障碍树里、会盖住节点：显示之前不进语义。
+- **桌面小组件的布局在宿主里量，类的身份在压缩产物里核。** 小组件经 Glance 转成 RemoteViews：共享行的可用宽度由调用方扣掉真实 frame 边距，
+  布局验证量实际宿主中的文字与操作区域。以运行时类名作为组件身份的代码还要核对压缩产物，debug 下各是各的类不能证明 R8 后也是。
 
 ## 动效：一套，一个来源
 
@@ -416,3 +418,6 @@ M3 里真没有的值，说清楚并标「设计决策（not in M3）」，不�
 `directRouteSupported`，代理地址与端口的输入规则只在 core:netroute（`proxyHostInput`、`proxyPortInput`、`proxyServerOf`）。直连核心
 （Go，`echcore.aar`）只有 core:netroute 引用。直连与代理失败时都只报失败，绝不退回系统网络或普通 SNI（事实在[开发须知](dev/guide.md)
 §1.11、§1.12）。门禁（`tools/ci/check.sh lint`）：`python3 tools/guards/check_netroute.py`。
+
+一次请求经过线路链只决定一次线路（`RequestRoute`）：改写、代理选择、连接检查共读，核心回环必须明确不经代理。
+公开启动入口收到的系统通知参数不是授权；远程已读动作必须验证 `TokenStore` 签发的会话与提醒 id 凭据，不能只检查 extras 或 action 字符串。

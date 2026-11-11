@@ -43,6 +43,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import kotlin.math.ceil
+import kotlin.math.floor
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -119,7 +120,7 @@ internal class HeatWidget : GlanceAppWidget(), KoinComponent {
     private fun HeatBody(content: HeatContent) {
         val context = LocalContext.current
         val title = context.getString(R.string.career_sec_ring)
-        Column(widgetFrame().padding(horizontal = 16.dp, vertical = 12.dp).clickable(openApp(context))) {
+        Column(widgetFrame().padding(horizontal = FRAME_HORIZONTAL, vertical = FRAME_VERTICAL).clickable(openApp(context))) {
             when (content) {
                 HeatContent.SignedOut -> {
                     WidgetHeader(title, null)
@@ -132,8 +133,8 @@ internal class HeatWidget : GlanceAppWidget(), KoinComponent {
                 is HeatContent.Ready -> {
                     WidgetHeader(title, context.resources.getQuantityString(R.plurals.widget_heat_month, content.monthEpisodes, content.monthEpisodes))
                     val size = LocalSize.current
-                    val width = size.width - FRAME_PADDING * 2
-                    val height = size.height - FRAME_PADDING * 2 - HEADER_SPACE
+                    val width = size.width - FRAME_HORIZONTAL * 2
+                    val height = size.height - FRAME_VERTICAL * 2 - HeaderHeight
                     if (size.width >= YEAR_MIN_WIDTH) YearGrid(content.months, width, height) else MonthGrid(content.months.last(), width, height)
                 }
             }
@@ -143,8 +144,8 @@ internal class HeatWidget : GlanceAppWidget(), KoinComponent {
     private companion object {
         /** 至少这么宽才画一年（4×2 约 276dp 宽，2×2 约 130dp）。 */
         val YEAR_MIN_WIDTH = 200.dp
-        val FRAME_PADDING = 12.dp
-        val HEADER_SPACE = 32.dp
+        val FRAME_HORIZONTAL = 16.dp
+        val FRAME_VERTICAL = 12.dp
     }
 }
 
@@ -154,7 +155,7 @@ private fun YearGrid(months: List<HeatMonth>, width: Dp, height: Dp) {
     val context = LocalContext.current
     val palette = LocalWidgetPalette.current
     val locale = context.resources.configuration.locales[0]
-    val cell = min((width - MONTH_LABEL_WIDTH) / MAX_DAYS, height / months.size)
+    val cell = heatCellSize(context, min((width - MONTH_LABEL_WIDTH) / MAX_DAYS, height / months.size))
     val labelEvery = ceil(LABEL_LINE.value / cell.value).toInt().coerceAtLeast(1)
     Row {
         // 月份一列：几行一组，组里第一个月写名字
@@ -180,7 +181,7 @@ private fun MonthGrid(month: HeatMonth, width: Dp, height: Dp) {
     val lead = month.month.atDay(1).dayOfWeek.value - DayOfWeek.MONDAY.value
     val days: List<Pair<Int, Int?>?> = List(lead) { null } + month.levels.mapIndexed { index, level -> index + 1 to level }
     val weeks = days.groupsOf(WEEK_DAYS)
-    val cell = min(width / WEEK_DAYS, height / weeks.size)
+    val cell = heatCellSize(LocalContext.current, min(width / WEEK_DAYS, height / weeks.size))
     GlanceColumn(weeks) { week ->
         GlanceRow(week) { day ->
             if (day == null) {
@@ -196,6 +197,12 @@ private fun MonthGrid(month: HeatMonth, width: Dp, height: Dp) {
             }
         }
     }
+}
+
+/** 向下取整到宿主像素，避免每格四舍五入后的累计宽度超过整行。 */
+private fun heatCellSize(context: Context, size: Dp): Dp {
+    val density = context.resources.displayMetrics.density
+    return (floor(size.value.coerceAtLeast(0f) * density) / density).dp
 }
 
 /** 一格：有数的按档填色，今天以后（[level] 为 null）只画轮廓。格间距与圆角在图形资源里（格间 2dp，与生涯的年轮一样）。 */

@@ -106,9 +106,9 @@ internal class TodayWidget : GlanceAppWidget(), KoinComponent {
         val time = row.entry.airing?.label().orEmpty()
         val cover = content.covers[subject.id]
         if (row.work != null) {
-            WorkRow(row.work, subject.id in content.failed, cover, layout.coverHeight, ButtonShape.PLUS_ONE, modifier, time)
+            WorkRow(row.work, subject.id in content.failed, cover, layout.coverHeight, LocalSize.current.width - 32.dp, ButtonShape.PLUS_ONE, modifier, time)
         } else {
-            WidgetRow(subject.id, displayNameOf(subject), cover, layout.coverHeight, modifier, time, details = {
+            WidgetRow(subject.id, displayNameOf(subject), cover, layout.coverHeight, LocalSize.current.width - 32.dp, modifier = modifier, leading = time, details = {
                 if (row.entry.watchers > 0) DetailLine(calendarWatchersLabel(context.resources, row.entry.watchers))
             })
         }

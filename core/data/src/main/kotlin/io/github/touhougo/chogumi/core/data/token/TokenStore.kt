@@ -3,11 +3,16 @@ package io.github.touhougo.chogumi.core.data.token
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
+import io.github.touhougo.chogumi.core.data.util.recoverStorageReads
 import io.github.touhougo.chogumi.core.data.util.ObservedPreferences
 import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.FailureException
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.network.TokenProvider
+import java.security.MessageDigest
+import java.util.UUID
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -83,6 +88,9 @@ class TokenStore(dataStore: DataStore<Preferences>) : TokenProvider, ViewerSourc
         session()
         emitAll(currentSession.filterNotNull())
     }
+    /** 应用级投影的会话来源：冷读失败时退避再读，不伪造游客，恢复后继续接收换号。 */
+    internal val recoveringSessions: Flow<AccountSession> = sessionFlow.recoverStorageReads()
+
     override val viewerIds: Flow<Int> = sessionFlow.map { it.viewerId }.distinctUntilChanged()
 
     private fun Preferences.toWebSession(): StoredWebSession? = this[webCookieKey]?.let(::StoredWebSession)
@@ -174,6 +182,7 @@ class TokenStore(dataStore: DataStore<Preferences>) : TokenProvider, ViewerSourc
                 it.remove(usernameKey)
                 it.remove(refreshTokenKey)
                 it.removeWebSession()
+                it.remove(TokenStoreKeys.NOTICE_ACTION_KEY)
                 if (refreshToken != null) it[refreshTokenKey] = refreshToken
             }
         }
@@ -224,6 +233,25 @@ class TokenStore(dataStore: DataStore<Preferences>) : TokenProvider, ViewerSourc
         remove(webCookieKey)
     }
 
+    /** 系统通知的动作凭据：绑定会话与提醒 id，进程退出后仍可验证；换号后作废。 */
+    internal suspend fun noticeAction(session: AccountSession, id: Int): String = commitForSession(session) {
+        val key = store.data.first()[TokenStoreKeys.NOTICE_ACTION_KEY] ?: UUID.randomUUID().toString().also { secret ->
+            store.edit { it[TokenStoreKeys.NOTICE_ACTION_KEY] = secret }
+        }
+        noticeSignature(key, session, id)
+    }
+
+    /** 公开 Activity 的 extras 不可信；只接受本机为当前会话签发的通知动作，不从 extras 构造会话。 */
+    internal suspend fun noticeSession(id: Int, proof: String?): AccountSession? {
+        if (id <= 0 || proof == null) return null
+        val session = session()
+        return commitForSession(session) {
+            if (!session.authenticated) return@commitForSession null
+            val key = store.data.first()[TokenStoreKeys.NOTICE_ACTION_KEY] ?: return@commitForSession null
+            session.takeIf { MessageDigest.isEqual(noticeSignature(key, session, id).toByteArray(), proof.toByteArray()) }
+        }
+    }
+
     suspend fun saveOAuthState(state: String) { store.edit { it[oauthStateKey] = state } }
 
     /** 作废还没回来的浏览器授权：之后带着它的回调一律对不上（[consumeOAuthState]）。 */
@@ -254,7 +282,15 @@ class TokenStore(dataStore: DataStore<Preferences>) : TokenProvider, ViewerSourc
             it.remove(usernameKey)
             it.remove(oauthStateKey)
             it.removeWebSession()
+            it.remove(TokenStoreKeys.NOTICE_ACTION_KEY)
         }
         Unit
     }
+}
+
+/** HMAC 只授权这一条已读动作；密钥与 OAuth 令牌分开，消息只含无凭据的会话身份。 */
+private fun noticeSignature(key: String, session: AccountSession, id: Int): String {
+    val mac = Mac.getInstance("HmacSHA256")
+    mac.init(SecretKeySpec(key.toByteArray(), "HmacSHA256"))
+    return mac.doFinal("${session.generation}:${session.viewerId}:$id".toByteArray()).joinToString("") { "%02x".format(it) }
 }

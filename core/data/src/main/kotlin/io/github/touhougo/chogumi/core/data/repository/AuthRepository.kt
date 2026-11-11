@@ -199,10 +199,17 @@ class AuthRepository(
             // 没登成就清掉写了一半的令牌：失败时，以及途中被取消时（outcome 还是 null）。换了号时令牌已归新的那次登录，不动。
             // 取消时协程已停，清理放在 NonCancellable 里才做得完。
             val failure = (outcome as? Outcome.Failed)?.failure
-            if (outcome == null || (failure != null && failure != Failure.SessionChanged)) {
-                pending?.let { withContext(NonCancellable) { tokenStore.clear(it) } }
+            val cleaned = try {
+                withContext(NonCancellable) {
+                    storageOutcomeOf {
+                        if (outcome == null || (failure != null && failure != Failure.SessionChanged)) {
+                            pending?.let { tokenStore.clear(it) }
+                        }
+                    }
+                }
+            } finally {
+                _loginProcessing.value = false
             }
-            _loginProcessing.value = false
             val synced = outcomeOf {
                 // 本机一次写入；写不进去和下面的同步一样按本地存储出错处理。取消时也要做完，否则旧授权还能回来。
                 withContext(NonCancellable) { tokenStore.clearOAuthState() }
@@ -210,7 +217,12 @@ class AuthRepository(
                 tokenStore.commitForSession(current) { setState(current.toState()) }
             }
             // 换了号：随后的 sessionFlow 负责同步最新身份。
-            if (synced is Outcome.Failed && synced.failure != Failure.SessionChanged) setState(SessionState.InitializationError)
+            if (cleaned is Outcome.Failed) {
+                _loginError.value = cleaned.failure
+                setState(SessionState.InitializationError)
+            } else if (synced is Outcome.Failed && synced.failure != Failure.SessionChanged) {
+                setState(SessionState.InitializationError)
+            }
         }
     }
 

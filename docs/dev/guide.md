@@ -12,7 +12,7 @@
 | 业务判定（集数、进度、首页分区、货架表、类型规格……） | core:model 的纯函数（`EpisodeTracking`、`subjectTypeSpec`、`exploreShelvesFor`……），界面与数据层都从这里推导 |
 | 「现在」「今天」、时区 | core:foundation 的 `AppClock` / `AppTime` / `businessDateOf` / `displayZone`；界面读 core:ui 的 `LocalNow` |
 | 失败与加载形态 | core:foundation 的 `Failure` / `Outcome` / `Load`；异常 → `Failure` 只在 core:network `toFailure()`，`Failure` → 文案只在 core:ui |
-| 进度写入（「+」、章节方格） | core:data 的 `EpTapCoordinator` → `ProgressOrchestrator` |
+| 进度写入（「+」、章节方格） | core:data 的 `EpTapCoordinator` → `ProgressOrchestrator`；协调器的应用级会话投影经 `TokenStore.recoveringSessions`，冷读失败后退避恢复 |
 | 仓库、缓存、DTO 映射 | core:data 的 `repository/`、`db/mapper/`（写入时刻显式传入） |
 | 最近搜索的账号归属与后台清理 | core:data `SearchRepository`；`maintainRecentSearches` 清理失败时读取仍先认持久归属，下一次会话变化或记录搜索再清；会话本身读不出时维护结束、不崩，之后只靠记录搜索再清 |
 | 生涯页的同步与同步时刻 | feature:profile `CareerViewModel`；同步时刻是本机读取，失败经 `storageOutcomeOf` 提示，刷新结束、已显示的统计与上次时刻保留 |
@@ -107,6 +107,9 @@ Bangumi 服务端先按 `limit / offset` 切数据库结果集，再跳过查不
 
 `CLIENT_SECRET` 经 `BuildConfig` 编入 APK，混淆不能让它保密。当前接受这一风险；待 bgm.tv 服务端支持 PKCE 后，
 改用带 PKCE 的公共客户端。
+
+登录失败或取消后的凭证清理也可能写盘失败：`AuthRepository.login` 在同一收尾里接住存储失败、始终结束忙态，
+再尝试作废 OAuth state 与同步会话。清理失败进入本地恢复失败态，恢复存储后由 `ensureInitialized` 清掉未完成的会话。
 
 ### 1.4 多身份 HTTP 客户端
 
@@ -261,11 +264,18 @@ flowchart LR
   bgm.tv 放送表不收全部在播作品（国产动画、部分新番不在表里），在追作品哪天播只看下一集的 `airdate`（`followedAiringDateOf`），
   首页与每日放送的「我在追」同一个判定；本机还没有这部的章节时才退回放送表的星期。
 
+全量收藏同步的逐集对账不能先排掉 `epStatus=0`：服务器清零而本机仍有已看记录时，也经同一个 `watchHistoryLedger` 和完整逐集端点刷新。
+从未看过、两边都是零时不多发请求，想看收藏的既有跳过规则不变；取回的想看/抛弃/特别篇状态原样保留，落库仍受 `LocalProgressHolds` 保护。
+每日放送的完整章节来源 `SubjectRepository.observeCachedEpisodes` 返回 `Load`，读失败保留已有内容；提示条重试重建章节观察，
+不只重新请求放送表。
+
 ### 1.10 作品统计的人群与争议度
 
 统计模块只消费已有条目、章节和透视页读取。`interest_type`只画2至5组，状态文字经 `CollectionType.labelResFor`；`airdate`的1、2、3为放送前、中、结束。收藏数和注册时长保留网页实际组编号，缺维度的旧JSON仍能读。各组20票起可用，缺图或缺章节不在作品上显示，也不列入添加目录。
 
 争议度是十档评分的总体标准差，100票起显示。分档左闭右开：小于1众口一词，1至不足1.2意见集中，1.2至不足1.4略有分歧，1.4至不足1.6褒贬不一，1.6及以上两极分化。四画法同读一个结果；Oklab主色到第三色插值、五档等宽刻度与σ0.96参考曲线是应用设计决定（not in M3）。
+
+“两派”的上方文字说明各自可点，底部比例条的绘图与命中区共读 `campSegmentBounds`，进场时按当前几何命中，零宽段不占热区。
 
 布局全局一份，按实际数据过滤；音乐有曲目讨论时显示「每首讨论」。默认七模块保留评分、状态均分、流向、一生、讨论、系列、推荐的顺序；评分保留大分数排名，尺子保留「你」，网页按钮固定末尾。长按模块标题进整理，无独立开关；一个模块也画不出来时（全移除、只留这部作品没有的数据）页面上给一个进整理的入口。布局读到之前画骨架，不先画默认布局。
 
@@ -324,7 +334,11 @@ flowchart LR
   `ProxyServer.needsLocalNetwork`（本机回环不算，私有与链路本地的 IP 算，主机名按算）。点「连接」时缺权限就先请求；拒绝了状态行写
   「没有访问局域网的权限」，再点「连接」再请求一次，系统不再弹框时去系统设置里本应用的那一页。重新打开开关时的自动连接缺权限就不试连。
   WebView 跟着应用的权限走。（推断：按 Android 文档写的，没在 Android 17 设备上实测；模拟器的 10.0.2.2 算不算局域网也没量过。）
-- 换了线路，开着的连接不再接新请求（`ProxyRouting` 每个请求比一次连接走的代理），换之前的连接上还在跑的请求跑完。
+- 一次 HTTP 请求进入线路链时由 `RequestRoute` 固定线路与代理列表：改写与连接校验都读这一份，期间开关变化只影响后续请求。
+  改写给直连核心的回环 HTTP 一律 `Proxy.NO_PROXY`，不由应用或系统代理接手；核心被关闭时失败，不改走别的线路。
+  OkHttp 的 ProxySelector 没有请求参数，`ProxyRouting` 只在同步 `intercept/proceed` 调用栈内借线程局部值，finally 清除；
+  连接规划和重试都在该栈内，网络拦截器按请求的同一份决策让不符的旧连接退役，原有在途流仍跑完。
+  Ktor 跳转和图片上层跟随产生的新一跳重新进入线路链、取得自己的决策，不把上一次的本机改写或凭据头带到外站。
 - 「检查连接」按现在的线路对 bgm.tv、api、next、lain 四个主机各发一次 HEAD，量从发出到收到第一个响应头的毫秒数（不跟随跳转），含拨号与握手
   （自己的连接池，每轮开始前清空）；线路换了，上一轮的结果清掉。清连接池在 IO 线程上、响应在 OkHttp 回调的线程上关：关一条 TLS
   连接要写出 close_notify，在主线程上写套接字抛 `NetworkOnMainThreadException`（不是 `IOException`，OkHttp 的 `closeQuietly` 不接），进程崩。
@@ -367,6 +381,16 @@ flowchart LR
 各模块的 `build/compose-compiler/*-composables.txt` 里标 `unstable` 的就是。
 
 ### 2.6 桌面小组件（Glance）
+
+- Glance 用 provider 的运行时类名登记实例，五个具体 `GlanceAppWidget` 必须由 feature:home 的 consumer rules 保留独立身份与稳定名称，不能合并。
+  全局更新按 `widgetReceivers` 的系统 Receiver 身份取实例，再定向发系统更新广播，由 Glance 重登记映射、启动正确组件；启动时判断有无实例也走同一路，
+  不依赖可能仍保存混淆类名的 Glance 反向映射。压缩产物要核对 Receiver 实际构造的类，debug 的不同类不算证据。
+- 系统恢复的旧新 ID 由 `SubjectWidgetRestoreWorker` 迁移作品选择：先将整批旧选择落入恢复日志，逐目标原子写选择和批次标记，失败退避重试。
+  交叉 ID 不边读边写；重复批次不覆盖用户后来重新选择的作品。恢复日志及临时文件不备份，旧 RemoteViews 布局不迁移，新主机重新排版。
+  系统在同一次广播里先调 `onRestored`、再调 `onUpdate`，广播的异步句柄（`goAsync`）只有一份、归 Glance 的更新：`onRestored` 只排 Worker，不取它。
+- 作品行的横向预算由 `widgetRowLayout` 共用：在看、今日放送、单部作品都传实际内宽；先留文字和进度操作，窄时不画封面，时刻并入标题。
+  不缩小字体或抬高 XML 最小宽度掩盖零宽标题。文字按钮按当前系统字体度量，空间不足用 +1；没有操作不预留按钮宽度。
+- 热力图真实 frame 边距与内容预算共用常量，月/年单格向下取整到主机像素，避免每格四舍五入累计越界；标题高度也从共用 HeaderHeight 扣减。
 
 - 一次读取与整帧（文字、进度、位图）固定同一个 `AccountSession`：来源末尾与发布前校验归属，通知与小组件共享
   `WidgetCalendarSource` / `WidgetWorksSource`，换号期间取到的混合结果不交出去；小组件整帧换号时重新取当前账号，本机会话读不出来时照常交出来源画的「读不出来」
@@ -417,8 +441,12 @@ flowchart LR
   短信被系统阻止时不推进上一轮条数。首轮与 App 前台主动不推仍推进基线，和发送被阻止是两回事。
 
 - 通知栏里还挂着哪些只从系统读（`NotificationManager.activeNotifications`，按 tag + id）：用户划掉的、点开的不用另记，下一轮看不见就不撤。
-- Android 12 起不许通知点开先进广播再开页面（trampoline）：点开的意图直接是 `AppActivity`，由它标已读、跳页（`EXTRA_NOTICE_ID`、`EXTRA_INBOX`）；
+- Android 12 起不许通知点开先进广播再开页面（trampoline）：点开的意图直接是 `AppActivity`，由它校验动作后标已读、跳页（`EXTRA_NOTICE_ID`、`EXTRA_NOTICE_PROOF`、`EXTRA_INBOX`）；
   只有不开页面的按钮（「标为已读」「看过了」）是广播，挂起到写完再结束（`goAsync`，同小组件的 +1，§2.6）。
+- 社区通知的已读动作由 `TokenStore` 以独立随机密钥签发 HMAC，消息绑定完整会话代数、账号与提醒 id；密钥保存在不备份的凭证文件，
+  登出或重新登录就作废。Activity 和已读按钮都经 `NotificationRepository.markSystemNoticeRead` 验证后再走原有已读通道。
+  普通公开启动、launcher alias、深链不凭 extras 就能写；没有校验值的旧通知仍可导航、不能自动标已读，应用内铃铛照常操作。
+  授权值不含 OAuth token 或 Cookie；进程恢复可读盘验证，验证到发请求仍固定同一会话。
 - 放送提醒的闹钟是不精确的（`setAndAllowWhileIdle`）：不要精确闹钟的权限，省电时会晚几分钟；没有放送时刻的作品按北京时间 12 点提醒。
   晚了一小时以上的不补发（`AIRING_REMINDER_GRACE_MILLIS`）。每小时的刷新与 App 启动都会补排闹钟，所以不用开机广播。
 - 一次检查（放送提醒是一次跑）会被几处同时触发（闹钟、每小时的任务、App 启动时的跟随），还会撞上关开关、登出时的撤：两类都各有一把锁，

@@ -65,7 +65,7 @@ internal sealed interface SubjectContent {
 }
 
 /** 每个单部作品小组件选的是哪部（Glance 给每个小组件的那份状态）。 */
-private val SubjectKey = intPreferencesKey("subjectId")
+internal val SubjectKey = intPreferencesKey("subjectId")
 
 /** 单部作品在一个尺寸下的排法：矮的是一行，宽的是左边大封面，其余是封面铺满整块的海报。 */
 internal enum class SubjectLayout { ROW, SIDE, POSTER }
@@ -156,7 +156,7 @@ internal class SubjectWidget : GlanceAppWidget(), KoinComponent {
                 )
                 is SubjectContent.Work -> if (row) {
                     val button = if (size.width >= SIDE_MIN_WIDTH) ButtonShape.LABELED else ButtonShape.PLUS_ONE
-                    WorkRow(content.work, content.failed, content.cover, min(size.height - vertical * 2, ROW_COVER_MAX), button)
+                    WorkRow(content.work, content.failed, content.cover, min(size.height - vertical * 2, ROW_COVER_MAX), size.width - FRAME_PADDING * 2, button)
                 } else {
                     SubjectSide(content, size.height - vertical * 2, size.width - FRAME_PADDING * 2)
                 }
@@ -281,5 +281,13 @@ internal suspend fun chooseSubject(context: Context, appWidgetId: Int, subjectId
 }
 
 class SubjectWidgetReceiver : ChogumiWidgetReceiver() {
+    /**
+     * 系统在同一次广播里先调这里、再调 [onUpdate]，广播的异步句柄（`goAsync`）只有一份：留给 Glance 的更新。
+     * 这里只把迁移排进 WorkManager，由可重试的 Worker 做。
+     */
+    override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
+        SubjectWidgetRestoreWorker.enqueue(context, oldWidgetIds, newWidgetIds)
+    }
+
     override val glanceAppWidget: GlanceAppWidget = SubjectWidget()
 }
