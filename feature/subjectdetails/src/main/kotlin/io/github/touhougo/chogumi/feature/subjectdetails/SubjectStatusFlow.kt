@@ -114,47 +114,57 @@ internal fun StatusFlow(card: FlowCard, subjectType: SubjectType, modifier: Modi
         val space = 4.dp.toPx()
         val corner = CornerRadius(3.dp.toPx())
         fun baselineAt(center: Float) = center + countStyle.fontSize.toPx() / 3
-        ChartLayout(rows.mapIndexed { i, row -> ChartMark(Rect(nodeLeft, row.top, widthPx, row.top + row.height), branchTips[i]) }) {
-            drawRoundRect(trunk, Offset.Zero, Size(trunkRight, total), CornerRadius(4.dp.toPx()))
-            var fromTop = 0f
-            card.branches.forEachIndexed { i, branch ->
-                val row = rows[i]
-                val from = (branch.share * total).toFloat()
-                val toTop = row.top + (row.height - row.node) / 2
-                val mid = (trunkRight + nodeLeft) / 2
-                val ribbon = Path().apply {
-                    moveTo(trunkRight, fromTop)
-                    cubicTo(mid, fromTop, mid, toTop, nodeLeft, toTop)
-                    lineTo(nodeLeft, toTop + row.node)
-                    cubicTo(mid, toTop + row.node, mid, fromTop + from, trunkRight, fromTop + from)
-                    close()
+        fun nodeTop(row: FlowLane) = row.top + (row.height - row.node) / 2
+        ChartLayout(
+            // 一条去向的标记是右边它的那一行（节点、名字、人数、占比）；带子不是矩形，画在底图里
+            marks = rows.mapIndexed { i, row ->
+                ChartMark(Rect(nodeLeft, row.top, widthPx, row.top + row.height), branchTips[i]) { lane ->
+                    drawRoundRect(colors[i], Offset(lane.left, nodeTop(row)), Size(FLOW_NODE_WIDTH.toPx(), row.node * progress.chartFraction(i)), corner)
+                    val baseline = baselineAt(lane.center.y)
+                    val shareWidth = textWidth(shares[i], shareStyle)
+                    val nameWidth = textWidth(names[i], nameStyle)
+                    val room = lane.right - shareWidth - space * 2 - textLeft
+                    label(names[i], textLeft, baseline, nameStyle, colors[i], ha = 0f, maxWidthPx = room)
+                    label("${card.branches[i].count}", textLeft + nameWidth + space, baseline, countStyle, ink, ha = 0f, maxWidthPx = room - nameWidth - space)
+                    label(shares[i], lane.right, baseline, shareStyle, muted, ha = 1f)
                 }
-                drawPath(ribbon, colors[i].copy(alpha = FLOW_RIBBON_ALPHA * progress.chartFraction(i)))
-                drawRoundRect(colors[i], Offset(nodeLeft, toTop), Size(FLOW_NODE_WIDTH.toPx(), row.node * progress.chartFraction(i)), corner)
-                val baseline = baselineAt(row.top + row.height / 2)
-                val shareWidth = textWidth(shares[i], shareStyle)
-                val nameWidth = textWidth(names[i], nameStyle)
-                val room = widthPx - shareWidth - space * 2 - textLeft
-                label(names[i], textLeft, baseline, nameStyle, colors[i], ha = 0f, maxWidthPx = room)
-                label("${branch.count}", textLeft + nameWidth + space, baseline, countStyle, ink, ha = 0f, maxWidthPx = room - nameWidth - space)
-                label(shares[i], widthPx, baseline, shareStyle, muted, ha = 1f)
-                fromTop += from
-            }
-            // 下面一行：左边开始看的人数，右边想看（虚线块：还没开始）
-            val footer = total + FLOW_FOOTER_GAP.toPx()
-            val footerBaseline = baselineAt(footer + line / 2)
-            val startedWidth = textWidth(startedLabel, countStyle)
-            label(startedLabel, 0f, footerBaseline, countStyle, muted, ha = 0f)
-            label("${card.started}", startedWidth + space, footerBaseline, nameStyle, ink, ha = 0f)
-            drawRoundRect(
-                wish,
-                Offset(nodeLeft, footer),
-                Size(FLOW_NODE_WIDTH.toPx(), line),
-                corner,
-                style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx()))),
-            )
-            label(wishName, textLeft, footerBaseline, nameStyle, wish, ha = 0f)
-            label("${card.wish}", textLeft + textWidth(wishName, nameStyle) + space, footerBaseline, countStyle, ink, ha = 0f)
-        }
+            },
+            backdrop = {
+                drawRoundRect(trunk, Offset.Zero, Size(trunkRight, total), CornerRadius(4.dp.toPx()))
+                var fromTop = 0f
+                card.branches.forEachIndexed { i, branch ->
+                    val row = rows[i]
+                    val from = (branch.share * total).toFloat()
+                    val toTop = nodeTop(row)
+                    val mid = (trunkRight + nodeLeft) / 2
+                    val ribbon = Path().apply {
+                        moveTo(trunkRight, fromTop)
+                        cubicTo(mid, fromTop, mid, toTop, nodeLeft, toTop)
+                        lineTo(nodeLeft, toTop + row.node)
+                        cubicTo(mid, toTop + row.node, mid, fromTop + from, trunkRight, fromTop + from)
+                        close()
+                    }
+                    drawPath(ribbon, colors[i].copy(alpha = FLOW_RIBBON_ALPHA * progress.chartFraction(i)))
+                    fromTop += from
+                }
+            },
+            foreground = {
+                // 下面一行：左边开始看的人数，右边想看（虚线块：还没开始）
+                val footer = total + FLOW_FOOTER_GAP.toPx()
+                val footerBaseline = baselineAt(footer + line / 2)
+                val startedWidth = textWidth(startedLabel, countStyle)
+                label(startedLabel, 0f, footerBaseline, countStyle, muted, ha = 0f)
+                label("${card.started}", startedWidth + space, footerBaseline, nameStyle, ink, ha = 0f)
+                drawRoundRect(
+                    wish,
+                    Offset(nodeLeft, footer),
+                    Size(FLOW_NODE_WIDTH.toPx(), line),
+                    corner,
+                    style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx()))),
+                )
+                label(wishName, textLeft, footerBaseline, nameStyle, wish, ha = 0f)
+                label("${card.wish}", textLeft + textWidth(wishName, nameStyle) + space, footerBaseline, countStyle, ink, ha = 0f)
+            },
+        )
     }
 }

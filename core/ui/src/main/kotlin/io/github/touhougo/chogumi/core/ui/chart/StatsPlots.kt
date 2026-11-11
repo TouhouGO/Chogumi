@@ -64,10 +64,10 @@ fun StatsRows(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
         val right = widthPx - valueWidth - 8.dp.toPx()
         val mid = (left + right) / 2
         val span = max(0.5, points.maxOfOrNull { kotlin.math.abs(it.value - (reference ?: 0.0)) } ?: 1.0)
-        ChartLayout(points.mapIndexed { i, p -> ChartMark(Rect(0f, i * row, widthPx, (i + 1) * row), p.tip) }) {
-            points.forEachIndexed { i, p ->
-                val y = i * row + row / 2
-                label(p.label, 0f, y + style.lineHeight.toPx() / 3, style, muted, ha = 0f, maxWidthPx = labelWidth)
+        ChartLayout(points.mapIndexed { i, p ->
+            ChartMark(Rect(0f, i * row, widthPx, (i + 1) * row), p.tip) { line ->
+                val y = line.top + row / 2
+                label(p.label, line.left, y + style.lineHeight.toPx() / 3, style, muted, ha = 0f, maxWidthPx = labelWidth)
                 val dv = p.value - (reference ?: 0.0)
                 val from = if (reference == null) left else mid
                 val to = from + (dv / span).toFloat() * (if (reference == null) right - left else (right - left) / 2) * progress.chartFraction(i)
@@ -75,13 +75,13 @@ fun StatsRows(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
                 val color = if (p.color != Color.Unspecified) p.color else if (reference != null && dv < 0) tertiary else if (i == 0) primary else secondary
                 drawRoundRect(color, Offset(min(from, to), y - 5.dp.toPx()), Size(kotlin.math.abs(to - from), 10.dp.toPx()), CornerRadius(5.dp.toPx()))
                 val value = p.displayValue ?: if (reference == null) p.value.toInt().toString() else String.format(Locale.ROOT, "%+.2f", dv)
-                label(value, widthPx, y + style.lineHeight.toPx() / 3, style, muted, ha = 1f)
+                label(value, line.right, y + style.lineHeight.toPx() / 3, style, muted, ha = 1f)
             }
-        }
+        })
     }
 }
 
-/** 从左到右逐段画折线；点位置与线的坐标同源。 */
+/** 从左到右逐段画折线；标记是线上的每个点，点位置与线的坐标同源，整列（[lineHitBounds]）都算点中它。 */
 @Composable
 fun StatsLine(points: List<PlotPoint>, reference: Double? = null, modifier: Modifier = Modifier) {
     val primary = MaterialTheme.colorScheme.primary
@@ -97,23 +97,25 @@ fun StatsLine(points: List<PlotPoint>, reference: Double? = null, modifier: Modi
         fun y(v: Double) = 16.dp.toPx() + ((hi - v) / (hi - lo)).toFloat() * (bottom - 16.dp.toPx())
         val path = Path().apply { points.forEachIndexed { i, p -> if (i == 0) moveTo(x(i), y(p.value)) else lineTo(x(i), y(p.value)) } }
         val hits = lineHitBounds(points.indices.map(::x), widthPx, heightPx)
-        ChartLayout(points.mapIndexed { i, p -> ChartMark(hits[i], p.tip,
-            Rect(x(i) - 5.dp.toPx(), y(p.value) - 5.dp.toPx(), x(i) + 5.dp.toPx(), y(p.value) + 5.dp.toPx())) }) {
-            reference?.let {
-                drawLine(muted, Offset(0f, y(it)), Offset(widthPx, y(it)), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())))
-                label(String.format(Locale.ROOT, "%.1f", it), widthPx, y(it) - 5.dp.toPx(), style, muted, ha = 1f)
-            }
-            drawPath(revealedPath(path, progress.chartFraction(0)), primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
-            points.forEachIndexed { i, p ->
-                val center = Offset(x(i), y(p.value))
-                drawCircle(if (p.color == Color.Unspecified) primary else p.color, 4.5.dp.toPx() * progress.chartFraction(i), center)
-                label(p.label, x(i), heightPx - 4.dp.toPx(), style, muted, maxWidthPx = widthPx / points.size.coerceAtLeast(1))
-            }
-        }
+        ChartLayout(
+            marks = points.mapIndexed { i, p ->
+                ChartMark(Rect(Offset(x(i), y(p.value)), 5.dp.toPx()), p.tip, hit = hits[i]) { dot ->
+                    drawCircle(if (p.color == Color.Unspecified) primary else p.color, 4.5.dp.toPx() * progress.chartFraction(i), dot.center)
+                    label(p.label, dot.center.x, heightPx - 4.dp.toPx(), style, muted, maxWidthPx = widthPx / points.size.coerceAtLeast(1))
+                }
+            },
+            backdrop = {
+                reference?.let {
+                    drawLine(muted, Offset(0f, y(it)), Offset(widthPx, y(it)), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())))
+                    label(String.format(Locale.ROOT, "%.1f", it), widthPx, y(it) - 5.dp.toPx(), style, muted, ha = 1f)
+                }
+                drawPath(revealedPath(path, progress.chartFraction(0)), primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            },
+        )
     }
 }
 
-/** 折线每个点的命中区：横向在与左右邻点的中线处分开（首尾到画布边），纵向占满。点再密，点到的也是离手指最近的那一点。 */
+/** 折线每个点连同它那一列空白：横向在与左右邻点的中线处分开（首尾到画布边），纵向占满。 */
 internal fun lineHitBounds(xs: List<Float>, widthPx: Float, heightPx: Float): List<Rect> = xs.mapIndexed { i, x ->
     val left = if (i == 0) 0f else (xs[i - 1] + x) / 2
     val right = if (i == xs.lastIndex) widthPx else (x + xs[i + 1]) / 2
@@ -133,16 +135,15 @@ fun StatsStrip(points: List<PlotPoint>, reference: Double, modifier: Modifier = 
         val gap = 3.dp.toPx()
         val width = (widthPx - gap * (points.size - 1)) / points.size.coerceAtLeast(1)
         val span = max(0.3, points.maxOfOrNull { kotlin.math.abs(it.value - reference) } ?: 1.0)
-        ChartLayout(points.mapIndexed { i, p -> ChartMark(Rect(i * (width + gap), 0f, i * (width + gap) + width, heightPx), p.tip) }) {
-            points.forEachIndexed { i, p ->
+        ChartLayout(points.mapIndexed { i, p ->
+            ChartMark(Rect(Offset(i * (width + gap), 0f), Size(width, heightPx)), p.tip) { cell ->
                 val f = (kotlin.math.abs(p.value - reference) / span).toFloat()
                 val color = controversyColor(surface, if (p.value >= reference) primary else tertiary, 0.18f + f * 0.7f)
-                val left = i * (width + gap)
-                drawRoundRect(color.copy(alpha = effects), Offset(left, 0f), Size(width, heightPx), CornerRadius(6.dp.toPx()))
-                label(String.format(Locale.ROOT, "%.1f", p.value), left + width / 2, 30.dp.toPx(), style, ink, maxWidthPx = width)
-                label(p.label, left + width / 2, 53.dp.toPx(), style, ink, maxWidthPx = width)
+                drawRoundRect(color.copy(alpha = effects), cell.topLeft, cell.size, CornerRadius(6.dp.toPx()))
+                label(String.format(Locale.ROOT, "%.1f", p.value), cell.left + width / 2, 30.dp.toPx(), style, ink, maxWidthPx = width)
+                label(p.label, cell.left + width / 2, 53.dp.toPx(), style, ink, maxWidthPx = width)
             }
-        }
+        })
     }
 }
 
@@ -163,15 +164,18 @@ fun RatingDots(counts: List<Int>, tips: List<String>, modifier: Modifier = Modif
     val gridHeight = maxWidth / 20 * 5 + 24.dp
     TapChart(tips.joinToString(), Modifier.fillMaxWidth().height(gridHeight)) {
         val step = widthPx / 20
-        val marks = dots.mapIndexed { i, score -> ChartMark(Rect((i % 20) * step, (i / 20) * step, (i % 20 + 1) * step, (i / 20 + 1) * step), dotTips[score]) }
-        ChartLayout(marks) {
-            dots.forEachIndexed { i, score ->
-                drawCircle(controversyColor(surface, primary, 0.12f + (score / 9f).toDouble().let { it * it }.toFloat() * 0.88f),
-                    (step - 4.dp.toPx()) / 2 * progress.chartFraction(i), Offset((i % 20 + 0.5f) * step, (i / 20 + 0.5f) * step))
-            }
-            label("10", 0f, heightPx - 4.dp.toPx(), labelStyle, primary, ha = 0f)
-            label("1", widthPx, heightPx - 4.dp.toPx(), labelStyle, primary, ha = 1f)
-        }
+        ChartLayout(
+            marks = dots.mapIndexed { i, score ->
+                ChartMark(Rect((i % 20) * step, (i / 20) * step, (i % 20 + 1) * step, (i / 20 + 1) * step), dotTips[score]) { cell ->
+                    drawCircle(controversyColor(surface, primary, 0.12f + (score / 9f).toDouble().let { it * it }.toFloat() * 0.88f),
+                        (step - 4.dp.toPx()) / 2 * progress.chartFraction(i), cell.center)
+                }
+            },
+            foreground = {
+                label("10", 0f, heightPx - 4.dp.toPx(), labelStyle, primary, ha = 0f)
+                label("1", widthPx, heightPx - 4.dp.toPx(), labelStyle, primary, ha = 1f)
+            },
+        )
     }
     }
 }
@@ -189,7 +193,7 @@ fun ControversyGauge(value: RatingControversy, tip: String, dial: Boolean, modif
     val lowEnd = ControversyTier.UNANIMOUS.label()
     val highEnd = ControversyTier.POLARIZED.label()
     TapChart(tip, modifier.fillMaxWidth().height(if (dial) 160.dp else 50.dp)) {
-        ChartLayout(listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), tip))) {
+        ChartLayout(listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), tip) {
             if (dial) {
                 val radius = min(widthPx / 2 - 16.dp.toPx(), 130.dp.toPx())
                 val center = Offset(widthPx / 2, heightPx - 16.dp.toPx())
@@ -209,13 +213,13 @@ fun ControversyGauge(value: RatingControversy, tip: String, dial: Boolean, modif
                 label(lowEnd, 0f, heightPx - 4.dp.toPx(), style, muted, ha = 0f)
                 label(highEnd, widthPx, heightPx - 4.dp.toPx(), style, muted, ha = 1f)
             }
-        }
+        }))
     }
 }
 
 /**
- * 收藏状态的分段条或环形，段宽是计算模型给出的占比。点哪一段就出哪一段的提示：分段条的命中区就是画出来的那一段
- * （[stripSegmentBounds]），环形的段不是矩形，命中区是右边图例里它的那一行（[ringLegendBounds]）。
+ * 收藏状态的分段条或环形，段宽是计算模型给出的占比。点哪一段就出哪一段的提示：分段条的标记就是画出来的那一段
+ * （[stripSegmentBounds]），环形的段不是矩形，标记是右边图例里它的那一行（[ringLegendBounds]）。
  */
 @Composable
 fun StatsSegments(points: List<PlotPoint>, ring: Boolean, modifier: Modifier = Modifier) {
@@ -227,30 +231,46 @@ fun StatsSegments(points: List<PlotPoint>, ring: Boolean, modifier: Modifier = M
     val progress = chartFractions()
     TapChart(points.joinToString { it.tip }, modifier.fillMaxWidth().height(if (ring) 150.dp else 90.dp)) {
         val shares = points.map { (it.value / sum).toFloat() }
-        val legendLeft = RingLegendStart.toPx()
-        val bounds = if (ring) ringLegendBounds(points.size, legendLeft - RingLegendHitInset.toPx(), widthPx, RingLegendRow.toPx())
-            else stripSegmentBounds(shares, widthPx, StripHeight.toPx())
-        ChartLayout(points.mapIndexed { i, p -> ChartMark(bounds[i], p.tip) }) {
-            var offset = 0f
-            points.forEachIndexed { i, p ->
-                val share = shares[i]
-                val color = if (p.color != Color.Unspecified) p.color else controversyColor(primary, tertiary, i.toFloat() / (points.size - 1).coerceAtLeast(1))
-                if (ring) {
+        val colors = points.mapIndexed { i, p ->
+            if (p.color != Color.Unspecified) p.color else controversyColor(primary, tertiary, i.toFloat() / (points.size - 1).coerceAtLeast(1))
+        }
+        if (ring) {
+            val legendLeft = RingLegendStart.toPx()
+            val rows = ringLegendBounds(points.size, legendLeft - RingLegendHitInset.toPx(), widthPx, RingLegendRow.toPx())
+            ChartLayout(
+                marks = points.mapIndexed { i, p ->
+                    ChartMark(rows[i], p.tip) { row ->
+                        label(p.label, legendLeft, row.top + RingLegendBaseline.toPx(), style, muted, ha = 0f, maxWidthPx = widthPx - legendLeft)
+                    }
+                },
+                backdrop = {
                     val radius = 54.dp.toPx()
-                    drawArc(color, -90 + offset * 360, max(0f, share * 360 - 2) * progress.chartFraction(i), false,
-                        Offset(70.dp.toPx() - radius, 70.dp.toPx() - radius), Size(radius * 2, radius * 2), style = Stroke(18.dp.toPx()))
-                    label(p.label, legendLeft, bounds[i].top + RingLegendBaseline.toPx(), style, muted, ha = 0f, maxWidthPx = widthPx - legendLeft)
-                } else {
-                    val segment = bounds[i]
-                    drawRoundRect(color, segment.topLeft, Size(max(0f, segment.width - 2.dp.toPx()) * progress.chartFraction(i), segment.height), CornerRadius(3.dp.toPx()))
-                    val column = i % 2
-                    val row = i / 2
-                    label(p.label, column * widthPx / 2 + 16.dp.toPx(), (48 + row * 24).dp.toPx(), style, muted,
-                        ha = 0f, maxWidthPx = widthPx / 2 - 16.dp.toPx())
-                    drawRoundRect(color, Offset(column * widthPx / 2, (39 + row * 24).dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), CornerRadius(3.dp.toPx()))
-                }
-                offset += share
-            }
+                    var offset = 0f
+                    shares.forEachIndexed { i, share ->
+                        drawArc(colors[i], -90 + offset * 360, max(0f, share * 360 - 2) * progress.chartFraction(i), false,
+                            Offset(70.dp.toPx() - radius, 70.dp.toPx() - radius), Size(radius * 2, radius * 2), style = Stroke(18.dp.toPx()))
+                        offset += share
+                    }
+                },
+            )
+        } else {
+            val segments = stripSegmentBounds(shares, widthPx, StripHeight.toPx())
+            ChartLayout(
+                marks = points.mapIndexed { i, p ->
+                    ChartMark(segments[i], p.tip) { segment ->
+                        drawRoundRect(colors[i], segment.topLeft, Size(max(0f, segment.width - 2.dp.toPx()) * progress.chartFraction(i), segment.height), CornerRadius(3.dp.toPx()))
+                    }
+                },
+                foreground = {
+                    points.forEachIndexed { i, p ->
+                        val column = i % 2
+                        val row = i / 2
+                        label(p.label, column * widthPx / 2 + 16.dp.toPx(), (48 + row * 24).dp.toPx(), style, muted,
+                            ha = 0f, maxWidthPx = widthPx / 2 - 16.dp.toPx())
+                        drawRoundRect(colors[i], Offset(column * widthPx / 2, (39 + row * 24).dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), CornerRadius(3.dp.toPx()))
+                    }
+                },
+            )
         }
     }
 }
@@ -261,7 +281,7 @@ private val RingLegendHitInset = 8.dp
 private val RingLegendRow = 28.dp
 private val RingLegendBaseline = 20.dp
 
-/** 分段条每一段的矩形：按占比从左往右接着排，占满整条宽度；画的时候右边留 2dp 缝，命中区含这条缝。 */
+/** 分段条每一段的矩形：按占比从左往右接着排，占满整条宽度；画的时候右边留 2dp 缝，这条缝也算这一段。 */
 internal fun stripSegmentBounds(shares: List<Float>, widthPx: Float, heightPx: Float): List<Rect> {
     var start = 0f
     return shares.map { share -> Rect(start * widthPx, 0f, (start + share) * widthPx, heightPx).also { start += share } }
@@ -299,7 +319,7 @@ fun ControversyRidge(counts: List<Int>, value: RatingControversy, tip: String, m
             }
         }
         val ref = Path().apply { reference.forEachIndexed { i, v -> if (i == 0) moveTo(x(1.0), y(v)) else lineTo(x(1 + i / 10.0), y(v)) } }
-        ChartLayout(listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), tip))) {
+        ChartLayout(listOf(ChartMark(Rect(0f, 0f, widthPx, heightPx), tip) {
             val left = x((value.mean - value.sigma).coerceAtLeast(1.0))
             val right = x((value.mean + value.sigma).coerceAtMost(10.0))
             val center = x(value.mean)
@@ -311,7 +331,7 @@ fun ControversyRidge(counts: List<Int>, value: RatingControversy, tip: String, m
             drawPath(revealedPath(path, progress), color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
             (1..10).forEach { label(it.toString(), x(it.toDouble()), heightPx - 4.dp.toPx(), style, muted) }
             label(referenceLabel, 6.dp.toPx(), 16.dp.toPx(), style, muted, ha = 0f)
-        }
+        }))
     }
 }
 
@@ -322,7 +342,10 @@ private fun revealedPath(path: Path, progress: Float): Path = Path().also { outp
     measure.getSegment(0f, measure.length * progress, output, true)
 }
 
-/** 同一横轴上的各组真实评分分布，每条线共用最大占比，不重新计算组均分。 */
+/**
+ * 同一横轴上的各组真实评分分布，每条线共用最大占比，不重新计算组均分。几条线交叠着横贯全宽，给不出各自的一块：
+ * 标记是轴下每组的名字（图例），点名字出这一组的提示，线画在底图里。
+ */
 @Composable
 fun StatsDistributions(counts: List<List<Int>>, labels: List<String>, tips: List<String>, modifier: Modifier = Modifier) {
     val primary = MaterialTheme.colorScheme.primary
@@ -336,16 +359,24 @@ fun StatsDistributions(counts: List<List<Int>>, labels: List<String>, tips: List
         val base = heightPx - 42.dp.toPx()
         fun x(i: Int) = 6.dp.toPx() + i * (widthPx - 12.dp.toPx()) / 9
         val paths = shares.map { group -> Path().apply { group.forEachIndexed { i, v -> val y = base - (v / peak).toFloat() * (base - 8.dp.toPx()); if (i == 0) moveTo(x(i), y) else lineTo(x(i), y) } } }
-        ChartLayout(tips.mapIndexed { i, tip -> ChartMark(Rect(i * widthPx / tips.size, 0f, (i + 1) * widthPx / tips.size, heightPx), tip) }) {
-            paths.forEachIndexed { i, path ->
-                val color = controversyColor(primary, tertiary, i.toFloat() / (paths.size - 1).coerceAtLeast(1))
-                drawPath(revealedPath(path, progress.chartFraction(i)), color, style = Stroke(2.5.dp.toPx()))
-                label(labels[i], (i + 0.5f) * widthPx / paths.size, heightPx - 4.dp.toPx(), style, color, maxWidthPx = widthPx / paths.size)
-            }
-            (1..10).forEach { label(it.toString(), x(it - 1), base + 18.dp.toPx(), style, muted) }
-        }
+        val colors = paths.indices.map { controversyColor(primary, tertiary, it.toFloat() / (paths.size - 1).coerceAtLeast(1)) }
+        val legendTop = base + DistributionLegendTop.toPx()
+        ChartLayout(
+            marks = tips.mapIndexed { i, tip ->
+                ChartMark(Rect(i * widthPx / tips.size, legendTop, (i + 1) * widthPx / tips.size, heightPx), tip) { name ->
+                    label(labels[i], name.center.x, heightPx - 4.dp.toPx(), style, colors[i], maxWidthPx = name.width)
+                }
+            },
+            backdrop = {
+                paths.forEachIndexed { i, path -> drawPath(revealedPath(path, progress.chartFraction(i)), colors[i], style = Stroke(2.5.dp.toPx())) }
+                (1..10).forEach { label(it.toString(), x(it - 1), base + 18.dp.toPx(), style, muted) }
+            },
+        )
     }
 }
+
+/** 分布图轴下组名那一行的顶：在分数刻度那一行字的下面。 */
+private val DistributionLegendTop = 22.dp
 
 /** 标签词云以实际字宽逐行预算，每个词点按显示确切标注人数。 */
 @Composable
@@ -375,13 +406,13 @@ fun StatsTagCloud(points: List<PlotPoint>, modifier: Modifier = Modifier) {
                 rowHeight = max(rowHeight, h)
             }
         }
-        ChartLayout(placements.map { ChartMark(it.second, it.first.tip) }) {
-            placements.forEach { (point, rect, style) ->
-                label(point.label, rect.left, rect.top + style.lineHeight.toPx() * 0.8f, style,
+        ChartLayout(placements.map { (point, rect, style) ->
+            ChartMark(rect, point.tip) { word ->
+                label(point.label, word.left, word.top + style.lineHeight.toPx() * 0.8f, style,
                     controversyColor(muted, primary, (0.35 + sqrt(point.value / peak) * 0.65).toFloat()).copy(alpha = effects),
-                    ha = 0f, maxWidthPx = rect.width)
+                    ha = 0f, maxWidthPx = word.width)
             }
-        }
+        })
     }
 }
 
@@ -399,25 +430,25 @@ fun ControversyCamps(value: RatingControversy, tips: List<String>, modifier: Mod
         val shares = value.camps.map { it.toDouble() / value.count }
         val centers = listOf(0f, widthPx / 2, widthPx)
         val ranges = listOf("1–4", "5–7", "8–10")
+        val colors = listOf(tertiary, middle, primary)
         val segments = campSegmentBounds(shares.map(Double::toFloat), widthPx, 70.dp.toPx(), 16.dp.toPx(), 3.dp.toPx(), progress)
-        val labels = tips.mapIndexed { i, tip -> ChartMark(Rect(i * widthPx / 3, 0f, (i + 1) * widthPx / 3, 60.dp.toPx()), tip) }
-        val bars = segments.mapIndexedNotNull { i, rect -> rect.takeIf { it.width > 0f }?.let { ChartMark(it, tips[i]) } }
-        ChartLayout(labels + bars) {
-            val colors = listOf(tertiary, middle, primary)
-            shares.forEachIndexed { i, share ->
+        val labels = tips.mapIndexed { i, tip ->
+            ChartMark(Rect(i * widthPx / 3, 0f, (i + 1) * widthPx / 3, 60.dp.toPx()), tip) {
+                val share = shares[i]
                 val text = if (share > 0 && share < 0.01) "<1%" else String.format(Locale.ROOT, "%.0f%%", share * 100)
                 label(text, centers[i], if (i == 1) 45.dp.toPx() else 34.dp.toPx(), if (i == 1) small else big,
                     if (i == 1) muted else colors[i], ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
                 label(ranges[i], centers[i], 59.dp.toPx(), small, muted, ha = if (i == 0) 0f else if (i == 2) 1f else 0.5f)
             }
-            segments.forEachIndexed { i, rect ->
-                if (rect.width > 0f) drawRoundRect(colors[i], rect.topLeft, rect.size, CornerRadius(3.dp.toPx()))
-            }
         }
+        val bars = segments.mapIndexedNotNull { i, rect ->
+            rect.takeIf { it.width > 0f }?.let { ChartMark(it, tips[i]) { bar -> drawRoundRect(colors[i], bar.topLeft, bar.size, CornerRadius(3.dp.toPx())) } }
+        }
+        ChartLayout(labels + bars)
     }
 }
 
-/** 条形的累计占比与进场几何；绘图和点按共用，零宽段不生成命中区。 */
+/** 条形的累计占比与进场几何；零宽段不成标记。 */
 internal fun campSegmentBounds(shares: List<Float>, width: Float, top: Float, height: Float, gap: Float, progress: List<Float>): List<Rect> =
     stripSegmentBounds(shares, width, height).mapIndexed { index, slot ->
         val growth = progress.chartFraction(index)

@@ -140,11 +140,20 @@ internal fun LifeTimeline(card: LifelineCard, modifier: Modifier = Modifier) {
             }
             val peakIndex = card.episodes.indexOfFirst { it.comments == peak }
             ChartLayout(
-                marks = bars.mapIndexed { i, rect ->
-                    val half = max(rect.width / 2, 4.dp.toPx())
-                    ChartMark(Rect(rect.center.x - half, headerBottom, rect.center.x + half, base), tips[i], anchor = rect)
+                // 柱密时相邻几根要的那一列互相叠着：点中谁按柱本身判（markAt），不看谁排在后面
+                marks = bars.mapIndexed { i, bounds ->
+                    val half = max(bounds.width / 2, 4.dp.toPx())
+                    ChartMark(
+                        anchor = bounds,
+                        label = tips[i],
+                        hit = Rect(bounds.center.x - half, headerBottom, bounds.center.x + half, base),
+                    ) { rect ->
+                        val alpha = 0.35f + 0.65f * card.episodes[i].comments / peak
+                        val growth = progress.chartFraction(i)
+                        drawRoundRect(bar.copy(alpha = alpha), Offset(rect.left, rect.bottom - rect.height * growth), Size(rect.width, rect.height * growth), CornerRadius(3.dp.toPx()))
+                    }
                 },
-                draw = {
+                backdrop = {
                     bounds.forEachIndexed { i, (left, right) ->
                         drawRoundRect(if (i == 1) loud else quiet, Offset(left, 0f), Size(right - left, base), CornerRadius(12.dp.toPx()))
                         val (name, mean) = phases[i]
@@ -154,11 +163,8 @@ internal fun LifeTimeline(card: LifelineCard, modifier: Modifier = Modifier) {
                             label(mean, left + pad, pad + smallLine + meanStyle.lineHeight.toPx() * 0.75f, meanStyle, ink, ha = 0f, maxWidthPx = room)
                         }
                     }
-                    bars.forEachIndexed { i, rect ->
-                        val alpha = 0.35f + 0.65f * card.episodes[i].comments / peak
-                        val growth = progress.chartFraction(i)
-                        drawRoundRect(bar.copy(alpha = alpha), Offset(rect.left, rect.bottom - rect.height * growth), Size(rect.width, rect.height * growth), CornerRadius(3.dp.toPx()))
-                    }
+                },
+                foreground = {
                     bars.getOrNull(peakIndex)?.let { rect ->
                         label("$peak", rect.center.x, rect.top - 4.dp.toPx(), small, ink)
                     }

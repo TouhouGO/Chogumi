@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ class UnitGroup(val type: CollectionType, val cells: Int, val tip: String)
 @Composable
 fun UnitCells(groups: List<UnitGroup>, columns: Int, description: String, modifier: Modifier = Modifier) {
     val shape = MaterialTheme.shapes.extraSmall
+    val direction = LocalLayoutDirection.current
     val colors = groups.map { it.type.colors().color }
     val total = groups.sumOf { it.cells }
     val rows = (total + columns - 1) / columns
@@ -55,14 +57,11 @@ fun UnitCells(groups: List<UnitGroup>, columns: Int, description: String, modifi
                 }
             }
         }
+        val outline = shape.createOutline(Size(cell, cell), direction, this)
         ChartLayout(
-            marks = placed.map { (index, origin) ->
-                ChartMark(Rect(origin, Size(cell, cell)), groups[index].tip)
-            },
-            draw = {
-                val outline = shape.createOutline(Size(cell, cell), layoutDirection, this)
-                placed.forEach { (index, origin) ->
-                    translate(origin.x, origin.y) { drawOutline(outline, colors[index]) }
+            placed.map { (index, origin) ->
+                ChartMark(Rect(origin, Size(cell, cell)), groups[index].tip) { square ->
+                    translate(square.left, square.top) { drawOutline(outline, colors[index]) }
                 }
             },
         )

@@ -31,10 +31,9 @@ fun Treemap(tiles: List<TreemapTile>, toneCount: Int, description: String, modif
         val rects = squarify(tiles.map { it.count.toFloat() }, widthPx, heightPx)
         val gap = 1.dp.toPx()
         ChartLayout(
-            marks = rects.mapIndexed { i, r -> ChartMark(r, tiles[i].tip) },
-            draw = {
-                rects.forEachIndexed { i, r ->
-                    val tile = tiles[i]
+            rects.mapIndexed { i, tileRect ->
+                val tile = tiles[i]
+                ChartMark(tileRect, tile.tip) { r ->
                     val tone = tile.tone
                     val fill = if (tone == null) scheme.surfaceContainerHighest else tones[tone]
                     val ink = if (tone == null) scheme.onSurface else inks[tone]

@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -90,35 +91,47 @@ fun HeatCells(
             val stroke = Stroke(1.dp.toPx())
             val markHeight = HEAT_MARK_HEIGHT.toPx()
             fun rectOf(row: Int, col: Int) = Rect(Offset(labelWidth + col * cell + gap / 2, row * pitch + gap / 2), Size(side, side))
+            // 格子里的字与下面挂的那道横：到了的格子与还没到的格子一样画
+            fun DrawScope.inscribe(heat: HeatCell, rect: Rect) {
+                val level = heat.level.coerceIn(0, HEAT_LEVELS)
+                heat.label?.takeIf { textWidth(it, labelStyle) <= side - 2.dp.toPx() }?.let { text ->
+                    val ink = if (heat.pending || level == 0) labelColor else inks[level - 1]
+                    label(text, rect.center.x, rect.center.y + labelStyle.fontSize.toPx() / 3, labelStyle, ink)
+                }
+                if (heat.marked) {
+                    val markWidth = side * 0.6f
+                    drawRoundRect(
+                        markColor,
+                        Offset(rect.center.x - markWidth / 2, rect.bottom + gap),
+                        Size(markWidth, markHeight),
+                        CornerRadius(markHeight / 2),
+                    )
+                }
+            }
             ChartLayout(
                 marks = rows.flatMapIndexed { r, cells ->
-                    cells.mapIndexedNotNull { c, heat -> if (heat.pending) null else ChartMark(rectOf(r, c), heat.tip) }
-                },
-                draw = {
-                    rows.forEachIndexed { r, cells ->
-                        label(shown[r], 0f, r * pitch + cell / 2 + labelStyle.fontSize.toPx() / 3, labelStyle, labelColor, ha = 0f)
-                        cells.forEachIndexed { c, heat ->
-                            val rect = rectOf(r, c)
-                            val level = heat.level.coerceIn(0, HEAT_LEVELS)
-                            if (heat.pending) {
-                                drawRoundRect(outline, rect.topLeft, rect.size, corner, style = stroke)
-                            } else {
+                    cells.mapIndexedNotNull { c, heat ->
+                        if (heat.pending) {
+                            null
+                        } else {
+                            ChartMark(rectOf(r, c), heat.tip) { rect ->
+                                val level = heat.level.coerceIn(0, HEAT_LEVELS)
                                 val growth = progress.chartFraction(r * columns + c)
                                 val grown = Size(rect.width * growth, rect.height * growth)
                                 drawRoundRect(if (level == 0) empty else tones[level - 1], rect.center - Offset(grown.width / 2, grown.height / 2), grown, corner)
+                                inscribe(heat, rect)
                             }
-                            heat.label?.takeIf { textWidth(it, labelStyle) <= side - 2.dp.toPx() }?.let { text ->
-                                val ink = if (heat.pending || level == 0) labelColor else inks[level - 1]
-                                label(text, rect.center.x, rect.center.y + labelStyle.fontSize.toPx() / 3, labelStyle, ink)
-                            }
-                            if (heat.marked) {
-                                val markWidth = side * 0.6f
-                                drawRoundRect(
-                                    markColor,
-                                    Offset(rect.center.x - markWidth / 2, rect.bottom + gap),
-                                    Size(markWidth, markHeight),
-                                    CornerRadius(markHeight / 2),
-                                )
+                        }
+                    }
+                },
+                backdrop = {
+                    rows.forEachIndexed { r, cells ->
+                        label(shown[r], 0f, r * pitch + cell / 2 + labelStyle.fontSize.toPx() / 3, labelStyle, labelColor, ha = 0f)
+                        cells.forEachIndexed { c, heat ->
+                            if (heat.pending) {
+                                val rect = rectOf(r, c)
+                                drawRoundRect(outline, rect.topLeft, rect.size, corner, style = stroke)
+                                inscribe(heat, rect)
                             }
                         }
                     }

@@ -43,7 +43,7 @@ class CampsHitTest {
         val last = bounds[2]
         org.junit.Assert.assertEquals(3f, last.left)
         org.junit.Assert.assertEquals(147f, last.width)
-        val marks = bounds.mapIndexedNotNull { index, rect -> rect.takeIf { it.width > 0f }?.let { ChartMark(it, "$index") } }
+        val marks = bounds.mapIndexedNotNull { index, rect -> rect.takeIf { it.width > 0f }?.let { ChartMark(it, "$index") {} } }
         org.junit.Assert.assertEquals("2", markAt(marks, Offset(80f, 78f), 0f)?.label)
         org.junit.Assert.assertNull(markAt(marks, Offset(280f, 78f), 0f))
     }

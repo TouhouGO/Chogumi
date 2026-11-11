@@ -70,21 +70,18 @@ fun CountBars(counts: List<Int>, labels: List<String>, tips: List<String>, descr
             }
         }
         ChartLayout(
-            marks = counts.indices.map { i ->
+            counts.indices.map { i ->
                 ChartMark(
-                    Rect(leftOf(i), 0f, leftOf(i) + barWidth, heightPx),
-                    tips[i],
                     anchor = Rect(leftOf(i), base - heights[i], leftOf(i) + barWidth, base),
-                )
-            },
-            draw = {
-                counts.indices.forEach { i ->
-                    val height = heights[i] * progress.chartFraction(i)
-                    val outline = shape.createOutline(Size(barWidth, height), layoutDirection, this)
-                    translate(leftOf(i), base - height) {
+                    label = tips[i],
+                    hit = Rect(leftOf(i), 0f, leftOf(i) + barWidth, heightPx),
+                ) { bar ->
+                    val height = bar.height * progress.chartFraction(i)
+                    val outline = shape.createOutline(Size(bar.width, height), layoutDirection, this)
+                    translate(bar.left, bar.bottom - height) {
                         drawOutline(outline, if (i == peak && peakCount > 0) peakColor else restColor)
                     }
-                    if (shownLabels[i]) label(labels[i], leftOf(i) + barWidth / 2, heightPx - 4.dp.toPx(), axis, muted)
+                    if (shownLabels[i]) label(labels[i], bar.center.x, heightPx - 4.dp.toPx(), axis, muted)
                 }
             },
         )

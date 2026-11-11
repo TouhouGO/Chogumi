@@ -52,13 +52,17 @@ fun ClockDial(hours: List<Int>, tips: List<String>, peakLabel: String, descripti
         val middle = (inner + outer) / 2
         val side = (2 * Math.PI * middle / 24).toFloat()
         ChartLayout(
-            marks = wedges.mapIndexed { h, (start, reach, _) ->
+            // 放射柱不是矩形：气泡指着柱的外端，算作点中它的是柱所在那一圈上的一个方块
+            marks = wedges.mapIndexed { h, (start, reach, path) ->
                 val mid = start + (15f - gap) / 2
-                ChartMark(Rect(at(middle, mid), side / 2), tips[h], anchor = Rect(at(reach, mid), 1f))
+                ChartMark(anchor = Rect(at(reach, mid), 1f), label = tips[h], hit = Rect(at(middle, mid), side / 2)) {
+                    drawPath(path, if (h == peak && hours[h] > 0) peakColor else restColor)
+                }
             },
-            draw = {
+            backdrop = {
                 drawCircle(ring, outer, c, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 4.dp.toPx()))))
-                wedges.forEachIndexed { h, (_, _, path) -> drawPath(path, if (h == peak && hours[h] > 0) peakColor else restColor) }
+            },
+            foreground = {
                 listOf(0, 6, 12, 18).forEach { h ->
                     val p = at(outer + labelBand.toPx() / 2, h * 15f - 90f)
                     label("$h", p.x, p.y + axis.fontSize.toPx() / 3, axis, muted)

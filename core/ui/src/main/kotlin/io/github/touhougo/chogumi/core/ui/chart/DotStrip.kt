@@ -78,13 +78,16 @@ fun DotStrip(
             }
         }
         ChartLayout(
-            marks = placed.map { (dot, at) -> ChartMark(Rect(at, step / 2), dot.tip, anchor = Rect(at, radius)) },
-            draw = {
+            marks = placed.map { (dot, at) ->
+                ChartMark(anchor = Rect(at, radius), label = dot.tip, hit = Rect(at, step / 2)) { drawCircle(dot.color, radius, at) }
+            },
+            backdrop = {
                 if (marker != null) {
                     drawLine(markerColor, Offset(xOf(marker), 4.dp.toPx()), Offset(xOf(marker), base), (if (centered) 1f else 1.5f).dp.toPx())
                 }
                 ticks.forEach { label(it.label, xOf(it.at), heightPx - 2.dp.toPx(), axis, muted) }
-                placed.forEach { (dot, at) -> drawCircle(dot.color, radius, at) }
+            },
+            foreground = {
                 if (key != null) {
                     val keyY = keyRow.toPx() / 2
                     drawCircle(muted, radius, Offset(radius, keyY))

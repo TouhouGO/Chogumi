@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.model.WatchSpan
@@ -49,30 +48,26 @@ fun SpanLanes(
         val lanes = spans.size * rowHeight
         ChartLayout(
             marks = spans.mapIndexed { i, span ->
-                val y = i * rowHeight
+                val y = i * rowHeight + rowHeight / 2
+                val thickness = SPAN_BAND.toPx()
                 ChartMark(
-                    Rect(0f, y, widthPx, y + rowHeight),
-                    tips[i],
-                    anchor = Rect(xOf(span.start), y + rowHeight / 2 - SPAN_BAND.toPx() / 2, xOf(span.end), y + rowHeight / 2 + SPAN_BAND.toPx() / 2),
-                )
+                    anchor = Rect(xOf(span.start) - thickness / 2, y - thickness / 2, xOf(span.end) + thickness / 2, y + thickness / 2),
+                    label = tips[i],
+                    hit = Rect(0f, i * rowHeight, widthPx, (i + 1) * rowHeight),
+                ) { rect ->
+                    drawRoundRect(band, rect.topLeft, rect.size, CornerRadius(rect.height / 2))
+                    span.days.forEach { (date, episodes) ->
+                        drawCircle(dot, min(SPAN_DOT_MAX.toPx(), (2.5f + 0.7f * episodes).dp.toPx()), Offset(xOf(date), y))
+                    }
+                    label(lengthLabels[i], widthPx, y + axis.fontSize.toPx() / 3, axis, muted, ha = 1f)
+                }
             },
-            draw = {
+            backdrop = {
                 val dash = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 3.dp.toPx()))
                 ticks.forEach { month ->
                     val x = track * (month.toEpochDay() - first.toEpochDay()) / days
                     drawLine(line, Offset(x, 0f), Offset(x, lanes), 1.dp.toPx(), pathEffect = dash)
                     label(monthLabel(month), x + 2.dp.toPx(), heightPx - 4.dp.toPx(), axis, muted, ha = 0f)
-                }
-                spans.forEachIndexed { i, span ->
-                    val y = i * rowHeight + rowHeight / 2
-                    val thickness = SPAN_BAND.toPx()
-                    val left = xOf(span.start) - thickness / 2
-                    val right = max(xOf(span.end) + thickness / 2, left + thickness)
-                    drawRoundRect(band, Offset(left, y - thickness / 2), Size(right - left, thickness), CornerRadius(thickness / 2))
-                    span.days.forEach { (date, episodes) ->
-                        drawCircle(dot, min(SPAN_DOT_MAX.toPx(), (2.5f + 0.7f * episodes).dp.toPx()), Offset(xOf(date), y))
-                    }
-                    label(lengthLabels[i], widthPx, y + axis.fontSize.toPx() / 3, axis, muted, ha = 1f)
                 }
             },
         )
