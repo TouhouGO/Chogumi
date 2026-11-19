@@ -1,17 +1,26 @@
 package io.github.touhougo.chogumi.core.network.api
 
+import io.github.touhougo.chogumi.core.network.model.p1.CharacterSearchFilterDto
+import io.github.touhougo.chogumi.core.network.model.p1.SearchCharacterDto
+import io.github.touhougo.chogumi.core.network.model.p1.SearchPersonDto
 import io.github.touhougo.chogumi.core.network.model.p1.SearchSubjectDto
 import io.github.touhougo.chogumi.core.network.testApiClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class NextApiTest {
 
@@ -126,6 +135,18 @@ class NextApiTest {
         assertEquals("Bearer token_cal", capturedAuth)
         api.getCalendar(accessToken = null)
         assertNull(capturedAuth)
+
+        // 6. searchCharacters
+        api.searchCharacters(SearchCharacterDto(keyword = "鲁路修"), limit = 20, offset = 0, accessToken = "token_char")
+        assertEquals("Bearer token_char", capturedAuth)
+        api.searchCharacters(SearchCharacterDto(keyword = "鲁路修"), limit = 20, offset = 0, accessToken = null)
+        assertNull(capturedAuth)
+
+        // 7. searchPersons
+        api.searchPersons(SearchPersonDto(keyword = "花泽香菜"), limit = 20, offset = 0, accessToken = "token_person")
+        assertEquals("Bearer token_person", capturedAuth)
+        api.searchPersons(SearchPersonDto(keyword = "花泽香菜"), limit = 20, offset = 0, accessToken = null)
+        assertNull(capturedAuth)
     }
 
     @Test
@@ -217,5 +238,59 @@ class NextApiTest {
         assertEquals("/p1/groups/-/topics/472971", engine.requestHistory.single().url.encodedPath)
         assertEquals(1, topic.replies.size)
         assertEquals("boring", topic.group.name)
+    }
+
+    @Test
+    fun `角色搜索：路径、分页与请求体参数及短行解析`() = runTest {
+        val (api, engine) = makeApi(
+            """{"data":[{"id":1,"name":"ルルーシュ・ランペルージ","nameCN":"鲁路修·兰佩路基","role":1,
+               "info":"性别 男 / 身高 178cm","comment":500,"lock":false,"nsfw":false,
+               "images":{"large":"cl","medium":"cm","small":"cs","grid":"cg"}}],"total":12}""",
+        )
+        val page = api.searchCharacters(
+            request = SearchCharacterDto(keyword = "鲁路修", filter = CharacterSearchFilterDto(nsfw = false)),
+            limit = 100,
+            offset = 20,
+        )
+        val request = engine.requestHistory.single()
+        assertEquals(HttpMethod.Post, request.method)
+        assertEquals("/p1/search/characters", request.url.encodedPath)
+        assertEquals("100", request.url.parameters["limit"])
+        assertEquals("20", request.url.parameters["offset"])
+        val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
+        assertEquals("鲁路修", body["keyword"]?.jsonPrimitive?.content)
+        assertEquals(false, body["filter"]?.jsonObject?.get("nsfw")?.jsonPrimitive?.boolean)
+        assertEquals(12, page.total)
+        val item = page.data.single()
+        assertEquals(1, item.id)
+        assertEquals("鲁路修·兰佩路基", item.nameCN)
+        assertEquals("cm", item.images?.medium)
+    }
+
+    @Test
+    fun `人物搜索：路径、分页与请求体参数及短行解析`() = runTest {
+        val (api, engine) = makeApi(
+            """{"data":[{"id":4765,"name":"花澤香菜","nameCN":"花泽香菜","type":1,
+               "info":"性别 女","career":["seiyu"],"comment":300,"lock":false,"nsfw":false,
+               "images":{"large":"pl","medium":"pm","small":"ps","grid":"pg"}}],"total":3}""",
+        )
+        val page = api.searchPersons(
+            request = SearchPersonDto(keyword = "花泽香菜"),
+            limit = 100,
+            offset = 0,
+        )
+        val request = engine.requestHistory.single()
+        assertEquals(HttpMethod.Post, request.method)
+        assertEquals("/p1/search/persons", request.url.encodedPath)
+        assertEquals("100", request.url.parameters["limit"])
+        assertEquals("0", request.url.parameters["offset"])
+        val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
+        assertEquals("花泽香菜", body["keyword"]?.jsonPrimitive?.content)
+        assertNull(body["filter"])
+        assertEquals(3, page.total)
+        val item = page.data.single()
+        assertEquals(4765, item.id)
+        assertEquals("花泽香菜", item.nameCN)
+        assertEquals(listOf("seiyu"), item.career)
     }
 }

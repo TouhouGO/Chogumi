@@ -7,6 +7,7 @@ import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchDimensionOption
 import io.github.touhougo.chogumi.core.model.SearchInputError
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
 import io.github.touhougo.chogumi.core.model.TagFilter
 import io.github.touhougo.chogumi.core.model.concreteOrNull
@@ -14,6 +15,8 @@ import io.github.touhougo.chogumi.core.model.isSingleYear
 import io.github.touhougo.chogumi.core.model.isThemeWord
 import io.github.touhougo.chogumi.core.model.searchDimensionsFor
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.composables.iconOrAllRes
+import io.github.touhougo.chogumi.core.ui.composables.labelOrAllRes
 import io.github.touhougo.chogumi.core.ui.composables.labelRes
 import io.github.touhougo.chogumi.core.ui.composables.searchDimensionTitleRes
 
@@ -153,4 +156,33 @@ fun SearchCriteria.searchHint(): SearchHint {
             },
         )
     }
+}
+
+/** 搜索范围在 FAB 菜单中的图标，唯一映射点。 */
+internal fun SearchScope.iconRes(): Int = when (this) {
+    is SearchScope.Subjects -> type.iconOrAllRes()
+    SearchScope.Character -> R.drawable.face_24
+    SearchScope.Person -> R.drawable.person_24
+}
+
+/** 搜索范围在 FAB 菜单与无障碍描述中的名称，唯一映射点。 */
+internal fun SearchScope.labelRes(): Int = when (this) {
+    is SearchScope.Subjects -> type.labelOrAllRes()
+    SearchScope.Character -> R.string.search_scope_character
+    SearchScope.Person -> R.string.search_scope_person
+}
+
+/** 搜索范围在 FAB 菜单项上的 testTag，唯一映射点。 */
+internal fun SearchScope.fabOptionTestTag(): String = when (this) {
+    is SearchScope.Subjects -> "ExploreSearchType-${type?.name ?: "ALL"}"
+    SearchScope.Character -> "ExploreSearchType-CHARACTER"
+    SearchScope.Person -> "ExploreSearchType-PERSON"
+}
+
+/** 整页搜索框提示文字：作品范围沿用 [SearchCriteria.searchHint]，角色 / 人物只看范围名。 */
+@Composable
+internal fun SearchForm.searchHint(): SearchHint = when (scope) {
+    is SearchScope.Subjects -> applied.searchHint()
+    SearchScope.Character, SearchScope.Person ->
+        SearchHint(stringResource(R.string.search_hint_typed, stringResource(scope.labelRes())))
 }

@@ -36,6 +36,7 @@
     <string name="search_hint">搜索动画、书籍、游戏…</string>
     <string name="search_hint_typed">搜索%1$s</string>
     <string name="search_empty_guide">输入关键词搜索，或用右下角按钮选择类型开始浏览</string>
+    <string name="search_empty_guide_mono">输入关键词搜索%1$s</string>
     <!-- 只有一个条件时的搜索框提示：不带维度名（「在连载状态「连载中」下搜索」念起来重复）；放不下一行时只缩短引号里那段 -->
     <string name="search_hint_single">在「%1$s」下搜索</string>
     <string name="search_hint_multi_tag">在 %1$d 项条件下搜索</string>
@@ -507,6 +508,8 @@
     <string name="app_icon_sakura_pink">粉色樱花</string>
     <string name="app_icon_sakura_rainbow">彩色樱花</string>
     <string name="empty_search">没有找到匹配的条目</string>
+    <string name="empty_search_character">没有找到匹配的角色</string>
+    <string name="empty_search_person">没有找到匹配的人物</string>
     <string name="page_more">更多</string>
     <string name="page_more_web">网页</string>
     <string name="page_more_share">分享</string>
@@ -685,7 +688,9 @@
     <string name="search_unknown_dimension_value">该分类不适用于当前条目类型</string>
     <string name="search_filters">筛选</string>
     <string name="search_filters_selected">筛选，已选 %1$d 项</string>
-    <string name="search_type_fab">条目类型：%1$s</string>
+    <string name="search_type_fab">搜索范围：%1$s</string>
+    <string name="search_scope_character">角色</string>
+    <string name="search_scope_person">人物</string>
     <string name="search_condition_labeled">%1$s：%2$s</string>
     <string name="search_dimension_hint">用右下角按钮选择条目类型后，可按形式、来源、地区等筛选</string>
     <string name="search_dim_category">形式</string>

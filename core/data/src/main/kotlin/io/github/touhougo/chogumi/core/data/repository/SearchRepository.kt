@@ -9,7 +9,6 @@ import io.github.touhougo.chogumi.core.data.db.mapper.toSnapshot
 import io.github.touhougo.chogumi.core.data.db.search.RecentSearchDao
 import io.github.touhougo.chogumi.core.data.db.search.RecentSearchEntity
 import io.github.touhougo.chogumi.core.data.db.subject.SubjectDao
-import io.github.touhougo.chogumi.core.data.db.subject.SubjectEntity
 import io.github.touhougo.chogumi.core.data.token.AccountSession
 import io.github.touhougo.chogumi.core.data.token.TokenStore
 import io.github.touhougo.chogumi.core.data.token.withSessionToken
@@ -17,6 +16,8 @@ import io.github.touhougo.chogumi.core.foundation.AppClock
 import io.github.touhougo.chogumi.core.data.util.ObservedPreferences
 import io.github.touhougo.chogumi.core.data.util.outcomeOf
 import io.github.touhougo.chogumi.core.model.PagedResult
+import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
+import io.github.touhougo.chogumi.core.model.RelatedPersonBo
 import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchSource
 import io.github.touhougo.chogumi.core.model.SearchValidation
@@ -26,6 +27,9 @@ import io.github.touhougo.chogumi.core.model.normalizeSearchCriteria
 import io.github.touhougo.chogumi.core.model.searchSource
 import io.github.touhougo.chogumi.core.network.api.NextApi
 import io.github.touhougo.chogumi.core.network.api.SubjectApi
+import io.github.touhougo.chogumi.core.network.model.p1.CharacterSearchFilterDto
+import io.github.touhougo.chogumi.core.network.model.p1.SearchCharacterDto
+import io.github.touhougo.chogumi.core.network.model.p1.SearchPersonDto
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -151,6 +155,41 @@ class SearchRepository(
         }
     }
 
+    /** 角色纯关键词搜索（p1 偏移分页，上限 [SEARCH_MAX_OFFSET]）；空白词不发请求，仅按当前会话做 NSFW 过滤与中文名映射。 */
+    suspend fun searchCharacters(
+        keyword: String,
+        offset: Int = 0,
+        session: AccountSession? = null,
+    ): Outcome<PagedResult<RelatedCharacterBo>> = searchMono(keyword, offset, RelatedCharacterBo::id) { trimmed, pageOffset ->
+        searchCharactersPage(trimmed, pageOffset, session)
+    }
+
+    /** 人物纯关键词搜索（p1 偏移分页，上限 [SEARCH_MAX_OFFSET]）；接口无 `filter.nsfw`，在本地按响应 `nsfw` 过滤并补页。 */
+    suspend fun searchPersons(
+        keyword: String,
+        offset: Int = 0,
+        session: AccountSession? = null,
+    ): Outcome<PagedResult<RelatedPersonBo>> = searchMono(keyword, offset, RelatedPersonBo::id) { trimmed, pageOffset ->
+        searchPersonsPage(trimmed, pageOffset, session)
+    }
+
+    private suspend fun <T> searchMono(
+        keyword: String,
+        offset: Int,
+        idOf: (T) -> Int,
+        fetchPage: suspend (keyword: String, offset: Int) -> PagedResult<T>,
+    ): Outcome<PagedResult<T>> {
+        val trimmed = keyword.trim()
+        if (trimmed.isEmpty()) return Outcome.Success(PagedResult(emptyList(), total = 0, nextOffset = null))
+        return withContext(computationDispatcher) {
+            outcomeOf {
+                loadSparse(offset = offset, maxOffset = SEARCH_MAX_OFFSET, idOf = idOf) { pageOffset ->
+                    fetchPage(trimmed, pageOffset)
+                }
+            }
+        }
+    }
+
     /** 搜索页的第一页：[reuse] 时新鲜期内用存下的那一页，否则取回并存下。与货架的 [firstPage] 同一张表，键按每页条数分开。 */
     private suspend fun searchFirstPage(normalized: SearchCriteria, session: AccountSession, reuse: Boolean): PagedResult<SubjectBo> {
         val key = firstPageKey(normalized, session, nsfwFilter.showNsfw(), P1_SEARCH_PAGE_SIZE)
@@ -229,33 +268,42 @@ class SearchRepository(
      */
     private suspend fun load(normalized: SearchCriteria, offset: Int, session: AccountSession?, searchLimit: Int): PagedResult<SubjectBo> {
         val source = normalized.searchSource()
+        val maxOffset = if (source == SearchSource.BROWSE) null else SEARCH_MAX_OFFSET
+        return loadSparse(offset = offset, maxOffset = maxOffset, idOf = SubjectBo::id) { pageOffset ->
+            fetchPage(source, normalized, pageOffset, session, searchLimit)
+        }
+    }
 
-        // 起始页：偏移与页码都可预先算出，必须先单独取一页 —— 常规标签一页即满，
-        // 只发 1 个请求就能返回（见 test e），绝不为此多发并发请求。
-        val first = fetchPage(source, normalized, offset, session, searchLimit)
-
+    /**
+     * 起始页先行，满 [MIN_VISIBLE_PER_LOAD] 或无下一页时直接返回（只发 1 次请求）；
+     * 本地过滤后稀疏时一次并发补取最多 [MAX_PAGES_PER_LOAD]-1 页并按页序去重合并。
+     */
+    private suspend fun <T> loadSparse(
+        offset: Int,
+        maxOffset: Int?,
+        idOf: (T) -> Int,
+        fetchPage: suspend (Int) -> PagedResult<T>,
+    ): PagedResult<T> {
+        val first = fetchPage(offset)
         val firstCursor = first.nextOffset
         if (first.items.size >= MIN_VISIBLE_PER_LOAD || firstCursor == null) return first
 
-        // 稀疏标签：剩余最多 MAX_PAGES_PER_LOAD-1 页一次并发发出，全部返回后按页序合并。
-        // 起始页的跨度取自服务端实际给的游标（搜索接口可能不按请求的 limit 回），
-        // 同一查询内每页跨度一致，故可据此预先算出后续各页偏移 —— 并发安全的前提。
         val span = firstCursor - offset
         val offsets = ArrayList<Int>(MAX_PAGES_PER_LOAD - 1)
-        // 以起始页服务端 total 为界，越过它就不再请求（见 test e：总页数不足 6 页不越界）；下一页偏移同全仓的 nextCursor。
         var next: Int? = firstCursor
         while (offsets.size < MAX_PAGES_PER_LOAD - 1 && next != null) {
             offsets.add(next)
             next = nextCursor(offset = next, requestedLimit = span, total = first.total, isEmpty = false)
+                ?.takeIf { maxOffset == null || it < maxOffset }
         }
 
         val rest = coroutineScope {
             // 任一页失败，整次失败、不推进游标（与串行版一致），其余请求随作用域一同取消。
-            offsets.map { pageOffset -> async { fetchPage(source, normalized, pageOffset, session, searchLimit) } }
+            offsets.map { pageOffset -> async { fetchPage(pageOffset) } }
                 .awaitAll()
         }
 
-        return mergeInPageOrder(listOf(first) + rest)
+        return mergeInPageOrder(listOf(first) + rest, idOf)
     }
 
     /** 取一页并落库过滤，返回该页可见条目与游标；游标按服务端原始页算（过滤前）。 */
@@ -271,12 +319,12 @@ class SearchRepository(
         SearchSource.DATED_SEARCH -> datedSearchPage(criteria, offset, session)
     }
 
-    /** 按页序合并（页间保持服务端顺序）、按 id 去重（首次出现优先）；游标取最后一页。 */
-    private fun mergeInPageOrder(pages: List<PagedResult<SubjectBo>>): PagedResult<SubjectBo> {
-        val accumulated = LinkedHashMap<Int, SubjectBo>()
+    /** 按页序合并（页间保持服务端顺序）、按 [idOf] 去重（首次出现优先）；游标取最后一页。 */
+    private fun <T> mergeInPageOrder(pages: List<PagedResult<T>>, idOf: (T) -> Int): PagedResult<T> {
+        val accumulated = LinkedHashMap<Int, T>()
         for (page in pages) {
             for (item in page.items) {
-                accumulated.putIfAbsent(item.id, item)
+                accumulated.putIfAbsent(idOf(item), item)
             }
         }
         val last = pages.last()
@@ -331,7 +379,8 @@ class SearchRepository(
         }
         val now = clock.nowMillis()
         val subjects = subjectDao.mergeAll(page.data.map { it.toSnapshot(now) })
-        return searchResult(subjects, page.total, nextCursor(offset, requestedLimit = limit, total = page.total, isEmpty = page.data.isEmpty()))
+        val cursor = nextCursor(offset, requestedLimit = limit, total = page.total, isEmpty = page.data.isEmpty())
+        return searchResult(subjects, page.total, cursor, { it.nsfw }, { it.toBo() })
     }
 
     /** 带时间条件的搜索（v0）：偏移分页，total 为条数，一页最多 [DATED_SEARCH_PAGE_SIZE] 条。 */
@@ -353,16 +402,54 @@ class SearchRepository(
             isEmpty = page.data.isEmpty(),
             responseLimit = page.limit,
         )
-        return searchResult(subjects, page.total, cursor)
+        return searchResult(subjects, page.total, cursor, { it.nsfw }, { it.toBo() })
+    }
+
+    /** p1 角色搜索单页：支持 `filter.nsfw = false`；游标按服务端原始页推进，再由 [NsfwFilter] 兜底。 */
+    private suspend fun searchCharactersPage(keyword: String, offset: Int, session: AccountSession?): PagedResult<RelatedCharacterBo> {
+        val showNsfw = nsfwFilter.showNsfw()
+        val page = tokenStore.withSessionToken(session) { _, token ->
+            nextApi.searchCharacters(
+                SearchCharacterDto(
+                    keyword = keyword,
+                    filter = if (showNsfw) null else CharacterSearchFilterDto(nsfw = false),
+                ),
+                limit = P1_SEARCH_PAGE_SIZE,
+                offset = offset,
+                accessToken = token,
+            )
+        }
+        val cursor = nextCursor(offset, requestedLimit = P1_SEARCH_PAGE_SIZE, total = page.total, isEmpty = page.data.isEmpty())
+        return searchResult(page.data, page.total, cursor, { it.nsfw }, { it.toBo() })
+    }
+
+    /** p1 人物搜索单页：接口无 `filter.nsfw`，在游标推进后经 [NsfwFilter] 本地过滤。 */
+    private suspend fun searchPersonsPage(keyword: String, offset: Int, session: AccountSession?): PagedResult<RelatedPersonBo> {
+        val page = tokenStore.withSessionToken(session) { _, token ->
+            nextApi.searchPersons(
+                SearchPersonDto(keyword = keyword),
+                limit = P1_SEARCH_PAGE_SIZE,
+                offset = offset,
+                accessToken = token,
+            )
+        }
+        val cursor = nextCursor(offset, requestedLimit = P1_SEARCH_PAGE_SIZE, total = page.total, isEmpty = page.data.isEmpty())
+        return searchResult(page.data, page.total, cursor, { it.nsfw }, { it.toBo() })
     }
 
     /**
-     * 一页搜索结果（两个搜索接口共用）：游标按服务端原始页算（过滤前，过滤后整页为空也要能继续翻页），
+     * 一页搜索结果（条目/角色/人物搜索共用）：游标按服务端原始页算（过滤前，过滤后整页为空也要能继续翻页），
      * 叠加 offset < [SEARCH_MAX_OFFSET] 的硬上限，到了即视为到底；total 为条数（服务端同样封顶 1000）。
      */
-    private suspend fun searchResult(subjects: List<SubjectEntity>, total: Int, cursor: Int?): PagedResult<SubjectBo> {
-        val visible = nsfwFilter.apply(subjects) { it.nsfw }
-        return PagedResult(visible.map { it.toBo() }, total = total, nextOffset = cursor?.takeIf { it < SEARCH_MAX_OFFSET })
+    private suspend fun <Raw, Bo> searchResult(
+        items: List<Raw>,
+        total: Int,
+        cursor: Int?,
+        nsfw: (Raw) -> Boolean,
+        map: (Raw) -> Bo,
+    ): PagedResult<Bo> {
+        val visible = nsfwFilter.apply(items, nsfw)
+        return PagedResult(visible.map(map), total = total, nextOffset = cursor?.takeIf { it < SEARCH_MAX_OFFSET })
     }
 
     suspend fun recordSearch(query: String): Outcome<Unit> = storageOutcomeOf {

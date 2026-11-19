@@ -311,6 +311,8 @@ internal fun appEntries(
                 isLoggedIn = isLoggedIn,
                 onLogin = toLogin,
                 onSubjectClick = toSubject,
+                onCharacterClick = toCharacter,
+                onPersonClick = toPerson,
                 onBack = goBack,
             )
         }

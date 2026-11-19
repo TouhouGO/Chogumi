@@ -37,6 +37,7 @@
     <string name="search_hint_typed">Search %1$s</string>
     <string name="search_hint_single">Search in \"%1$s\"</string>
     <string name="search_empty_guide">Type a keyword to search, or pick a type with the bottom-right button to browse</string>
+    <string name="search_empty_guide_mono">Type a keyword to search %1$s</string>
     <string name="search_hint_multi_tag">Search in %1$d conditions</string>
     <string name="search_history">Search history</string>
     <string name="clear_history">Clear history</string>
@@ -502,6 +503,8 @@
     <string name="app_icon_sakura_pink">Pink sakura</string>
     <string name="app_icon_sakura_rainbow">Rainbow sakura</string>
     <string name="empty_search">No matching titles</string>
+    <string name="empty_search_character">No matching characters</string>
+    <string name="empty_search_person">No matching people</string>
     <string name="page_more">More</string>
     <string name="page_more_web">Web page</string>
     <string name="page_more_share">Share</string>
@@ -626,7 +629,9 @@
     <string name="search_unknown_dimension_value">This filter does not apply to the selected type</string>
     <string name="search_filters">Filters</string>
     <string name="search_filters_selected">Filters, %1$d selected</string>
-    <string name="search_type_fab">Subject type: %1$s</string>
+    <string name="search_type_fab">Search scope: %1$s</string>
+    <string name="search_scope_character">Characters</string>
+    <string name="search_scope_person">People</string>
     <string name="search_condition_labeled">%1$s: %2$s</string>
     <string name="search_dimension_hint">Pick a subject type with the bottom-right button to filter by form, source, region and more</string>
     <string name="search_dim_category">Form</string>

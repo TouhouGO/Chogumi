@@ -4,6 +4,7 @@ import io.github.touhougo.chogumi.core.model.SearchAirtime
 import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchFilters
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TagFilter
@@ -129,7 +130,7 @@ class SearchFormReduceTest {
     @Test
     fun 非法类型_保留旧form且报错() {
         val form = SearchForm(applied = a)
-        val r = reduce(form, SearchIntent.TypeChanged(SubjectType.UNKNOWN))
+        val r = reduce(form, SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.UNKNOWN)))
         assertEquals(form, r.form)
         assertFalse(r.submit)
         assertTrue(r.errors.isNotEmpty())
@@ -215,19 +216,19 @@ class SearchFormReduceTest {
         val tv = opt(SubjectType.ANIME, SearchDimension.CATEGORY, "TV")
         val withDim = saveViaPanel(SearchForm(applied = a), SearchIntent.DraftDimensionToggled(SearchDimension.CATEGORY, tv)).form
 
-        val sameType = reduce(withDim, SearchIntent.TypeChanged(SubjectType.ANIME))
+        val sameType = reduce(withDim, SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.ANIME)))
         assertEquals(mapOf(SearchDimension.CATEGORY to listOf(tv)), sameType.form.applied.filters.dimensions)
         assertFalse(sameType.submit)
 
         // 游戏词典里没有 TV 与科幻：都保留为分类，不丢
-        val switched = reduce(withDim, SearchIntent.TypeChanged(SubjectType.GAME))
+        val switched = reduce(withDim, SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.GAME)))
         assertTrue(switched.submit)
         assertTrue(switched.form.applied.filters.dimensions.isEmpty())
         assertEquals(listOf(TagFilter.Public("TV"), TagFilter.Public("科幻")), switched.form.applied.filters.tags)
         assertEquals(a.filters.airtime, switched.form.applied.filters.airtime)
 
         // 「全部」：同样保留为分类，跨类型搜索
-        val all = reduce(withDim, SearchIntent.TypeChanged(null))
+        val all = reduce(withDim, SearchIntent.ScopeChanged(SearchScope.Subjects(null)))
         assertTrue(all.errors.isEmpty())
         assertTrue(all.form.applied.filters.dimensions.isEmpty())
         assertEquals(listOf(TagFilter.Public("TV"), TagFilter.Public("科幻")), all.form.applied.filters.tags)
@@ -423,7 +424,7 @@ class SearchFormReduceTest {
 
     @Test
     fun 名字_换类型后消失() {
-        val changed = reduce(named(), SearchIntent.TypeChanged(SubjectType.GAME))
+        val changed = reduce(named(), SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.GAME)))
         assertNull(changed.form.title)
     }
 
@@ -448,9 +449,62 @@ class SearchFormReduceTest {
         // 名字失效是不可逆的：先加词再清掉，条件回到了原样，但名字已经丢过——
         // 这条钉住「以条件为准的一次性判定」，避免有人改成「条件相等就恢复名字」
         // （那会让名字在用户已经改过一轮之后又冒出来）。
-        val search = reduce(named(), SearchIntent.TypeChanged(SubjectType.GAME))
+        val search = reduce(named(), SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.GAME)))
         assertNull(search.form.title)
-        val back = reduce(search.form, SearchIntent.TypeChanged(SubjectType.ANIME))
+        val back = reduce(search.form, SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.ANIME)))
         assertNull(back.form.title)
+    }
+
+    // --- 角色与人物范围：纯关键词搜索 ---
+
+    @Test
+    fun 切到角色再切回原作品类型_提交且清掉标题与面板草稿_保留关键词与作品筛选() {
+        val opened = reduce(named().copy(draftQuery = "eva"), SearchIntent.FiltersOpened).form
+        val toChar = reduce(opened, SearchIntent.ScopeChanged(SearchScope.Character))
+        assertEquals(SearchScope.Character, toChar.form.scope)
+        assertNull(toChar.form.title)
+        assertNull(toChar.form.filterDraft)
+        assertTrue(toChar.submit)
+        assertFalse(toChar.writeHistory)
+
+        // 切到人物：触发提交，关键词仍保留
+        val toPerson = reduce(toChar.form, SearchIntent.ScopeChanged(SearchScope.Person))
+        assertEquals(SearchScope.Person, toPerson.form.scope)
+        assertTrue(toPerson.submit)
+        assertEquals("eva", toPerson.form.draftQuery)
+
+        // 切回最初的动画（applied 一个字段也没变，仅 scope 变回 Subjects(ANIME)）仍必须 submit=true
+        val backToAnime = reduce(toPerson.form, SearchIntent.ScopeChanged(SearchScope.Subjects(SubjectType.ANIME)))
+        assertEquals(SearchScope.Subjects(SubjectType.ANIME), backToAnime.form.scope)
+        assertTrue(backToAnime.submit)
+        assertNull(backToAnime.form.title)
+    }
+
+    @Test
+    fun 角色与人物范围_空白关键词不激活_筛选排序空操作_提交写历史且点历史不写() {
+        val blankMono = SearchForm(
+            scope = SearchScope.Character,
+            applied = SearchCriteria(subjectType = SubjectType.ANIME, query = ""),
+        )
+        assertFalse("角色/人物范围有作品类型也不算激活，只有非空关键词才算", blankMono.isActive())
+
+        val openFilters = reduce(blankMono, SearchIntent.FiltersOpened)
+        assertNull(openFilters.form.filterDraft)
+        assertFalse(openFilters.submit)
+
+        val sortChange = reduce(blankMono, SearchIntent.SortChanged(SearchSort.RANK))
+        assertFalse(sortChange.submit)
+        assertEquals(blankMono, sortChange.form)
+
+        val submitted = reduce(blankMono.copy(draftQuery = " 鲁路修 "), SearchIntent.SearchSubmitted)
+        assertTrue(submitted.form.isActive())
+        assertTrue(submitted.submit)
+        assertTrue(submitted.writeHistory)
+        assertEquals("鲁路修", submitted.form.applied.query)
+
+        val fromHistory = reduce(blankMono, SearchIntent.HistoryClicked("花泽香菜"))
+        assertTrue(fromHistory.form.isActive())
+        assertTrue(fromHistory.submit)
+        assertFalse(fromHistory.writeHistory)
     }
 }

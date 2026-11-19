@@ -16,20 +16,22 @@ import io.github.touhougo.chogumi.core.foundation.valueOrNull
 import io.github.touhougo.chogumi.core.model.CollectionEditing
 import io.github.touhougo.chogumi.core.model.CollectionMarker
 import io.github.touhougo.chogumi.core.model.PinnedShelf
+import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
+import io.github.touhougo.chogumi.core.model.RelatedPersonBo
 import io.github.touhougo.chogumi.core.model.SearchAirtime
 import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchDimensionOption
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
 import io.github.touhougo.chogumi.core.model.SearchValidation
 import io.github.touhougo.chogumi.core.model.SearchValidationError
 import io.github.touhougo.chogumi.core.model.SubjectBo
-import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TagCatalogEntry
 import io.github.touhougo.chogumi.core.model.TagFilter
 import io.github.touhougo.chogumi.core.model.WordPick
 import io.github.touhougo.chogumi.core.model.concreteOrNull
-import io.github.touhougo.chogumi.core.model.isActive
+import io.github.touhougo.chogumi.core.model.isMono
 import io.github.touhougo.chogumi.core.model.isPinnable
 import io.github.touhougo.chogumi.core.model.normalizeSearchCriteria
 import io.github.touhougo.chogumi.core.model.pinnedShelfOf
@@ -52,6 +54,10 @@ data class SearchUiState(
     val generation: Long = 0L,
     /** 当前条件的结果（分页，跨页按 id 去重）；没有条件时是空的、不在加载。 */
     val results: PagedList<SubjectBo> = PagedList(isLoading = false),
+    /** 角色搜索结果（分页，跨页按 id 去重）；非角色范围或空白关键词时为空、不在加载。 */
+    val characterResults: PagedList<RelatedCharacterBo> = PagedList(isLoading = false),
+    /** 人物搜索结果（分页，跨页按 id 去重）；非人物范围或空白关键词时为空、不在加载。 */
+    val personResults: PagedList<RelatedPersonBo> = PagedList(isLoading = false),
     val history: List<String> = emptyList(),
     /** 面板搜索框的当前输入。唯一真源在这里，面板不自己记一份。 */
     val panelQuery: String = "",
@@ -87,7 +93,7 @@ interface SearchActions : FilterDraftActions {
     fun onQueryChange(value: String)
     fun onQueryClear()
     fun onSearch()
-    fun onFilterTypeChange(type: SubjectType?)
+    fun onScopeChange(scope: SearchScope)
     fun onSortChange(sort: SearchSort)
 
     // 筛选面板：编辑草稿，保存才生效
@@ -155,6 +161,20 @@ class SearchViewModel(
         fetchFirstShown = { searchRepository.search(currentState.form.applied, reuseFirstPage = true) },
     ) { offset -> searchRepository.search(currentState.form.applied, offset = offset) }
 
+    private val characterResults = Pager(
+        scope = viewModelScope,
+        read = { currentState.characterResults },
+        write = { f -> updateState { it.copy(characterResults = f(it.characterResults)) } },
+        present = { fetched -> fetched.distinctBy(RelatedCharacterBo::id) },
+    ) { offset -> searchRepository.searchCharacters(currentState.form.applied.query, offset = offset) }
+
+    private val personResults = Pager(
+        scope = viewModelScope,
+        read = { currentState.personResults },
+        write = { f -> updateState { it.copy(personResults = f(it.personResults)) } },
+        present = { fetched -> fetched.distinctBy(RelatedPersonBo::id) },
+    ) { offset -> searchRepository.searchPersons(currentState.form.applied.query, offset = offset) }
+
     /**
      * 唯一表单事件入口。
      * 非法候选只更新 validationErrors 与 reducer 给出的表单（已提交条件不变，仅保存失败时关面板）；不发请求、不动已有结果。
@@ -182,14 +202,41 @@ class SearchViewModel(
     }
 
     private fun submit(form: SearchForm, writeHistory: Boolean) {
-        updateState { it.copy(form = form, generation = it.generation + 1, validationErrors = emptyList()) }
-        val criteria = form.applied
-        if (!criteria.isActive()) {
+        updateState {
+            it.copy(
+                form = form,
+                generation = it.generation + 1,
+                validationErrors = emptyList(),
+                renaming = if (form.scope.isMono) false else it.renaming,
+            )
+        }
+        if (!form.isActive()) {
             results.clear()
+            characterResults.clear()
+            personResults.clear()
             return
         }
-        if (writeHistory && criteria.query.isNotBlank()) viewModelScope.launch { searchRepository.recordSearch(criteria.query).failureOrNull()?.let { failures.post(it) } }
-        results.show(criteria)
+        val query = form.applied.query
+        if (writeHistory && query.isNotBlank()) {
+            viewModelScope.launch { searchRepository.recordSearch(query).failureOrNull()?.let { failures.post(it) } }
+        }
+        when (form.scope) {
+            is SearchScope.Subjects -> {
+                characterResults.clear()
+                personResults.clear()
+                results.show(form.applied)
+            }
+            SearchScope.Character -> {
+                results.clear()
+                personResults.clear()
+                characterResults.show(query)
+            }
+            SearchScope.Person -> {
+                results.clear()
+                characterResults.clear()
+                personResults.show(query)
+            }
+        }
     }
 
     override fun onQueryChange(value: String) = dispatch(SearchIntent.QueryChanged(value))
@@ -198,11 +245,12 @@ class SearchViewModel(
 
     override fun onSearch() = dispatch(SearchIntent.SearchSubmitted)
 
-    override fun onFilterTypeChange(type: SubjectType?) = dispatch(SearchIntent.TypeChanged(type))
+    override fun onScopeChange(scope: SearchScope) = dispatch(SearchIntent.ScopeChanged(scope))
 
     override fun onSortChange(sort: SearchSort) = dispatch(SearchIntent.SortChanged(sort))
 
     override fun onFiltersOpen() {
+        if (currentState.form.scope.isMono) return
         val round = ++filterRound
         dispatch(SearchIntent.FiltersOpened)
         updateState { it.copy(panelQuery = "", catalogSuggestions = emptyList()) }
@@ -249,7 +297,11 @@ class SearchViewModel(
         submit(currentState.form, writeHistory = false)
     }
 
-    override fun loadMore() = results.loadMore()
+    override fun loadMore() = when (currentState.form.scope) {
+        is SearchScope.Subjects -> results.loadMore()
+        SearchScope.Character -> characterResults.loadMore()
+        SearchScope.Person -> personResults.loadMore()
+    }
 
     override fun onClearHistory() {
         viewModelScope.launch { searchRepository.clearRecentSearches().failureOrNull()?.let { failures.post(it) } }
@@ -262,6 +314,7 @@ class SearchViewModel(
      * 拦一道：空条件放上去的货架是一张「全部动画」，不允许写进表。
      */
     override fun onPinToggle(defaultPresetName: String) {
+        if (currentState.form.scope.isMono) return
         val criteria = currentState.form.applied
         if (!criteria.isPinnable()) return
         val type = criteria.subjectType ?: return
@@ -339,10 +392,10 @@ class SearchViewModel(
         // 布局表读不出时提示带重试，图钉当作没对上。
         follow(failures, {
             uiState
-                .map { it.form.applied }
-                .distinctUntilChangedBy { it.presetKey() }
-                .flatMapLatest { criteria ->
-                    val type = criteria.subjectType.concreteOrNull()
+                .map { it.form.scope to it.form.applied }
+                .distinctUntilChangedBy { (scope, criteria) -> scope to criteria.presetKey() }
+                .flatMapLatest { (scope, criteria) ->
+                    val type = if (scope.isMono) null else criteria.subjectType.concreteOrNull()
                     if (type == null) {
                         flowOf(null)
                     } else {
