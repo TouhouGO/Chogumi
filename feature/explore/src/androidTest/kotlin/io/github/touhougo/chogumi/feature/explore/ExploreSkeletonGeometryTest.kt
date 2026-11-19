@@ -18,13 +18,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.model.ExploreShelf
 import io.github.touhougo.chogumi.core.model.ExploreTitle
+import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
 import io.github.touhougo.chogumi.core.model.SearchCriteria
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TRENDING_SHELF_ID
 import io.github.touhougo.chogumi.core.model.WorkShelfContent
 import io.github.touhougo.chogumi.core.model.WorkShelfStyle
 import io.github.touhougo.chogumi.core.common.paging.PagedList
+import io.github.touhougo.chogumi.core.ui.composables.PersonAvatarTag
 import io.github.touhougo.chogumi.core.ui.composables.SkeletonPosterTag
 import io.github.touhougo.chogumi.core.ui.testing.SkeletonAnchor
 import io.github.touhougo.chogumi.core.ui.testing.assertSkeletonMatchesReal
@@ -69,13 +72,20 @@ class ExploreSkeletonGeometryTest {
     private fun node(tag: String, index: Int) = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)[index]
 
     /** 骨架与真实的同一个锚点：[skeletonTag] / [realTag] 指向两边各自的节点。 */
-    private fun anchor(name: String, skeletonTag: String, realTag: String = skeletonTag, index: Int = 0) =
-        SkeletonAnchor(
-            name,
-            { node(skeletonTag, index) },
-            { node(realTag, index) },
-            compareRight = true,
-        )
+    private fun anchor(
+        name: String,
+        skeletonTag: String,
+        realTag: String = skeletonTag,
+        index: Int = 0,
+        compareLeft: Boolean = true,
+        compareRight: Boolean = true,
+    ) = SkeletonAnchor(
+        name,
+        { node(skeletonTag, index) },
+        { node(realTag, index) },
+        compareLeft = compareLeft,
+        compareRight = compareRight,
+    )
 
     private fun subject(id: Int, ratingScore: Double = 0.0) = SubjectBo(
         id = id,
@@ -220,6 +230,8 @@ class ExploreSkeletonGeometryTest {
                     },
                     actions = ReducingSearchActions(),
                     onSubjectClick = {},
+                    onCharacterClick = {},
+                    onPersonClick = {},
                     onBack = {},
                 )
             }
@@ -240,4 +252,57 @@ class ExploreSkeletonGeometryTest {
 
     @Test
     fun 字体放大两倍时搜索结果骨架网格与真实网格同格同宽同高() = assertSearchGridGeometry(fontScale = 2f)
+
+    // ---- 角色 / 人物搜索结果网格：PersonGridItemSkeleton 对比 PersonGridItem ----
+
+    private fun character(id: Int) = RelatedCharacterBo(
+        id = id,
+        name = "角色$id",
+        summary = "",
+        type = 1,
+        role = null,
+    )
+
+    private fun assertMonoSearchGridGeometry(fontScale: Float) {
+        val form = SearchForm(scope = SearchScope.Character, applied = SearchCriteria(query = "eva"))
+        setContent(fontScale) {
+            Box(Modifier.size(width = 400.dp, height = 800.dp)) {
+                SearchContent(
+                    currentYear = FIXTURE_TODAY.year,
+                    state = if (showReal) {
+                        SearchUiState(
+                            form = form,
+                            characterResults = PagedList((1..12).map { character(it) }, isLoading = false),
+                        )
+                    } else {
+                        SearchUiState(
+                            form = form,
+                            characterResults = PagedList(isLoading = true),
+                        )
+                    },
+                    actions = ReducingSearchActions(form),
+                    onSubjectClick = {},
+                    onCharacterClick = {},
+                    onPersonClick = {},
+                    onBack = {},
+                )
+            }
+        }
+        // 人物卡头像在列内的横向位置随名字长度变（见 SkeletonAnchor / GridSkeletonGeometryTest），
+        // 这里按同例只比每格与第二行首格的纵向边界（top/bottom），锁住行高与行距。
+        assertSkeletonMatchesReal(
+            anchors = listOf(
+                anchor("角色第一格头像", PersonAvatarTag, index = 0, compareLeft = false, compareRight = false),
+                anchor("角色第二格头像", PersonAvatarTag, index = 1, compareLeft = false, compareRight = false),
+                anchor("角色第二行第一格头像", PersonAvatarTag, index = 3, compareLeft = false, compareRight = false),
+            ),
+            flipToReal = ::flipToReal,
+        )
+    }
+
+    @Test
+    fun 角色搜索结果骨架网格与真实网格同格同宽同高() = assertMonoSearchGridGeometry(fontScale = 1f)
+
+    @Test
+    fun 字体放大两倍时角色搜索结果骨架网格与真实网格同格同宽同高() = assertMonoSearchGridGeometry(fontScale = 2f)
 }

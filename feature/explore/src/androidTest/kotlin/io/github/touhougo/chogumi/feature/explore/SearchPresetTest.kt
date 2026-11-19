@@ -47,6 +47,8 @@ class SearchPresetTest {
                     ),
                     actions = actions,
                     onSubjectClick = {},
+                    onCharacterClick = {},
+                    onPersonClick = {},
                     onBack = {},
                 )
             }

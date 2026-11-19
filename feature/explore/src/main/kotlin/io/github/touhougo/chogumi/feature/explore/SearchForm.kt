@@ -5,42 +5,54 @@ import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchDimensionOption
 import io.github.touhougo.chogumi.core.model.SearchFilters
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
 import io.github.touhougo.chogumi.core.model.SearchValidation
 import io.github.touhougo.chogumi.core.model.SearchValidationError
-import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TagFilter
 import io.github.touhougo.chogumi.core.model.WordPick
+import io.github.touhougo.chogumi.core.model.isActive
+import io.github.touhougo.chogumi.core.model.isMono
 import io.github.touhougo.chogumi.core.model.normalizeSearchCriteria
 import io.github.touhougo.chogumi.core.model.pickWord
 import io.github.touhougo.chogumi.core.model.toggleDimension
 import io.github.touhougo.chogumi.core.model.withSubjectType
 
 /**
- * 搜索表单：未提交的输入草稿 + 已提交的完整条件。
- * 草稿只在本类持有；已提交条件只有 core/model 的 SearchCriteria 一份真源。
+ * 搜索表单：未提交的输入草稿 + 当前范围 + 已提交的完整条件。
+ * 草稿与当前范围由本类持有；作品条件只有 core/model 的 SearchCriteria 一份真源。
+ *
+ * [scope] 为 [SearchScope.Character] / [SearchScope.Person] 时只做纯关键词搜索，忽略作品域的排序与筛选条件
+ * （同时保留在 [applied] 里，切回作品域时不丢）。
  *
  * [filterDraft] 是筛选面板的编辑草稿：非 null 即面板打开（面板开关不另存状态）。
  * 打开时从已提交条件复制，点「保存」才写回已提交条件并重搜；关闭（遮罩/下滑/返回）直接丢弃。
  * 请求只读 [applied]，草稿永远不进请求。
  *
  * [title] 是路由带进来的名字（探索页的「近期热门」「排行榜」、或货架上某个组合的名字）。
- * 它不是持久状态，只是「这组条件当初叫什么」——条件一变就作废，判定只在 [reduce] 一处。
+ * 它不是持久状态，只是「这组条件当初叫什么」——条件或范围一变就作废，判定只在 [reduce] 一处。
  * 已固定的组合有自己的名字（存在本地表里），由界面按 [SearchCriteria.presetKey] 查回来。
  */
 data class SearchForm(
     val draftQuery: String = "",
     val applied: SearchCriteria = SearchCriteria(),
+    val scope: SearchScope = SearchScope.Subjects(applied.subjectType),
     val filterDraft: SearchFilters? = null,
     val title: String? = null,
 )
+
+/** 当前搜索范围下是否已有可请求的生效条件：作品域按 [SearchCriteria.isActive]，角色/人物仅认非空关键词。 */
+fun SearchForm.isActive(): Boolean = when (scope) {
+    is SearchScope.Subjects -> applied.isActive()
+    SearchScope.Character, SearchScope.Person -> applied.query.isNotBlank()
+}
 
 /** 搜索事件。UI 只发事件，不自己算下一态。 */
 sealed interface SearchIntent {
     data class QueryChanged(val value: String) : SearchIntent
     data object SearchSubmitted : SearchIntent
     data object QueryCleared : SearchIntent
-    data class TypeChanged(val type: SubjectType?) : SearchIntent
+    data class ScopeChanged(val scope: SearchScope) : SearchIntent
     data class SortChanged(val sort: SearchSort) : SearchIntent
     /** 筛选面板：只改 [SearchForm.filterDraft]，不发请求，直到 [FiltersSaved]。 */
     data object FiltersOpened : SearchIntent
@@ -84,6 +96,7 @@ fun reduce(form: SearchForm, intent: SearchIntent): SearchReduction {
     // 2. 得到候选已提交条件；草稿按事件规则决定。
     val old = form.applied
     val candidate: SearchCriteria
+    var nextScope = form.scope
     var draft = form.draftQuery
 
     when (intent) {
@@ -106,17 +119,24 @@ fun reduce(form: SearchForm, intent: SearchIntent): SearchReduction {
             draft = ""
         }
 
-        is SearchIntent.TypeChanged -> {
-            candidate = old.withSubjectType(intent.type)
+        is SearchIntent.ScopeChanged -> {
+            if (intent.scope == form.scope) return SearchReduction(form)
+            nextScope = intent.scope
+            candidate = when (val target = intent.scope) {
+                is SearchScope.Subjects -> old.withSubjectType(target.type)
+                SearchScope.Character, SearchScope.Person -> old
+            }
         }
 
         is SearchIntent.SortChanged -> {
+            if (form.scope.isMono) return SearchReduction(form)
             candidate = old.copy(sort = intent.sort)
         }
 
         is SearchIntent.FiltersSaved -> {
-            val draft = form.filterDraft ?: return SearchReduction(form)
-            candidate = old.copy(filters = draft)
+            if (form.scope.isMono) return SearchReduction(form.copy(filterDraft = null))
+            val panelDraft = form.filterDraft ?: return SearchReduction(form)
+            candidate = old.copy(filters = panelDraft)
         }
 
         is SearchIntent.HistoryClicked -> {
@@ -134,7 +154,7 @@ fun reduce(form: SearchForm, intent: SearchIntent): SearchReduction {
         is SearchValidation.Valid -> result.value
     }
 
-    val changed = normalized != old
+    val changed = normalized != old || nextScope != form.scope
     val submit = when (intent) {
         is SearchIntent.SearchSubmitted, is SearchIntent.HistoryClicked -> true
         else -> changed
@@ -145,11 +165,12 @@ fun reduce(form: SearchForm, intent: SearchIntent): SearchReduction {
         form = SearchForm(
             draftQuery = draft,
             applied = normalized,
-            filterDraft = if (intent is SearchIntent.FiltersSaved) null else form.filterDraft,
-            // 名字仍然有效当且仅当条件一个字节都没变（含关键词、类型、排序、筛选）。
+            scope = nextScope,
+            filterDraft = if (intent is SearchIntent.FiltersSaved || nextScope.isMono) null else form.filterDraft,
+            // 名字仍然有效当且仅当范围与条件一个字节都没变（含范围、关键词、类型、排序、筛选）。
             // 探索页进来的「近期热门」「排行榜」因此一点就被改掉，不会挂在别的条件上冒充。
             // 这一处是唯一判定点；已固定组合的名字不走这里，由界面按 presetKey 查回。
-            title = form.title.takeIf { normalized == old },
+            title = form.title.takeIf { !changed },
         ),
         submit = submit,
         writeHistory = writeHistory,
@@ -161,7 +182,7 @@ private fun reduceDraft(form: SearchForm, intent: SearchIntent): SearchForm? {
     val draft = form.filterDraft
     return when (intent) {
         is SearchIntent.QueryChanged -> form.copy(draftQuery = intent.value)
-        is SearchIntent.FiltersOpened -> form.copy(filterDraft = form.applied.filters)
+        is SearchIntent.FiltersOpened -> if (form.scope.isMono) form else form.copy(filterDraft = form.applied.filters)
         is SearchIntent.FiltersDismissed -> form.copy(filterDraft = null)
         is SearchIntent.DraftTagRemoved ->
             draft?.let { form.copy(filterDraft = it.copy(tags = it.tags - intent.tag)) } ?: form

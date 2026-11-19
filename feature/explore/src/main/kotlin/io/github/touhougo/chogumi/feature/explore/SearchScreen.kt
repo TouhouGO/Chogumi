@@ -28,6 +28,8 @@ fun SearchScreen(
     isLoggedIn: Boolean,
     onLogin: () -> Unit,
     onSubjectClick: (Int) -> Unit,
+    onCharacterClick: (Int) -> Unit,
+    onPersonClick: (Int) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -42,6 +44,8 @@ fun SearchScreen(
             state = state,
             actions = viewModel,
             onSubjectClick = onSubjectClick,
+            onCharacterClick = onCharacterClick,
+            onPersonClick = onPersonClick,
             onBack = onBack,
             currentYear = today.year,
         )

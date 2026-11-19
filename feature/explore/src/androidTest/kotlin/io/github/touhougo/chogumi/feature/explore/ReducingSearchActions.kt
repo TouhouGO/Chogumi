@@ -7,8 +7,8 @@ import io.github.touhougo.chogumi.core.model.PinnedShelf
 import io.github.touhougo.chogumi.core.model.SearchAirtime
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchDimensionOption
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
-import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TagCatalogEntry
 import io.github.touhougo.chogumi.core.model.TagFilter
 import io.github.touhougo.chogumi.core.model.WordPick
@@ -51,7 +51,7 @@ class ReducingSearchActions(
     override fun onQueryChange(value: String) = dispatch("onQueryChange", SearchIntent.QueryChanged(value))
     override fun onQueryClear() = dispatch("onQueryClear", SearchIntent.QueryCleared)
     override fun onSearch() = dispatch("onSearch", SearchIntent.SearchSubmitted)
-    override fun onFilterTypeChange(type: SubjectType?) = dispatch("onFilterTypeChange", SearchIntent.TypeChanged(type))
+    override fun onScopeChange(scope: SearchScope) = dispatch("onScopeChange", SearchIntent.ScopeChanged(scope))
     override fun onSortChange(sort: SearchSort) = dispatch("onSortChange", SearchIntent.SortChanged(sort))
     override fun onFiltersOpen() = dispatch("onFiltersOpen", SearchIntent.FiltersOpened)
     override fun onFiltersDismiss() = dispatch("onFiltersDismiss", SearchIntent.FiltersDismissed)

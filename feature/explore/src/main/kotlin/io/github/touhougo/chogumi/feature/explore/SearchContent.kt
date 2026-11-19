@@ -44,13 +44,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.github.touhougo.chogumi.core.common.paging.PagedList
+import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
+import io.github.touhougo.chogumi.core.model.RelatedPersonBo
 import io.github.touhougo.chogumi.core.model.SearchCriteria
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
+import io.github.touhougo.chogumi.core.model.SubjectBo
 import io.github.touhougo.chogumi.core.model.availableSorts
 import io.github.touhougo.chogumi.core.model.combinationTitle
 import io.github.touhougo.chogumi.core.model.effectiveSort
-import io.github.touhougo.chogumi.core.model.isActive
+import io.github.touhougo.chogumi.core.model.isMono
 import io.github.touhougo.chogumi.core.model.isPinnable
+import io.github.touhougo.chogumi.core.model.searchScopeOptions
 import io.github.touhougo.chogumi.core.res.R
 import io.github.touhougo.chogumi.core.ui.common.loadMoreFooter
 import io.github.touhougo.chogumi.core.ui.composables.AppDropdownMenu
@@ -62,25 +67,24 @@ import io.github.touhougo.chogumi.core.ui.composables.FabClearance
 import io.github.touhougo.chogumi.core.ui.composables.FormTextField
 import io.github.touhougo.chogumi.core.ui.composables.GridCell
 import io.github.touhougo.chogumi.core.ui.composables.GridPadding
+import io.github.touhougo.chogumi.core.ui.composables.PersonGridItem
+import io.github.touhougo.chogumi.core.ui.composables.PersonGridItemSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.PinnedRowFrame
 import io.github.touhougo.chogumi.core.ui.composables.RetryError
 import io.github.touhougo.chogumi.core.ui.composables.SelectionFabMenu
 import io.github.touhougo.chogumi.core.ui.composables.SubjectCardVertical
 import io.github.touhougo.chogumi.core.ui.composables.SubjectCardVerticalSkeleton
 import io.github.touhougo.chogumi.core.ui.composables.TabPager
-import io.github.touhougo.chogumi.core.ui.composables.iconOrAllRes
-import io.github.touhougo.chogumi.core.ui.composables.labelOrAllRes
 import io.github.touhougo.chogumi.core.ui.composables.rememberOrderedGridState
 import io.github.touhougo.chogumi.core.ui.composables.rememberTabPagerState
-import io.github.touhougo.chogumi.core.ui.composables.subjectTypeTabsOf
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiDimens
 
 /**
- * 搜索整页：搜索栏、排序条、按排序左右翻页的结果。关键词搜索、分类浏览、标签浏览都是这一页。
+ * 搜索整页：搜索栏、排序条、按排序左右翻页的结果。关键词搜索、分类浏览、标签浏览、角色与人物搜索都是这一页。
  *
  * 排序条（[SearchFilterBar]）固定在搜索栏下，每个可选排序一页，经 [TabPager] 左右滑切换（与探索、进度页的分类同一套）；
- * 没有可选排序时（空态、有关键词）只有一页、不翻。每页唯一的滚动容器是一只 ContentGrid（[SearchResultsGrid]）。
- * 条目类型由右下角 FAB 菜单切换，浮在网格之上（网格底部留出 [FabClearance]）。
+ * 没有可选排序时（空态、有关键词、角色/人物范围）只有一页、不翻。每页唯一的滚动容器是一只 ContentGrid（[SearchResultsGrid]）。
+ * 搜索范围由右下角 FAB 菜单切换，浮在网格之上（网格底部留出 [FabClearance]）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +92,8 @@ fun SearchContent(
     state: SearchUiState,
     actions: SearchActions,
     onSubjectClick: (Int) -> Unit,
+    onCharacterClick: (Int) -> Unit,
+    onPersonClick: (Int) -> Unit,
     onBack: () -> Unit,
     /** 今年（业务日的年份，[SearchViewModel.today]）：放送时间筛选的年份上限按它。 */
     currentYear: Int,
@@ -104,11 +110,12 @@ fun SearchContent(
 
     var typeMenuOpen by remember { mutableStateOf(false) }
     val applied = state.form.applied
-    val hint = applied.searchHint()
+    val isMono = state.form.scope.isMono
+    val hint = state.form.searchHint()
 
     // 每个可选排序一页，顺序同排序条；选中哪一页的唯一真源是已提交条件的生效排序，
-    // 排序条与左右翻页的同步在 core:ui 的 TabPager 里。可选排序随类型、标签变了就重建，换类型时不从旧页滑过去。
-    val sorts = SearchSort.entries.filter { it in applied.availableSorts() }
+    // 排序条与左右翻页的同步在 core:ui 的 TabPager 里。角色 / 人物范围无排序条、固定单页。
+    val sorts = if (isMono) emptyList() else SearchSort.entries.filter { it in applied.availableSorts() }
     val pager = key(sorts) {
         rememberTabPagerState(
             selected = sorts.indexOf(applied.effectiveSort()).coerceAtLeast(0),
@@ -139,43 +146,45 @@ fun SearchContent(
                     }
                 },
                 trailing = {
-                    // 图钉并入搜索栏右侧：页面上不为它单开一行。
-                    // 右侧图标恒不超过两个（input.md:694、790）——图钉只在「这组条件可固定」
-                    // 或「已固定」时出现，两者都要求关键词为空（isPinnable），而清除按钮只在
-                    // 关键词非空时出现，所以两者互斥，不可能同时挤出三个图标。
-                    SearchPinAction(state = state, actions = actions)
+                    if (!isMono) {
+                        // 图钉并入搜索栏右侧：页面上不为它单开一行。
+                        // 右侧图标恒不超过两个（input.md:694、790）——图钉只在「这组条件可固定」
+                        // 或「已固定」时出现，两者都要求关键词为空（isPinnable），而清除按钮只在
+                        // 关键词非空时出现，所以两者互斥，不可能同时挤出三个图标。
+                        SearchPinAction(state = state, actions = actions)
 
-                    val activeCount = state.form.applied.activeConditionCount()
-                    val filterDescription = if (activeCount > 0) {
-                        stringResource(R.string.search_filters_selected, activeCount)
-                    } else {
-                        stringResource(R.string.search_filters)
-                    }
-                    val onOpenFiltersClick = {
-                        keyboard?.hide()
-                        focus.clearFocus()
-                        actions.onFiltersOpen()
-                    }
-                    // 筛选入口并入搜索栏右侧（依据 input.md:694、790 右侧最多两个图标）：
-                    // 无生效条件时用 standard icon button；有生效条件时改用 filled icon button（替换 filled tonal），
-                    // 原因：tonal 的 secondaryContainer 在 contained 搜索框底色（surfaceContainerHigh）上对比度不足 3:1
-                    // （浅色 1.05:1，深色 1.47:1），buttons.md:187 要求容器与背景对比度 ≥3:1；
-                    // filled icon button 的 primary 容器色对比度（浅色 5.21:1，深色 9.00:1）达标。
-                    // 这是 my design decision (not in M3)：它打开面板，不是开关，按 buttons.md:312 不能用 toggle。
-                    // 不加数量徽标（产品决定）：有无生效条件只由按钮样式区分，条件数由读屏念出。
-                    if (activeCount > 0) {
-                        FilledIconButton(
-                            onClick = onOpenFiltersClick,
-                            modifier = Modifier.testTag("SearchOpenFilters"),
-                        ) {
-                            Icon(painterResource(R.drawable.tune_24), contentDescription = filterDescription)
+                        val activeCount = state.form.applied.activeConditionCount()
+                        val filterDescription = if (activeCount > 0) {
+                            stringResource(R.string.search_filters_selected, activeCount)
+                        } else {
+                            stringResource(R.string.search_filters)
                         }
-                    } else {
-                        IconButton(
-                            onClick = onOpenFiltersClick,
-                            modifier = Modifier.testTag("SearchOpenFilters"),
-                        ) {
-                            Icon(painterResource(R.drawable.tune_24), contentDescription = filterDescription)
+                        val onOpenFiltersClick = {
+                            keyboard?.hide()
+                            focus.clearFocus()
+                            actions.onFiltersOpen()
+                        }
+                        // 筛选入口并入搜索栏右侧（依据 input.md:694、790 右侧最多两个图标）：
+                        // 无生效条件时用 standard icon button；有生效条件时改用 filled icon button（替换 filled tonal），
+                        // 原因：tonal 的 secondaryContainer 在 contained 搜索框底色（surfaceContainerHigh）上对比度不足 3:1
+                        // （浅色 1.05:1，深色 1.47:1），buttons.md:187 要求容器与背景对比度 ≥3:1；
+                        // filled icon button 的 primary 容器色对比度（浅色 5.21:1，深色 9.00:1）达标。
+                        // 这是 my design decision (not in M3)：它打开面板，不是开关，按 buttons.md:312 不能用 toggle。
+                        // 不加数量徽标（产品决定）：有无生效条件只由按钮样式区分，条件数由读屏念出。
+                        if (activeCount > 0) {
+                            FilledIconButton(
+                                onClick = onOpenFiltersClick,
+                                modifier = Modifier.testTag("SearchOpenFilters"),
+                            ) {
+                                Icon(painterResource(R.drawable.tune_24), contentDescription = filterDescription)
+                            }
+                        } else {
+                            IconButton(
+                                onClick = onOpenFiltersClick,
+                                modifier = Modifier.testTag("SearchOpenFilters"),
+                            ) {
+                                Icon(painterResource(R.drawable.tune_24), contentDescription = filterDescription)
+                            }
                         }
                     }
                 },
@@ -197,12 +206,17 @@ fun SearchContent(
                     state = if (sort == null || sort == applied.effectiveSort()) state else state.previewOf(sort),
                     actions = actions,
                     onSubjectClick = onSubjectClick,
+                    onCharacterClick = onCharacterClick,
+                    onPersonClick = onPersonClick,
                     modifier = Modifier.testTag("SearchGrid_${sort?.name ?: NO_SORT}"),
                 )
             }
         }
 
-            // 条目类型：右下角 FAB 菜单（core:ui SelectionFabMenu，与进度页同一份）。收起时显示当前类型图标。
+            // 搜索范围：右下角 FAB 菜单（core:ui SelectionFabMenu，与进度页同一份）。收起时显示当前范围图标。
+            // my design decision (not in M3)：M3 建议 FAB 菜单 2–6 项（fabs.md:254），搜索范围含
+            // 「全部 + 5 类作品 + 角色 + 人物」共 8 项，拆开角色与人物避免二级切换控件；展开前先收起键盘，
+            // 矮屏由 FloatingActionButtonMenu 自带纵向滚动兜底。
             SelectionFabMenu(
                 expanded = typeMenuOpen,
                 onExpandedChange = { open ->
@@ -212,22 +226,22 @@ fun SearchContent(
                     }
                     typeMenuOpen = open
                 },
-                options = subjectTypeTabsOf(includeAll = true),
-                selected = state.form.applied.subjectType,
-                iconRes = { it.iconOrAllRes() },
-                label = { stringResource(it.labelOrAllRes()) },
-                onSelect = actions::onFilterTypeChange,
+                options = searchScopeOptions,
+                selected = state.form.scope,
+                iconRes = { it.iconRes() },
+                label = { stringResource(it.labelRes()) },
+                onSelect = actions::onScopeChange,
                 collapsedDescription = stringResource(
                     R.string.search_type_fab,
-                    stringResource(state.form.applied.subjectType.labelOrAllRes()),
+                    stringResource(state.form.scope.labelRes()),
                 ),
-                itemTestTag = { "ExploreSearchType-${it?.name ?: "ALL"}" },
+                itemTestTag = { it.fabOptionTestTag() },
             )
         }
     }
 
-    // 改名对话框：只在 state.renaming 时在场（开关唯一来自 SearchViewModel）。
-    if (state.renaming) {
+    // 改名对话框：只在 state.renaming 且作品范围时在场（开关唯一来自 SearchViewModel）。
+    if (state.renaming && !isMono) {
         val criteria = state.form.applied
         PresetRenameDialog(
             initial = state.pinned?.name ?: state.form.title ?: defaultTitleFor(criteria),
@@ -235,9 +249,9 @@ fun SearchContent(
         )
     }
 
-    // 面板宿主：草稿非 null 即打开（唯一开关）。遮罩 / 下滑 / 返回关闭面板 → 丢弃草稿；
+    // 面板宿主：草稿非 null 且在作品范围即打开（唯一开关）。遮罩 / 下滑 / 返回关闭面板 → 丢弃草稿；
     // 「保存」先让面板滑下去（hideRequested），滑完的那一次关闭才提交，草稿不会先被丢掉。
-    val draft = state.form.filterDraft
+    val draft = state.form.filterDraft.takeUnless { isMono }
     if (draft != null) {
         var saving by remember { mutableStateOf(false) }
         SearchFilterSheet(
@@ -254,6 +268,44 @@ fun SearchContent(
     }
 }
 
+/** 当前搜索范围下要画的结果集合与对应的网格单元，单一判定点（同 [ProfileShelfContent] 写法）。 */
+private sealed interface SearchResultsView {
+    val list: PagedList<*>
+    val cell: GridCell
+
+    data class Subjects(override val list: PagedList<SubjectBo>) : SearchResultsView {
+        override val cell get() = GridCell.Poster
+    }
+
+    data class Characters(override val list: PagedList<RelatedCharacterBo>) : SearchResultsView {
+        override val cell get() = GridCell.Person
+    }
+
+    data class Persons(override val list: PagedList<RelatedPersonBo>) : SearchResultsView {
+        override val cell get() = GridCell.Person
+    }
+}
+
+private fun SearchUiState.activeResults(): SearchResultsView = when (form.scope) {
+    is SearchScope.Subjects -> SearchResultsView.Subjects(results)
+    SearchScope.Character -> SearchResultsView.Characters(characterResults)
+    SearchScope.Person -> SearchResultsView.Persons(personResults)
+}
+
+@Composable
+private fun emptyGuideText(scope: SearchScope): String = when (scope) {
+    is SearchScope.Subjects -> stringResource(R.string.search_empty_guide)
+    SearchScope.Character, SearchScope.Person ->
+        stringResource(R.string.search_empty_guide_mono, stringResource(scope.labelRes()))
+}
+
+@Composable
+private fun emptyResultText(scope: SearchScope): String = when (scope) {
+    is SearchScope.Subjects -> stringResource(R.string.empty_search)
+    SearchScope.Character -> stringResource(R.string.empty_search_character)
+    SearchScope.Person -> stringResource(R.string.empty_search_person)
+}
+
 /**
  * 一个排序的结果页：校验错误、历史、结果 / 骨架 / 空态 / 错误、翻页页脚，全是网格项（文本类占满一行）。
  */
@@ -262,12 +314,17 @@ private fun SearchResultsGrid(
     state: SearchUiState,
     actions: SearchActions,
     onSubjectClick: (Int) -> Unit,
+    onCharacterClick: (Int) -> Unit,
+    onPersonClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val searchEndText = stringResource(R.string.load_more_end_search)
+    val resultsView = state.activeResults()
+    val list = resultsView.list
+    val isActive = state.form.isActive()
 
     ContentGrid(
-        cell = GridCell.Poster,
+        cell = resultsView.cell,
         modifier = modifier.fillMaxSize(),
         // 新一轮搜索后列表回到顶部：只看 generation（不看草稿），详情返回 / 旋转时 generation 不变，不跳。
         state = rememberOrderedGridState(state.generation),
@@ -290,7 +347,7 @@ private fun SearchResultsGrid(
             }
         }
 
-        val showingHistory = !state.form.applied.isActive() && state.history.isNotEmpty()
+        val showingHistory = !isActive && state.history.isNotEmpty()
         if (showingHistory) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "history-header") {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -318,33 +375,56 @@ private fun SearchResultsGrid(
             }
         }
 
-        val results = state.results
-        val error = results.error
+        val error = list.error
         if (error != null) {
             // 首屏搜索失败：就地报错 + 重试（与其它列表页同一个错误块），不是「没有结果」。
             item(span = { GridItemSpan(maxLineSpan) }, key = "error") {
                 RetryError(error, onRetry = actions::onRetry, Modifier.fillMaxWidth().testTag("SearchError"))
             }
-        } else if (results.isLoading && results.items.isEmpty()) {
-            items(12, key = { "skeleton-$it" }) {
-                SubjectCardVerticalSkeleton()
+        } else if (list.isLoading && list.items.isEmpty()) {
+            when (resultsView) {
+                is SearchResultsView.Subjects -> items(12, key = { "skeleton-$it" }) {
+                    SubjectCardVerticalSkeleton()
+                }
+                is SearchResultsView.Characters, is SearchResultsView.Persons -> items(12, key = { "skeleton-mono-$it" }) {
+                    PersonGridItemSkeleton()
+                }
             }
         } else {
-            items(results.items, key = { it.id }) { subject ->
-                SubjectCardVertical(subject, onSubjectClick)
+            when (resultsView) {
+                is SearchResultsView.Subjects -> items(resultsView.list.items, key = { "subject-${it.id}" }) { subject ->
+                    SubjectCardVertical(subject, onSubjectClick)
+                }
+                is SearchResultsView.Characters -> items(resultsView.list.items, key = { "character-${it.id}" }) { character ->
+                    PersonGridItem(
+                        title = character.name,
+                        imageUrl = character.images?.avatarUrl(),
+                        onClick = { onCharacterClick(character.id) },
+                    )
+                }
+                is SearchResultsView.Persons -> items(resultsView.list.items, key = { "person-${it.id}" }) { person ->
+                    PersonGridItem(
+                        title = person.name,
+                        imageUrl = person.images?.avatarUrl(),
+                        onClick = { onPersonClick(person.id) },
+                    )
+                }
             }
 
-            val showEmptyGuide = !state.form.applied.isActive() && !showingHistory
-            val showEmptyResult = state.form.applied.isActive() && !showingHistory && results.isConfirmedEmpty
+            val showEmptyGuide = !isActive && !showingHistory
+            val showEmptyResult = isActive && !showingHistory && list.isConfirmedEmpty
 
             if (showEmptyGuide || showEmptyResult) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "empty") {
                     // 未开始搜索时给出怎么开始，不重复搜索框里的提示文字。
-                    EmptyLine(stringResource(if (showEmptyResult) R.string.empty_search else R.string.search_empty_guide))
+                    EmptyLine(
+                        if (showEmptyResult) emptyResultText(state.form.scope)
+                        else emptyGuideText(state.form.scope),
+                    )
                 }
             }
 
-            loadMoreFooter(results, actions::loadMore, searchEndText)
+            loadMoreFooter(list, actions::loadMore, searchEndText)
         }
     }
 }

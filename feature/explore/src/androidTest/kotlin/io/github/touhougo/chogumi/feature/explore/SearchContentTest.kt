@@ -14,6 +14,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -24,16 +25,21 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.touhougo.chogumi.core.common.paging.PagedList
+import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
+import io.github.touhougo.chogumi.core.model.RelatedPersonBo
 import io.github.touhougo.chogumi.core.model.SearchAirtime
 import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchFilters
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TagFilter
 import io.github.touhougo.chogumi.core.model.dimensionMetaTags
 import io.github.touhougo.chogumi.core.model.searchDimensionsFor
 import io.github.touhougo.chogumi.core.res.R
+import io.github.touhougo.chogumi.core.ui.composables.PersonAvatarTag
 import io.github.touhougo.chogumi.core.ui.testing.PageSheetTestHost
 import io.github.touhougo.chogumi.core.ui.theme.ChogumiTheme
 import org.junit.Assert.assertEquals
@@ -52,7 +58,14 @@ class SearchContentTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private fun setContent(actions: ReducingSearchActions, history: List<String> = emptyList()) {
+    private fun setContent(
+        actions: ReducingSearchActions,
+        history: List<String> = emptyList(),
+        characterResults: PagedList<RelatedCharacterBo> = PagedList(isLoading = false),
+        personResults: PagedList<RelatedPersonBo> = PagedList(isLoading = false),
+        onCharacterClick: (Int) -> Unit = {},
+        onPersonClick: (Int) -> Unit = {},
+    ) {
         compose.setContent {
             ChogumiTheme {
                 PageSheetTestHost {
@@ -61,11 +74,15 @@ class SearchContentTest {
                         state = SearchUiState(
                             form = actions.form,
                             history = history,
+                            characterResults = characterResults,
+                            personResults = personResults,
                             pinned = actions.pinned,
                             renaming = actions.renaming,
                         ),
                         actions = actions,
                         onSubjectClick = {},
+                        onCharacterClick = onCharacterClick,
+                        onPersonClick = onPersonClick,
                         onBack = {},
                     )
                 }
@@ -81,10 +98,16 @@ class SearchContentTest {
         compose.onNodeWithTag("SearchFilterPanel").assertIsDisplayed()
     }
 
-    /** 经右下角类型 FAB 菜单切换条目类型。 */
+    /** 经右下角范围 FAB 菜单切换条目类型。 */
     private fun pickType(type: SubjectType?) {
         compose.onNodeWithTag("SelectionFab").performClick()
         compose.onNodeWithTag("ExploreSearchType-${type?.name ?: "ALL"}").performClick()
+    }
+
+    /** 经右下角范围 FAB 菜单切换到指定 tag（ALL / ANIME / ... / CHARACTER / PERSON）。 */
+    private fun pickScopeTag(tag: String) {
+        compose.onNodeWithTag("SelectionFab").performClick()
+        compose.onNodeWithTag("ExploreSearchType-$tag").performClick()
     }
 
     private fun typeFabDescription(labelRes: Int) =
@@ -596,7 +619,7 @@ class SearchContentTest {
         val actions = ReducingSearchActions()
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
-            ChogumiTheme { PageSheetTestHost { SearchContent(SearchUiState(form = actions.form), actions, {}, {}, currentYear = FIXTURE_TODAY.year) } }
+            ChogumiTheme { PageSheetTestHost { SearchContent(SearchUiState(form = actions.form), actions, {}, {}, {}, {}, currentYear = FIXTURE_TODAY.year) } }
         }
         openPanel()
         val callsBefore = actions.calls.toList()
@@ -608,20 +631,118 @@ class SearchContentTest {
     }
 
     @Test
-    fun 类型FAB_展开列出全部类型_选三次元后收起并切换_FAB描述随之更新() {
+    fun 类型FAB_展开列出全部八项范围_选三次元后收起并切换_FAB描述随之更新() {
         val actions = ReducingSearchActions()
         setContent(actions)
         compose.onNodeWithTag("SelectionFab").performClick()
-        for (tag in listOf("ALL", "ANIME", "BOOK", "GAME", "MUSIC", "REAL")) {
+        for (tag in listOf("ALL", "ANIME", "BOOK", "GAME", "MUSIC", "REAL", "CHARACTER", "PERSON")) {
             compose.onNodeWithTag("ExploreSearchType-$tag").assertIsDisplayed()
         }
         compose.onNodeWithTag("ExploreSearchType-REAL").performClick()
         compose.runOnIdle {
+            assertEquals(SearchScope.Subjects(SubjectType.REAL), actions.form.scope)
             assertEquals(SubjectType.REAL, actions.form.applied.subjectType)
-            assertEquals(1, actions.calls.count { it == "onFilterTypeChange" })
+            assertEquals(1, actions.calls.count { it == "onScopeChange" })
         }
         compose.onNodeWithTag("ExploreSearchType-REAL").assertIsNotDisplayed()
         compose.onNodeWithTag("SelectionFab").assertContentDescriptionEquals(typeFabDescription(R.string.real))
+    }
+
+    @Test
+    fun 切到角色与人物范围_隐藏筛选图钉排序_提示语与引导文案正确_切回全部恢复() {
+        val actions = ReducingSearchActions(
+            SearchForm(
+                applied = SearchCriteria(subjectType = SubjectType.ANIME),
+            ),
+        )
+        setContent(actions)
+        compose.onNodeWithTag("SearchOpenFilters").assertIsDisplayed()
+        compose.onNodeWithTag("SearchSortGroup").assertIsDisplayed()
+
+        // 切到角色：隐藏筛选 / 图钉 / 排序，提示「搜索角色」与引导「输入关键词搜索角色」
+        pickScopeTag("CHARACTER")
+        compose.onNodeWithTag("SelectionFab").assertContentDescriptionEquals(typeFabDescription(R.string.search_scope_character))
+        compose.onNodeWithTag("SearchQuery").assert(
+            hasText(context.getString(R.string.search_hint_typed, context.getString(R.string.search_scope_character))),
+        )
+        compose.onNodeWithTag("SearchOpenFilters").assertDoesNotExist()
+        compose.onNodeWithTag("SearchPresetPin").assertDoesNotExist()
+        compose.onNodeWithTag("SearchSortGroup").assertDoesNotExist()
+        compose.onNodeWithText(
+            context.getString(R.string.search_empty_guide_mono, context.getString(R.string.search_scope_character)),
+        ).assertIsDisplayed()
+
+        // 切到人物：提示「搜索人物」与引导「输入关键词搜索人物」
+        pickScopeTag("PERSON")
+        compose.onNodeWithTag("SelectionFab").assertContentDescriptionEquals(typeFabDescription(R.string.search_scope_person))
+        compose.onNodeWithTag("SearchQuery").assert(
+            hasText(context.getString(R.string.search_hint_typed, context.getString(R.string.search_scope_person))),
+        )
+        compose.onNodeWithTag("SearchOpenFilters").assertDoesNotExist()
+        compose.onNodeWithTag("SearchSortGroup").assertDoesNotExist()
+        compose.onNodeWithText(
+            context.getString(R.string.search_empty_guide_mono, context.getString(R.string.search_scope_person)),
+        ).assertIsDisplayed()
+
+        // 切回全部：筛选入口和作品提示恢复
+        pickScopeTag("ALL")
+        compose.onNodeWithTag("SelectionFab").assertContentDescriptionEquals(typeFabDescription(R.string.all))
+        compose.onNodeWithTag("SearchOpenFilters").assertIsDisplayed()
+        compose.onNodeWithTag("SearchQuery").assert(hasText(context.getString(R.string.search_hint)))
+    }
+
+    @Test
+    fun 角色结果画圆形头像卡片并可点进详情() {
+        var clickedId: Int? = null
+        val form = SearchForm(scope = SearchScope.Character, applied = SearchCriteria(query = "鲁路修"))
+        setContent(
+            actions = ReducingSearchActions(form),
+            characterResults = PagedList(
+                items = listOf(RelatedCharacterBo(id = 1, name = "鲁路修", summary = "", type = 1, role = null)),
+                isLoading = false,
+            ),
+            onCharacterClick = { clickedId = it },
+        )
+        compose.onAllNodesWithTag(PersonAvatarTag, useUnmergedTree = true).assertCountEquals(1)
+        compose.onNodeWithText("鲁路修").assertIsDisplayed().performClick()
+        assertEquals(1, clickedId)
+    }
+
+    @Test
+    fun 角色结果确认为空出对应文案() {
+        val form = SearchForm(scope = SearchScope.Character, applied = SearchCriteria(query = "不存在的角色"))
+        setContent(
+            actions = ReducingSearchActions(form),
+            characterResults = PagedList(items = emptyList(), isLoading = false),
+        )
+        compose.onNodeWithText(context.getString(R.string.empty_search_character)).assertIsDisplayed()
+    }
+
+    @Test
+    fun 人物结果画圆形头像卡片并可点进详情() {
+        var clickedId: Int? = null
+        val form = SearchForm(scope = SearchScope.Person, applied = SearchCriteria(query = "花泽香菜"))
+        setContent(
+            actions = ReducingSearchActions(form),
+            personResults = PagedList(
+                items = listOf(RelatedPersonBo(id = 4765, name = "花泽香菜", type = 1)),
+                isLoading = false,
+            ),
+            onPersonClick = { clickedId = it },
+        )
+        compose.onAllNodesWithTag(PersonAvatarTag, useUnmergedTree = true).assertCountEquals(1)
+        compose.onNodeWithText("花泽香菜").assertIsDisplayed().performClick()
+        assertEquals(4765, clickedId)
+    }
+
+    @Test
+    fun 人物结果确认为空出对应文案() {
+        val form = SearchForm(scope = SearchScope.Person, applied = SearchCriteria(query = "不存在的人物"))
+        setContent(
+            actions = ReducingSearchActions(form),
+            personResults = PagedList(items = emptyList(), isLoading = false),
+        )
+        compose.onNodeWithText(context.getString(R.string.empty_search_person)).assertIsDisplayed()
     }
 
     @Test

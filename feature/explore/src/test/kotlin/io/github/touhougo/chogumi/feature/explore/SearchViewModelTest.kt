@@ -28,6 +28,7 @@ import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchDimension
 import io.github.touhougo.chogumi.core.model.SearchDimensionOption
 import io.github.touhougo.chogumi.core.model.SearchFilters
+import io.github.touhougo.chogumi.core.model.SearchScope
 import io.github.touhougo.chogumi.core.model.SearchSort
 import io.github.touhougo.chogumi.core.model.SubjectType
 import io.github.touhougo.chogumi.core.model.TagFilter
@@ -247,6 +248,8 @@ class SearchViewModelTest {
                 // 请求「体」记为 "P1?" + 查询串，便于与搜索接口的 JSON 体区分断言。
                 val isBrowse = request.url.encodedPath == "/p1/subjects"
                 val isP1Search = request.url.encodedPath == "/p1/search/subjects"
+                val isCharSearch = request.url.encodedPath == "/p1/search/characters"
+                val isPersonSearch = request.url.encodedPath == "/p1/search/persons"
                 val browseOffset = ((request.url.parameters["page"]?.toIntOrNull() ?: 1) - 1) * SearchRepository.BROWSE_PAGE_SIZE
                 requestedOffsets += if (isBrowse) browseOffset else offset
                 val raw = request.body.toByteArray().decodeToString()
@@ -260,6 +263,30 @@ class SearchViewModelTest {
 
                 val intercepted = onIntercept?.invoke(this@MockEngine, request)
                 if (intercepted != null) return@withContext intercepted
+
+                if (isCharSearch || isPersonSearch) {
+                    val ids = (offset until minOf(offset + limit, total)).filter { it !in missing }
+                    val slim = if (isCharSearch) {
+                        ids.joinToString(",") { id ->
+                            val actualId = 10_000 + id
+                            """{"id":$actualId,"name":"Char$actualId","nameCN":"角色$actualId","role":1,"info":"",
+                                "comment":0,"lock":false,"nsfw":false,
+                                "images":{"large":"cl","common":"cc","medium":"cm$actualId","small":"cs","grid":"cg"}}"""
+                        }
+                    } else {
+                        ids.joinToString(",") { id ->
+                            val actualId = 20_000 + id
+                            """{"id":$actualId,"name":"Person$actualId","nameCN":"人物$actualId","type":1,"info":"",
+                                "career":["seiyu"],"comment":0,"lock":false,"nsfw":false,
+                                "images":{"large":"pl","common":"pc","medium":"pm$actualId","small":"ps","grid":"pg"}}"""
+                        }
+                    }
+                    return@withContext respond(
+                        content = """{"data":[$slim],"total":$total}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
+                    )
+                }
 
                 if (isBrowse) {
                     val type = request.url.parameters["type"]!!.toInt()
@@ -490,7 +517,7 @@ class SearchViewModelTest {
         val fixture = makeViewModel(total = 2 * page, seed = tagSearchCriteria(null, "治愈", TagSource.PUBLIC))
         awaitUntil("标签首屏完成") { fixture.requestedOffsets.isNotEmpty() && !fixture.viewModel.uiState.value.results.isLoading }
 
-        fixture.viewModel.onFilterTypeChange(SubjectType.BOOK)
+        fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.BOOK))
         awaitUntil("切类型搜索完成") { !fixture.viewModel.uiState.value.results.isLoading }
 
         val state = fixture.viewModel.uiState.value
@@ -919,13 +946,13 @@ class SearchViewModelTest {
 
         // 1. 书籍准备：种子「治愈」后切 ANIME 类型 → 被 gateA 挂住
         withContext(Dispatchers.Main) {
-            fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+            fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         }
         withTimeout(WAIT_BUDGET_MS) { reqAArrived.await() }
 
         // 2. 切到书籍 (type=[1]) -> gateB 挂住
         withContext(Dispatchers.Main) {
-            fixture.viewModel.onFilterTypeChange(SubjectType.BOOK)
+            fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.BOOK))
         }
 
         // 3. gateB 释放，等待书籍结果成功写回
@@ -975,7 +1002,7 @@ class SearchViewModelTest {
         // 1. 动画 + 治愈标签首屏完成（默认标注数排序走 p1 搜索，一页 100 条，type == ANIME）
         val pageSize = SearchRepository.P1_SEARCH_PAGE_SIZE
         withContext(Dispatchers.Main) {
-            fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+            fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         }
         awaitUntil("首屏完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.viewModel.uiState.value.results.items.size == pageSize }
         assertTrue(fixture.viewModel.uiState.value.results.items.all { it.type == SubjectType.ANIME })
@@ -986,7 +1013,7 @@ class SearchViewModelTest {
 
         // 3. 切条件为书籍 (type=[1])，新首屏完成
         withContext(Dispatchers.Main) {
-            fixture.viewModel.onFilterTypeChange(SubjectType.BOOK)
+            fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.BOOK))
         }
         awaitUntil("书籍首屏完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.viewModel.uiState.value.results.items.isNotEmpty() }
         assertFalse(fixture.viewModel.uiState.value.results.isLoadingMore)
@@ -1013,7 +1040,7 @@ class SearchViewModelTest {
     @Test
     fun `重复排序不重搜`() = runBlocking(main.dispatcher) {
         val fixture = makeViewModel(total = 20)
-        fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+        fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         fixture.viewModel.onSortChange(SearchSort.RANK)
         awaitUntil("首屏完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.requestedOffsets.isNotEmpty() }
         val count = fixture.requestedOffsets.size
@@ -1026,7 +1053,7 @@ class SearchViewModelTest {
     @Test
     fun `切到别的排序再切回来，取过的结果原样回来，不重搜`() = runBlocking(main.dispatcher) {
         val fixture = makeViewModel(total = 20)
-        fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+        fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         fixture.viewModel.onSortChange(SearchSort.RANK)
         awaitUntil("按排名完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.requestedOffsets.isNotEmpty() }
         val ranked = fixture.viewModel.uiState.value.results
@@ -1043,7 +1070,7 @@ class SearchViewModelTest {
     @Test
     fun `单选维度再点同一取值即取消_回落到无维度`() = runBlocking(main.dispatcher) {
         val fixture = makeViewModel(total = 20)
-        fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+        fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         fixture.viewModel.saveDimension(SearchDimension.CATEGORY, animeTv)
         awaitUntil("首屏完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.requestedOffsets.isNotEmpty() }
         val count = fixture.requestedOffsets.size
@@ -1058,7 +1085,7 @@ class SearchViewModelTest {
     @Test
     fun `面板未改动直接保存_零请求零generation变化`() = runBlocking(main.dispatcher) {
         val fixture = makeViewModel(total = 20)
-        fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+        fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         fixture.viewModel.saveDimension(SearchDimension.CATEGORY, animeTv)
         awaitUntil("首屏完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.requestedOffsets.isNotEmpty() }
         val count = fixture.requestedOffsets.size
@@ -1127,7 +1154,7 @@ class SearchViewModelTest {
         fixture.viewModel.onSearch()
         awaitUntil("首屏完成") { !fixture.viewModel.uiState.value.results.isLoading && fixture.requestedOffsets.isNotEmpty() }
 
-        fixture.viewModel.onFilterTypeChange(SubjectType.ANIME)
+        fixture.viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         fixture.viewModel.saveDimension(SearchDimension.CATEGORY, animeTv)
         awaitUntil("维度搜索完成") { !fixture.viewModel.uiState.value.results.isLoading }
 
@@ -1206,7 +1233,7 @@ class SearchViewModelTest {
     private suspend fun VmFixture.setUpCriteriaA() {
         viewModel.onQueryChange("eva")
         viewModel.onSearch()
-        viewModel.onFilterTypeChange(SubjectType.ANIME)
+        viewModel.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         viewModel.saveDimension(SearchDimension.CATEGORY, animeTv)
         viewModel.saveAirtime(SearchAirtime(2010, 2010))
         awaitUntil("条件A就绪") {
@@ -1569,7 +1596,7 @@ class SearchViewModelTest {
     fun `面板改草稿不发请求_关闭丢弃_保存只发一次`() = runBlocking(main.dispatcher) {
         val fixture = makeViewModel(total = 20)
         val vm = fixture.viewModel
-        vm.onFilterTypeChange(SubjectType.ANIME)
+        vm.onScopeChange(SearchScope.Subjects(SubjectType.ANIME))
         awaitUntil("类型搜索完成") { fixture.requestedOffsets.isNotEmpty() && !vm.uiState.value.results.isLoading }
         val baseline = fixture.requestedOffsets.size
         val applied = vm.uiState.value.form.applied
@@ -1701,5 +1728,145 @@ class SearchViewModelTest {
 
         assertEquals(0, dao.writes)
         assertNull(vm.uiState.value.pinned)
+    }
+
+    // ==================== 角色与人物搜索 ====================
+
+    @Test
+    fun `切到角色与人物范围_空白词零请求_非loading`() = runBlocking(main.dispatcher) {
+        val fixture = makeViewModel(total = 40)
+        val vm = fixture.viewModel
+
+        vm.onScopeChange(SearchScope.Character)
+        assertFalse(vm.uiState.value.characterResults.isLoading)
+        assertTrue(vm.uiState.value.characterResults.items.isEmpty())
+        assertTrue(fixture.searchPaths.isEmpty(), "空白词切角色不发请求")
+
+        vm.onScopeChange(SearchScope.Person)
+        assertFalse(vm.uiState.value.personResults.isLoading)
+        assertTrue(vm.uiState.value.personResults.items.isEmpty())
+        assertTrue(fixture.searchPaths.isEmpty(), "空白词切人物不发请求")
+    }
+
+    @Test
+    fun `角色与人物搜索_各自走对应接口并分页与写历史`() = runBlocking(main.dispatcher) {
+        val fixture = makeViewModel(total = 150)
+        val vm = fixture.viewModel
+
+        vm.onScopeChange(SearchScope.Character)
+        vm.onQueryChange("鲁路修")
+        vm.onSearch()
+        awaitUntil("角色首屏完成") { !vm.uiState.value.characterResults.isLoading && vm.uiState.value.characterResults.items.size == page }
+        assertEquals(listOf("/p1/search/characters"), fixture.searchPaths)
+        assertEquals(10_000, vm.uiState.value.characterResults.items.first().id)
+        assertEquals(100, vm.uiState.value.characterResults.nextOffset)
+        awaitUntil("角色搜索词写入历史") { vm.uiState.value.history.contains("鲁路修") }
+
+        vm.loadMore()
+        awaitUntil("角色第二页完成") { !vm.uiState.value.characterResults.isLoadingMore && vm.uiState.value.characterResults.items.size == 150 }
+        assertEquals(listOf("/p1/search/characters", "/p1/search/characters"), fixture.searchPaths)
+        assertNull(vm.uiState.value.characterResults.nextOffset)
+
+        vm.onScopeChange(SearchScope.Person)
+        vm.onQueryChange("花泽香菜")
+        vm.onSearch()
+        awaitUntil("人物首屏完成") { !vm.uiState.value.personResults.isLoading && vm.uiState.value.personResults.items.size == page }
+        assertEquals("/p1/search/persons", fixture.searchPaths.last())
+        assertEquals(20_000, vm.uiState.value.personResults.items.first().id)
+
+        vm.loadMore()
+        awaitUntil("人物第二页完成") { !vm.uiState.value.personResults.isLoadingMore && vm.uiState.value.personResults.items.size == 150 }
+        assertEquals(listOf("/p1/search/characters", "/p1/search/characters", "/p1/search/persons", "/p1/search/persons"), fixture.searchPaths)
+    }
+
+    @Test
+    fun `角色切人物再切回角色_命中分页记忆零重取_切回全部只搜条目`() = runBlocking(main.dispatcher) {
+        val fixture = makeViewModel(total = 40)
+        val vm = fixture.viewModel
+
+        vm.onScopeChange(SearchScope.Character)
+        vm.onQueryChange("鲁路修")
+        vm.onSearch()
+        awaitUntil("角色完成") { !vm.uiState.value.characterResults.isLoading && vm.uiState.value.characterResults.items.isNotEmpty() }
+        val cachedChars = vm.uiState.value.characterResults
+
+        vm.onScopeChange(SearchScope.Person)
+        awaitUntil("人物完成") { !vm.uiState.value.personResults.isLoading && vm.uiState.value.personResults.items.isNotEmpty() }
+        assertEquals(2, fixture.searchPaths.size)
+
+        // 切回同关键词角色：命中 Pager 记忆列表，不再发请求
+        vm.onScopeChange(SearchScope.Character)
+        assertEquals(cachedChars, vm.uiState.value.characterResults)
+        assertEquals(2, fixture.searchPaths.size)
+
+        // 切到「全部」：只打 /p1/search/subjects（排除人物和角色）
+        vm.onScopeChange(SearchScope.Subjects(null))
+        awaitUntil("全部作品完成") { !vm.uiState.value.results.isLoading && vm.uiState.value.results.items.isNotEmpty() }
+        assertEquals(listOf("/p1/search/characters", "/p1/search/persons", "/p1/search/subjects"), fixture.searchPaths)
+    }
+
+    @Test
+    fun `进行中的作品搜索切到角色时取消旧请求_不污染结果`() = runBlocking(main.dispatcher) {
+        val subjectGate = CompletableDeferred<Unit>()
+        val subjectArrived = CompletableDeferred<Unit>()
+        var subjectCancelled = false
+
+        val fixture = makeViewModel(
+            total = 20,
+            onIntercept = { request ->
+                if (request.url.encodedPath == "/p1/search/subjects") {
+                    subjectArrived.complete(Unit)
+                    try {
+                        subjectGate.await()
+                    } catch (e: CancellationException) {
+                        subjectCancelled = true
+                        throw e
+                    }
+                }
+                null
+            },
+        )
+        val vm = fixture.viewModel
+
+        vm.onQueryChange("鲁路修")
+        vm.onSearch()
+        withTimeout(WAIT_BUDGET_MS) { subjectArrived.await() }
+
+        vm.onScopeChange(SearchScope.Character)
+        awaitUntil("角色搜索完成") { !vm.uiState.value.characterResults.isLoading && vm.uiState.value.characterResults.items.isNotEmpty() }
+
+        subjectGate.complete(Unit)
+        awaitUntil("作品旧请求被取消") { subjectCancelled }
+        assertTrue(subjectCancelled)
+        assertEquals(SearchScope.Character, vm.uiState.value.form.scope)
+        assertTrue(vm.uiState.value.results.items.isEmpty())
+    }
+
+    @Test
+    fun `角色范围首屏失败后重试只重发一次请求且不重复写历史`() = runBlocking(main.dispatcher) {
+        val charCalls = AtomicInteger()
+        val fixture = makeViewModel(
+            total = 20,
+            onIntercept = { request ->
+                if (request.url.encodedPath == "/p1/search/characters" && charCalls.incrementAndGet() == 1) {
+                    respond("boom", HttpStatusCode.InternalServerError)
+                } else {
+                    null
+                }
+            },
+        )
+        val vm = fixture.viewModel
+
+        vm.onScopeChange(SearchScope.Character)
+        vm.onQueryChange("夏亚")
+        vm.onSearch()
+        awaitUntil("首屏失败") { vm.uiState.value.characterResults.error != null }
+        awaitUntil("首次搜索写历史") { vm.uiState.value.history.contains("夏亚") }
+        val searchedAtBeforeRetry = fixture.recentSearchDao.store["夏亚"]?.searchedAt
+
+        vm.onRetry()
+        awaitUntil("重试成功") { !vm.uiState.value.characterResults.isLoading && vm.uiState.value.characterResults.items.isNotEmpty() }
+        assertEquals(2, charCalls.get())
+        assertEquals(searchedAtBeforeRetry, fixture.recentSearchDao.store["夏亚"]?.searchedAt)
     }
 }

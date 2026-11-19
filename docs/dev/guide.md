@@ -236,6 +236,10 @@ flowchart LR
 - 关联的 `offprint`：省略或 false = 只有非单行本，true = 只有单行本（1003）；要全部就两次请求按 id 去重。`order` 是卷号。
 - 浏览与搜索：按排名、收藏数排序走 v0 search（`total` = 条目数，上限 1000）；按热度、日期、标题走 p1 `/p1/subjects`
   （`total` = 页数，随排序变）。匿名请求被去掉 NSFW；只有游戏的热门能验 NSFW 过滤，先读真实的 DataStore 开关。
+- 角色与人物搜索：`/p1/search/characters` 与 `/p1/search/persons` 匿名均 200，`limit` 上限 100，`total` 与 `offset` 同样封顶在 1000
+  （与 `/p1/search/subjects` 同为 2026-11-19 实测）。空关键词按 ID 升序返回而非热门度，因此客户端仅在关键词非空时发请求。
+  角色接口支持 `filter.nsfw = false`；人物接口合同无 `filter.nsfw`，由仓库层在游标推进后按响应 `nsfw` 字段经 `NsfwFilter` 本地过滤并触发稀疏补页。
+  搜索页「全部」范围（`SearchScope.Subjects(null)`）仍只搜五类作品，不混搜角色与人物。
 - `SearchDimension` 的选项增删前在 p1 上逐个实测（每个选项一个 `limit=1` 的请求）；`core/model` 测试资源里的 v0 审计表量的是别的东西。
   meta tags 只按 AND 组合；v0 的 `filter.tag` 只看 30 个标签的快照；`tag` 与 `meta_tags` 是两回事，不混用。
 - 标签目录：`/p1/channels/{type}/tags` 的前 5000 个。公司与人物的作品：`/p1/persons/{id}/works?position=`（动画制作 67，导演 2）。

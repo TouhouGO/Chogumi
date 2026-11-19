@@ -40,6 +40,8 @@ class SearchSortRowGeometryTest {
                         state = SearchUiState(form = SearchForm(applied = SearchCriteria(subjectType = SubjectType.ANIME))),
                         actions = noActions,
                         onSubjectClick = {},
+                        onCharacterClick = {},
+                        onPersonClick = {},
                         onBack = {},
                     )
                 }

@@ -7,6 +7,8 @@ import io.github.touhougo.chogumi.core.foundation.Failure
 import io.github.touhougo.chogumi.core.foundation.Outcome
 import io.github.touhougo.chogumi.core.foundation.Load
 import io.github.touhougo.chogumi.core.model.PagedResult
+import io.github.touhougo.chogumi.core.model.RelatedCharacterBo
+import io.github.touhougo.chogumi.core.model.RelatedPersonBo
 import io.github.touhougo.chogumi.core.model.SearchAirtime
 import io.github.touhougo.chogumi.core.model.SearchCriteria
 import io.github.touhougo.chogumi.core.model.SearchFilters
@@ -1190,5 +1192,130 @@ class SearchRepositoryTest {
         onRepo.search(criteria)
         val body = engines.requests(onEngine).single().body.toByteArray().decodeToString()
         assertFalse(body.contains("\"nsfw\""), "偏好为开时不传 nsfw：$body")
+    }
+
+    private fun slimCharacterJson(id: Int, name: String = "Char$id", nameCn: String = "角色$id", nsfw: Boolean = false) =
+        """{"id":$id,"name":"$name","nameCN":"$nameCn","role":1,"info":"","comment":0,"lock":false,"nsfw":$nsfw,
+        "images":{"large":"cl$id","medium":"cm$id","small":"cs$id","grid":"cg$id"}}"""
+
+    private fun slimPersonJson(id: Int, name: String = "Person$id", nameCn: String = "人物$id", nsfw: Boolean = false) =
+        """{"id":$id,"name":"$name","nameCN":"$nameCn","type":1,"info":"","career":["seiyu"],"comment":0,"lock":false,"nsfw":$nsfw,
+        "images":{"large":"pl$id","medium":"pm$id","small":"ps$id","grid":"pg$id"}}"""
+
+    @Test
+    fun `角色与人物搜索_空白词直接返回空结果不打网络`() = runTest {
+        val fixture = makeRepo("""{"data":[],"total":0}""")
+        val charResult = assertIs<Outcome.Success<PagedResult<RelatedCharacterBo>>>(fixture.repo.searchCharacters("   "))
+        val personResult = assertIs<Outcome.Success<PagedResult<RelatedPersonBo>>>(fixture.repo.searchPersons(""))
+        assertTrue(charResult.value.items.isEmpty())
+        assertNull(charResult.value.nextOffset)
+        assertTrue(personResult.value.items.isEmpty())
+        assertNull(personResult.value.nextOffset)
+        assertTrue(engines.requests(fixture.engine).none())
+    }
+
+    @Test
+    fun `角色搜索_NSFW偏好传递、中文名回退、游标算在过滤前与1000上限`() = runTest {
+        // 偏好为关：请求体带 filter.nsfw=false；13 条里 1 条 NSFW，可见 12 条（>= MIN_VISIBLE_PER_LOAD）只发 1 次请求
+        val items = (1..13).map { id ->
+            when (id) {
+                1 -> slimCharacterJson(id = 1, name = "Lelouch", nameCn = "鲁路修")
+                2 -> slimCharacterJson(id = 2, name = "C.C.", nameCn = "")
+                else -> slimCharacterJson(id = id, nsfw = id == 3)
+            }
+        }
+        val offEngine = engines.create {
+            respond(
+                content = """{"data":[${items.joinToString(",")}],"total":300}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
+            )
+        }
+        val offFixture = makeRepoWithEngine(offEngine)
+        val res = assertIs<Outcome.Success<PagedResult<RelatedCharacterBo>>>(
+            offFixture.repo.searchCharacters("鲁路修", offset = 0),
+        ).value
+        val req = engines.requests(offEngine).single()
+        assertEquals("/p1/search/characters", req.url.encodedPath)
+        assertEquals("100", req.url.parameters["limit"])
+        assertEquals("0", req.url.parameters["offset"])
+        assertEquals(false, offEngine.lastFilter()?.get("nsfw")?.jsonPrimitive?.content?.toBoolean())
+        // id=3 被 nsfwFilter 本地兜底过滤掉
+        assertEquals((1..13).filter { it != 3 }, res.items.map { it.id })
+        assertEquals("鲁路修", res.items[0].name)
+        assertEquals("C.C.", res.items[1].name, "nameCN 空白时回退原名")
+        assertEquals("cm1", res.items[0].images?.avatarUrl())
+        assertEquals(SearchRepository.P1_SEARCH_PAGE_SIZE, res.nextOffset)
+
+        // offset=900 到达 SEARCH_MAX_OFFSET=1000 时不再给下一页游标
+        val cappedEngine = engines.create {
+            respond(
+                content = """{"data":[${(1..12).joinToString(",") { slimCharacterJson(it) }}],"total":1000}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
+            )
+        }
+        val capped = assertIs<Outcome.Success<PagedResult<RelatedCharacterBo>>>(
+            makeRepoWithEngine(cappedEngine).repo.searchCharacters("a", offset = 900),
+        ).value
+        assertNull(capped.nextOffset)
+
+        // 偏好为开：请求体不传 filter，NSFW 条目保留
+        val onEngine = engines.create {
+            respond(
+                content = """{"data":[${items.joinToString(",")}],"total":13}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
+            )
+        }
+        val onClient = resources.apiClient(onEngine)
+        val onRepo = testSearchRepository(
+            resources,
+            SubjectApi(onClient),
+            NextApi(onClient),
+            FakeSubjectDao(),
+            FakeRecentSearchDao(),
+            testNsfwFilter(resources, showNsfw = true),
+        )
+        val onRes = assertIs<Outcome.Success<PagedResult<RelatedCharacterBo>>>(onRepo.searchCharacters("a")).value
+        val onBody = engines.requests(onEngine).single().body.toByteArray().decodeToString()
+        assertFalse(onBody.contains("\"filter\""), "偏好为开时不传 filter：$onBody")
+        assertEquals(13, onRes.items.size)
+    }
+
+    @Test
+    fun `人物搜索_接口无nsfw入参时本地过滤、稀疏整页保留游标并补页_跑在计算调度器`() = runTest {
+        val computation = CountingDispatcher()
+        val recorder = ConcurrentRequestRecorder()
+        val engine = MockEngine { request ->
+            recorder.record(request)
+            val offset = request.url.parameters["offset"]?.toIntOrNull() ?: 0
+            val pageData = when (offset) {
+                // 第一页全被 NSFW 过滤成空页（0 条），仍应继续并发补页（total=1000）
+                0 -> listOf(slimPersonJson(1, nsfw = true), slimPersonJson(2, nsfw = true))
+                100 -> (101..112).map { slimPersonJson(it, name = "Orig$it", nameCn = if (it == 101) "" else "声优$it") }
+                else -> emptyList()
+            }
+            respond(
+                content = """{"data":[${pageData.joinToString(",")}],"total":1000}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf("Content-Type", ContentType.Application.Json.toString()),
+            )
+        }
+        val fixture = makeRepoWithEngine(engine, computationDispatcher = computation)
+        val res = assertIs<Outcome.Success<PagedResult<RelatedPersonBo>>>(
+            fixture.repo.searchPersons("花泽"),
+        ).value
+
+        assertTrue(computation.dispatches > 0)
+        assertEquals("/p1/search/persons", recorder.first().url.encodedPath)
+        assertEquals((101..112).toList(), res.items.map { it.id })
+        assertEquals("Orig101", res.items.first().name)
+        assertEquals(600, res.nextOffset)
+        assertConcurrentRequests(
+            actual = recorder.map { it.url.parameters["offset"] },
+            expectedFirst = "0",
+            expectedRest = setOf("100", "200", "300", "400", "500"),
+        )
     }
 }

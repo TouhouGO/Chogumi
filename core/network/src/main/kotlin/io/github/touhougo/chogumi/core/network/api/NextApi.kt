@@ -14,8 +14,12 @@ import io.github.touhougo.chogumi.core.network.model.p1.HomeResponseDto
 import io.github.touhougo.chogumi.core.network.model.p1.NoticeDto
 import io.github.touhougo.chogumi.core.network.model.p1.P1SlimSubjectDto
 import io.github.touhougo.chogumi.core.network.model.p1.PagedDto
+import io.github.touhougo.chogumi.core.network.model.p1.SearchCharacterDto
+import io.github.touhougo.chogumi.core.network.model.p1.SearchPersonDto
 import io.github.touhougo.chogumi.core.network.model.p1.SearchSubjectDto
+import io.github.touhougo.chogumi.core.network.model.p1.SlimCharacterDto
 import io.github.touhougo.chogumi.core.network.model.p1.SlimIndexDto
+import io.github.touhougo.chogumi.core.network.model.p1.SlimPersonDto
 import io.github.touhougo.chogumi.core.network.model.p1.SubjectCharacterDto
 import io.github.touhougo.chogumi.core.network.model.p1.SubjectCollectDto
 import io.github.touhougo.chogumi.core.network.model.p1.SubjectInterestCommentDto
@@ -96,7 +100,38 @@ class NextApi(
         limit: Int,
         offset: Int,
         accessToken: String? = null,
-    ): PagedDto<P1SlimSubjectDto> = client.post("$NEXT_API_HOST/p1/search/subjects") {
+    ): PagedDto<P1SlimSubjectDto> = postSearch("/p1/search/subjects", request, limit, offset, accessToken)
+
+    /**
+     * 角色搜索（[limit] 上限 100），回短行（[SlimCharacterDto]），`total` 与 `offset` 同样封顶在 1000（2026-11-19 实测）。
+     * 空关键词按 ID 升序返回而非热门度，调用方应拦截空白词。
+     */
+    suspend fun searchCharacters(
+        request: SearchCharacterDto,
+        limit: Int,
+        offset: Int,
+        accessToken: String? = null,
+    ): PagedDto<SlimCharacterDto> = postSearch("/p1/search/characters", request, limit, offset, accessToken)
+
+    /**
+     * 人物搜索（[limit] 上限 100），回短行（[SlimPersonDto]），`total` 与 `offset` 同样封顶在 1000（2026-11-19 实测）。
+     * 契约无 `filter.nsfw` 参数，NSFW 过滤由仓库层按响应里的 `nsfw` 字段本地执行；空关键词同样按 ID 升序返回。
+     */
+    suspend fun searchPersons(
+        request: SearchPersonDto,
+        limit: Int,
+        offset: Int,
+        accessToken: String? = null,
+    ): PagedDto<SlimPersonDto> = postSearch("/p1/search/persons", request, limit, offset, accessToken)
+
+    /** p1 搜索端点的统一写法：POST `{keyword, filter}` + `limit`/`offset` 查询参数。 */
+    private suspend inline fun <reified Req : Any, reified Res : Any> postSearch(
+        path: String,
+        request: Req,
+        limit: Int,
+        offset: Int,
+        accessToken: String?,
+    ): PagedDto<Res> = client.post("$NEXT_API_HOST$path") {
         pinSessionToken(accessToken)
         parameter("limit", limit)
         parameter("offset", offset)
